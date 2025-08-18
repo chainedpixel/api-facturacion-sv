@@ -56,8 +56,8 @@ x-app-environment: &app-environment
   REDIS_PASSWORD:
 
   # Configuración del firmador
-  SIGNER_PATH: http://signer:8113/firmardocumento/
-  SIGNER_HEALTH: http://signer:8113/firmardocumento/status
+  SIGNER_PATH: http://localhost:8113/sign
+  SIGNER_HEALTH: http://localhost:8113/health
 
   # Configuración de servicios de Hacienda
   MH_AUTH_URL: https://apitest.dtes.mh.gob.sv/seguridad/auth

@@ -206,8 +206,6 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 		return nil
 	}
 
-	baseTaxed = baseTaxed.Sub(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue()))
-
 	// Verificar que tenga al menos un impuesto válido
 	if len(s.Document.CreditSummary.TotalTaxes) == 0 {
 		logs.Error("No taxes present with non-zero taxed amount")
@@ -279,11 +277,10 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	// Obtener montos que afectan el total a pagar
 	taxedAmount := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue())
 
-	// Calcular subtotal considerando descuentos
-	expectedSubTotal := decimal.NewFromFloat(s.Document.CreditSummary.SubTotalSales.GetValue()).
-		Sub(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue())).
-		Sub(decimal.NewFromFloat(s.Document.CreditSummary.ExemptDiscount.GetValue())).
-		Sub(decimal.NewFromFloat(s.Document.CreditSummary.NonSubjectDiscount.GetValue()))
+	// SubTotal debe ser igual a la suma de TotalTaxed + TotalExempt + TotalNonSubject
+	expectedSubTotal := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue()).
+		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalExempt.GetValue())).
+		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalNonSubject.GetValue()))
 
 	actualSubTotal := decimal.NewFromFloat(s.Document.CreditSummary.SubTotal.GetValue())
 	// Usar una pequeña tolerancia para comparaciones con decimales

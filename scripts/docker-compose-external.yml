@@ -1,0 +1,79 @@
+# =====================================================================
+#           DOCKER-COMPOSE PARA USAR SERVICIOS EXTERNOS
+# =====================================================================
+#
+# Este docker-compose compila la aplicación pero usa servicios externos:
+# - MySQL corriendo en el host
+# - Redis corriendo en el host
+# - Firmador corriendo en el host
+#
+# Uso:
+# docker-compose -f docker-compose-external.yml up --build
+#
+# =====================================================================
+
+# Variables globales para conectarse a servicios externos
+x-app-environment: &app-environment
+  # Configuración de la aplicación
+  APP_NAME: DTE-Microservice
+  APP_LANG: es
+  DEBUG: true
+  FORCE_CONTINGENCY: false
+  RUN_MIGRATION: false
+  SERVER_PORT: 7319
+  ADMIN_EMAIL: example@example.com
+  MH_AMBIENT_CODE: "00"
+  MH_MAX_BATCH_SIZE: 100
+  JWT_SECRET: MPdTT2KZZVmKc8ghy6gpfb3d35ERIJ6G2Gq4TESz4kDiLdZUsdP6VP0NJv1IZ5WX
+
+  LOG_LEVEL: debug
+  LOG_PATH: /pkg/shared/logs/
+  LOG_FILE_LOGGING: true
+
+  # Configuración de bases de datos - SERVICIOS EXTERNOS
+  DB_DRIVER: mysql
+  DB_HOST: host.docker.internal  # Se conecta al MySQL del host
+  DB_PORT: 3306
+  DB_DATABASE: dte_db_testing
+  DB_USERNAME: root
+  DB_PASSWORD: 1234
+  DB_CHARSET: utf8mb4
+
+  # Configuración de Redis - SERVICIO EXTERNO
+  REDIS_HOST: host.docker.internal  # Se conecta al Redis del host
+  REDIS_PORT: 6379
+  REDIS_PASSWORD:
+
+  # Configuración del firmador - SERVICIO EXTERNO
+  SIGNER_PATH: http://host.docker.internal:8113/sign
+  SIGNER_HEALTH: http://host.docker.internal:8113/health
+
+  # Configuración de servicios de Hacienda
+  MH_AUTH_URL: https://apitest.dtes.mh.gob.sv/seguridad/auth
+  MH_RECEPTION_URL: https://apitest.dtes.mh.gob.sv/fesv/recepciondte
+  MH_LOTE_RECEPTION_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcionlote/
+  MH_RECEPTION_CONSULT_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcion/consultadte/
+  MH_RECEPTION_CONSULT_LOTE_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcion/consultadtelote
+  MH_CONTINGENCY_URL: https://apitest.dtes.mh.gob.sv/fesv/contingencia
+  MH_NULLIFY_URL: https://apitest.dtes.mh.gob.sv/fesv/anulardte
+
+services:
+  # Aplicación compilada que usa servicios externos
+  dte-app:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: dte-app-external
+    restart: unless-stopped
+    ports:
+      - "7319:7319"
+    environment:
+      <<: *app-environment
+    # Opcional: usar network host para mejor conectividad
+    # network_mode: host
+
+    # O usar extra_hosts para mapear dominios
+    extra_hosts:
+      - "mysql:host-gateway"
+      - "redis:host-gateway"
+      - "signer:host-gateway"

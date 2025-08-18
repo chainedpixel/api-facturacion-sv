@@ -86,7 +86,7 @@ func MapCommonRequestReceiver(receiver *structs.ReceiverRequest) (*models.Receiv
 		activityDesc = receiver.ActivityDesc
 	}
 
-	if *receiver.DocumentType == constants.DUI && receiver.NRC != nil {
+	if receiver.DocumentType != nil && *receiver.DocumentType == constants.DUI && receiver.NRC != nil {
 		return nil, dte_errors.NewValidationError("InvalidFieldValue", "Request->Receiver->NRC")
 	}
 

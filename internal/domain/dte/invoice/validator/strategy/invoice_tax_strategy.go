@@ -86,10 +86,9 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	// Obtener montos que afectan el total a pagar
 	taxedAmount := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue())
 
-	expectedSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotalSales.GetValue()).
-		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue())).
-		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.ExemptDiscount.GetValue())).
-		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.NonSubjectDiscount.GetValue()))
+	expectedSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue()).
+		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalExempt.GetValue())).
+		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalNonSubject.GetValue()))
 
 	actualSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotal.GetValue())
 	if !s.CompareTaxWithTolerance(actualSubTotal, expectedSubTotal, 0.01) {
@@ -106,9 +105,7 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	}
 
 	if taxedAmount.GreaterThan(decimal.Zero) {
-		taxedWithDiscount := taxedAmount.
-			Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue()))
-		expectedIVA := taxedWithDiscount.Mul(decimal.NewFromFloat(0.13))
+		expectedIVA := taxedAmount.Mul(decimal.NewFromFloat(0.13))
 
 		for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
 			if tax.GetCode() == constants.TaxIVA {

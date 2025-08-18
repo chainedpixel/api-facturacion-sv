@@ -166,8 +166,6 @@ func (s *CreditNoteTaxStrategy) validateIVA() *dte_errors.DTEError {
 		return nil
 	}
 
-	baseTaxed = baseTaxed.Sub(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue()))
-
 	// Verificar que tenga al menos un impuesto válido
 	if len(s.Document.CreditSummary.TotalTaxes) == 0 {
 		logs.Error("No taxes present with non-zero taxed amount")
