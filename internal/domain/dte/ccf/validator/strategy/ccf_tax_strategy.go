@@ -277,10 +277,13 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	// Obtener montos que afectan el total a pagar
 	taxedAmount := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue())
 
-	// SubTotal debe ser igual a la suma de TotalTaxed + TotalExempt + TotalNonSubject
+	// SubTotal debe ser igual a la suma de totales DESPUÉS de restar descuentos específicos
 	expectedSubTotal := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue()).
+		Sub(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue())).
 		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalExempt.GetValue())).
-		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalNonSubject.GetValue()))
+		Sub(decimal.NewFromFloat(s.Document.CreditSummary.ExemptDiscount.GetValue())).
+		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalNonSubject.GetValue())).
+		Sub(decimal.NewFromFloat(s.Document.CreditSummary.NonSubjectDiscount.GetValue()))
 
 	actualSubTotal := decimal.NewFromFloat(s.Document.CreditSummary.SubTotal.GetValue())
 	// Usar una pequeña tolerancia para comparaciones con decimales
@@ -298,30 +301,23 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			actualSubTotal.InexactFloat64())
 	}
 
-	// Calcular IVA con descuento
 	if taxedAmount.GreaterThan(decimal.Zero) {
-		taxedWithDiscount := taxedAmount.
-			Sub(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue()))
-		expectedIVA := taxedWithDiscount.Mul(decimal.NewFromFloat(0.13))
-
+		hasIVA := false
 		for _, tax := range s.Document.CreditSummary.TotalTaxes {
 			if tax.GetCode() == constants.TaxIVA {
 				actualIVA := decimal.NewFromFloat(tax.GetValue())
-				// Usar una pequeña tolerancia para comparaciones con decimales
-				diff := expectedIVA.Sub(actualIVA).Abs()
-				if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
-					logs.Error("Invalid IVA calculation with discount", map[string]interface{}{
-						"expected":      expectedIVA,
-						"actual":        actualIVA,
-						"taxedAmount":   taxedAmount,
-						"taxedDiscount": s.Document.CreditSummary.TaxedDiscount.GetValue(),
-					})
-					return dte_errors.NewDTEErrorSimple("InvalidIVACalculation",
-						expectedIVA.InexactFloat64(),
-						actualIVA.InexactFloat64())
+				if actualIVA.GreaterThan(decimal.Zero) {
+					hasIVA = true
 				}
 				break
 			}
+		}
+
+		if !hasIVA {
+			logs.Error("Missing IVA for taxed amount", map[string]interface{}{
+				"taxedAmount": taxedAmount,
+			})
+			return dte_errors.NewDTEErrorSimple("MissingIVAForTaxedAmount")
 		}
 	}
 

@@ -33,9 +33,13 @@ func (s *InvoiceTotalsStrategy) Validate() *dte_errors.DTEError {
 
 // validateSubTotal valida el subtotal de la invoice electrónica
 func (s *InvoiceTotalsStrategy) validateSubTotal() *dte_errors.DTEError {
-	expectedSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalNonSubject.GetValue()).
+	// Restar los descuentos específicos de cada tipo
+	expectedSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue()).
+		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue())).
 		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalExempt.GetValue())).
-		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue()))
+		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.ExemptDiscount.GetValue())).
+		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalNonSubject.GetValue())).
+		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.NonSubjectDiscount.GetValue()))
 
 	actualSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotal.GetValue())
 

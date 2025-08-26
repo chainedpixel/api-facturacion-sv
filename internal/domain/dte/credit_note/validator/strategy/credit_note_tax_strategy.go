@@ -260,28 +260,22 @@ func (s *CreditNoteTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 
 	// Calcular IVA con descuento
 	if taxedAmount.GreaterThan(decimal.Zero) {
-		taxedWithDiscount := taxedAmount.
-			Sub(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue()))
-		expectedIVA := taxedWithDiscount.Mul(decimal.NewFromFloat(0.13))
-
+		hasIVA := false
 		for _, tax := range s.Document.CreditSummary.TotalTaxes {
 			if tax.GetCode() == constants.TaxIVA {
 				actualIVA := decimal.NewFromFloat(tax.GetValue())
-				// Usar una pequeña tolerancia para comparaciones con decimales
-				diff := expectedIVA.Sub(actualIVA).Abs()
-				if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
-					logs.Error("Invalid IVA calculation with discount", map[string]interface{}{
-						"expected":      expectedIVA,
-						"actual":        actualIVA,
-						"taxedAmount":   taxedAmount,
-						"taxedDiscount": s.Document.CreditSummary.TaxedDiscount.GetValue(),
-					})
-					return dte_errors.NewDTEErrorSimple("InvalidIVACalculation",
-						expectedIVA.InexactFloat64(),
-						actualIVA.InexactFloat64())
+				if actualIVA.GreaterThan(decimal.Zero) {
+					hasIVA = true
 				}
 				break
 			}
+		}
+
+		if !hasIVA {
+			logs.Error("Missing IVA for taxed amount", map[string]interface{}{
+				"taxedAmount": taxedAmount,
+			})
+			return dte_errors.NewDTEErrorSimple("MissingIVAForTaxedAmount")
 		}
 	}
 

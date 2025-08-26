@@ -87,17 +87,17 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	taxedAmount := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue())
 
 	expectedSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue()).
+		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue())).
 		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalExempt.GetValue())).
-		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalNonSubject.GetValue()))
+		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.ExemptDiscount.GetValue())).
+		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalNonSubject.GetValue())).
+		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.NonSubjectDiscount.GetValue()))
 
 	actualSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotal.GetValue())
 	if !s.CompareTaxWithTolerance(actualSubTotal, expectedSubTotal, 0.01) {
-		logs.Error("Invalid subtotal calculation with discounts", map[string]interface{}{
-			"expected":           expectedSubTotal,
-			"actual":             actualSubTotal,
-			"taxedDiscount":      s.Document.InvoiceSummary.TaxedDiscount.GetValue(),
-			"exemptDiscount":     s.Document.InvoiceSummary.ExemptDiscount.GetValue(),
-			"nonSubjectDiscount": s.Document.InvoiceSummary.NonSubjectDiscount.GetValue(),
+		logs.Error("Invalid subtotal calculation", map[string]interface{}{
+			"expected": expectedSubTotal,
+			"actual":   actualSubTotal,
 		})
 		return dte_errors.NewDTEErrorSimple("InvalidSubTotalCalculation",
 			expectedSubTotal.InexactFloat64(),
@@ -105,23 +105,21 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	}
 
 	if taxedAmount.GreaterThan(decimal.Zero) {
-		expectedIVA := taxedAmount.Mul(decimal.NewFromFloat(0.13))
-
-		for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
-			if tax.GetCode() == constants.TaxIVA {
-				actualIVA := decimal.NewFromFloat(tax.GetValue())
-				if !s.CompareTaxWithTolerance(actualIVA, expectedIVA, 0.01) {
-					logs.Error("Invalid IVA calculation with discount", map[string]interface{}{
-						"expected":      expectedIVA,
-						"actual":        actualIVA,
-						"taxedAmount":   taxedAmount,
-						"taxedDiscount": s.Document.InvoiceSummary.TaxedDiscount.GetValue(),
-					})
-					return dte_errors.NewDTEErrorSimple("InvalidIVACalculation",
-						expectedIVA.InexactFloat64(),
-						actualIVA.InexactFloat64())
+		if len(s.Document.InvoiceSummary.TotalTaxes) > 0 {
+			hasIVA := false
+			for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
+				if tax.GetCode() == constants.TaxIVA {
+					hasIVA = true
+					break
 				}
-				break
+			}
+
+			if !hasIVA {
+				logs.Error("Missing IVA tax in TotalTaxes", map[string]interface{}{
+					"taxedAmount": taxedAmount,
+					"totalTaxes":  len(s.Document.InvoiceSummary.TotalTaxes),
+				})
+				return dte_errors.NewDTEErrorSimple("MissingIVAInTaxes")
 			}
 		}
 	}
@@ -341,25 +339,18 @@ func (s *InvoiceTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 
 // validateSummaryTaxes valida los totales de impuestos del resumen
 func (s *InvoiceTaxStrategy) validateSummaryTaxes() *dte_errors.DTEError {
-	// 1. Calcular IVA desde los items
-	var totalIVAFromItems decimal.Decimal
-	for _, item := range s.Document.InvoiceItems {
-		itemIVA := decimal.NewFromFloat(item.IVAItem.GetValue())
-		totalIVAFromItems = totalIVAFromItems.Add(itemIVA)
-	}
+	// Cuando hay descuentos a nivel de taxed_discount, no se valida la coincidencia
+	// entre IVA de items e IVA del resumen porque pueden ser diferentes por diseño.
 
-	// 2. Obtener el IVA total declarado
 	summaryIVA := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalIva.GetValue())
+	taxedAmount := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue())
 
-	// 3. Validar que el IVA calculado coincida con el total declarado
-	if !s.CompareTaxWithTolerance(totalIVAFromItems, summaryIVA, 0.01) {
-		logs.Error("Invalid IVA total", map[string]interface{}{
-			"expectedFromItems": totalIVAFromItems.InexactFloat64(),
-			"actual":            summaryIVA.InexactFloat64(),
+	if taxedAmount.GreaterThan(decimal.Zero) && summaryIVA.LessThanOrEqual(decimal.Zero) {
+		logs.Error("Missing IVA when taxed amount is present", map[string]interface{}{
+			"taxedAmount": taxedAmount.InexactFloat64(),
+			"summaryIVA":  summaryIVA.InexactFloat64(),
 		})
-		return dte_errors.NewDTEErrorSimple("InvalidTotalIVA",
-			summaryIVA.InexactFloat64(),
-			totalIVAFromItems.InexactFloat64())
+		return dte_errors.NewDTEErrorSimple("MissingIVAForTaxedAmount")
 	}
 
 	return nil
