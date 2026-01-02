@@ -23,7 +23,7 @@ func (s *PaymentTotalStrategy) Validate() *dte_errors.DTEError {
 
 	// Validar términos de pago para crédito
 	for _, payment := range s.Document.GetSummary().GetPaymentTypes() {
-		if s.Document.GetSummary().GetOperationCondition() == constants.Credit {
+		if s.Document.GetSummary().GetOperationCondition() == constants.Credit && s.dontHaveCashPayment() {
 			if payment.GetCode() == constants.BilletesMonedas {
 				return dte_errors.NewDTEErrorSimple("InvalidPaymentTypeOP2")
 			}
@@ -33,7 +33,7 @@ func (s *PaymentTotalStrategy) Validate() *dte_errors.DTEError {
 			}
 		}
 
-		if s.Document.GetSummary().GetOperationCondition() == constants.Cash {
+		if s.dontHaveCashPayment() && s.Document.GetSummary().GetOperationCondition() == constants.Cash {
 			if payment.GetTerm() != nil || payment.GetPeriod() != nil {
 				return dte_errors.NewDTEErrorSimple("InvalidPaymentTermsOF")
 			}
@@ -57,4 +57,15 @@ func (s *PaymentTotalStrategy) Validate() *dte_errors.DTEError {
 	}
 
 	return nil
+}
+
+// dontHaveCashPayment Verifica si existe algún tipo de pago en efectivo
+func (s *PaymentTotalStrategy) dontHaveCashPayment() bool {
+	for _, payment := range s.Document.GetSummary().GetPaymentTypes() {
+		if payment.GetCode() == constants.BilletesMonedas {
+			return false
+		}
+	}
+
+	return true
 }

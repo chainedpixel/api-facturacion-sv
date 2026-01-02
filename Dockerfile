@@ -8,6 +8,11 @@ RUN apk add --no-cache git
 # Copiar proyecto
 COPY . .
 
+# Verificar que los archivos de traducción existan
+RUN echo "=== Verificando archivos de traducción ===" && \
+    find /app -name "*.yaml" -o -name "*.yml" 2>/dev/null && \
+    ls -la /app/internal/ 2>/dev/null || echo "Directorio internal no encontrado"
+
 WORKDIR /app
 RUN go build -o dte-app cmd/main.go
 
@@ -22,18 +27,24 @@ LABEL authors="Marlon"
 WORKDIR /app
 
 # Copiar binario compilado
-COPY --from=builder /app/dte-app* /app/ || true
-COPY --from=builder /app/cmd/dte-app* /app/ || true
-COPY --from=builder /dte-app* /app/ || true
+COPY --from=builder /app/dte-app /app/
+
+# Copiar archivos de configuración y traducción
+COPY --from=builder /app/internal/i18n /app/internal/i18n
 
 RUN ls -la /app/
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates tzdata
+
+# Crear directorio de logs en la ubicación correcta y dar permisos
+RUN mkdir -p /app/pkg/shared/logs/ && \
+    touch /app/pkg/shared/logs/dte_microservice.log && \
+    chmod -R 755 /app/pkg/shared/logs/
 
 # Configuración
 COPY .env /app/
 
-RUN chmod +x /app/dte-app || echo "No se encontró el binario para asignar permisos"
+RUN chmod +x /app/dte-app
 
 EXPOSE 7319
 
