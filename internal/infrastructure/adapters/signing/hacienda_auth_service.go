@@ -192,6 +192,7 @@ func (s *HaciendaAuthService) verifyAuthResponse(resp *http.Response) error {
 	if resp.StatusCode != http.StatusOK {
 		logs.Error("Error authenticating with Hacienda", map[string]interface{}{
 			"status": resp.StatusCode,
+			"body":   resp.Body,
 		})
 		return shared_error.NewGeneralServiceError("AuthHacienda", "authenticateWithHacienda", fmt.Sprintf("Hacienda signing failed with status: %d", resp.StatusCode), nil)
 	}

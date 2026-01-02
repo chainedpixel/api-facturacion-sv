@@ -17,9 +17,9 @@ import "time"
 // página 5 del documento PDF y revisar /internal/domain/dte/common/constants/dte_type.go
 type ControlNumberSequence struct {
 	ID         uint      `gorm:"column:id;type:uint;primaryKey;autoIncrement;not null"`
-	BranchID   uint      `gorm:"column:branch_id;type:uint;not null;uniqueIndex:idx_branch_dte_type,priority:1"`
-	DTEType    string    `gorm:"column:dte_type;type:varchar(2);not null;uniqueIndex:idx_branch_dte_type,priority:2"`
-	Year       int       `gorm:"column:year;type:int;not null;index:idx_sequence_year"`
+	BranchID   uint      `gorm:"column:branch_id;type:uint;not null;uniqueIndex:idx_branch_dte_year,priority:1"`
+	DTEType    string    `gorm:"column:dte_type;type:varchar(2);not null;uniqueIndex:idx_branch_dte_year,priority:2"`
+	Year       int       `gorm:"column:year;type:int;not null;uniqueIndex:idx_branch_dte_year,priority:3;index:idx_sequence_year"`
 	LastNumber int       `gorm:"column:last_number;type:int;not null"`
 	CreatedAt  time.Time `gorm:"column:created_at;type:timestamp;default:CURRENT_TIMESTAMP"`
 	UpdatedAt  time.Time `gorm:"column:updated_at;type:timestamp;default:CURRENT_TIMESTAMP"`
