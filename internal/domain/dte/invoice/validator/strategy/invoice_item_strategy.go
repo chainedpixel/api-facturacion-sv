@@ -63,12 +63,10 @@ func (s *InvoiceItemsStrategy) validateItem(item invoice_models.InvoiceItem) *dt
 
 	//Cálculo de IVA item
 	if item.IVAItem.GetValue() > 0 {
-		basePrice := decimal.NewFromFloat(item.GetUnitPrice()).
-			Sub(decimal.NewFromFloat(item.GetDiscount())).
-			Div(decimal.NewFromFloat(1.13)).
-			Mul(decimal.NewFromFloat(item.GetQuantity()))
+		baseGravable := decimal.NewFromFloat(item.TaxedSale.GetValue()).
+			Div(decimal.NewFromFloat(1.13))
 
-		expectedIvaItem := basePrice.Mul(decimal.NewFromFloat(0.13))
+		expectedIvaItem := baseGravable.Mul(decimal.NewFromFloat(0.13))
 		actualIvaItem := decimal.NewFromFloat(item.IVAItem.GetValue())
 
 		diff := expectedIvaItem.Sub(actualIvaItem).Abs()
@@ -128,8 +126,8 @@ func (s *InvoiceItemsStrategy) validateItem(item invoice_models.InvoiceItem) *dt
 
 	if item.TaxedSale.GetValue() > 0 {
 		expectedTaxed := decimal.NewFromFloat(item.GetUnitPrice()).
-			Sub(decimal.NewFromFloat(item.GetDiscount())).
-			Mul(decimal.NewFromFloat(item.GetQuantity()))
+			Mul(decimal.NewFromFloat(item.GetQuantity())).
+			Sub(decimal.NewFromFloat(item.GetDiscount()))
 
 		// Calcular la diferencia absoluta
 		diff := decimal.NewFromFloat(item.TaxedSale.GetValue()).

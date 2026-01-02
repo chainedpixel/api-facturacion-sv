@@ -36,7 +36,7 @@ func SetupJobs(contingencyService contingency.ContingencyManager, ambientCode st
 		jobConfig = JobConfig{
 			StartTime:   "08:00",
 			EndTime:     "17:00",
-			Interval:    30,
+			Interval:    5,
 			Environment: "testing",
 		}
 	}
