@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/application/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter/models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 	ReceivedStatus = "PROCESADO"
 )
 
-// BaseTransmitter encapsula solo la lógica común de retransmisión
+// BaseTransmitter encapsulates only the common retransmission logic
 type BaseTransmitter struct {
 	transmitter ports.DTETransmitter
 	signer      ports.SignerManager
@@ -30,7 +30,7 @@ func NewBaseTransmitter(transmitter ports.DTETransmitter, signer ports.SignerMan
 	}
 }
 
-// RetryTransmission maneja la lógica de reintentos y verificación
+// RetryTransmission handles the retry and verification logic
 func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document interface{}, token string, nit string) (*models.TransmitResult, error) {
 	jsonData, err := json.Marshal(document)
 	if err != nil {
@@ -50,7 +50,6 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	}
 
 	logs.Info("First attempt to transmit document")
-	// 1. Primer intento de transmisión
 	result, err := bt.transmitter.Transmit(ctx, document, signedDoc, token)
 	if err == nil && result.Status == ReceivedStatus {
 		logs.Info("Document received on first attempt")
@@ -65,14 +64,12 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	}
 
 	logs.Info("Check status of document")
-	// 2. Verificar estado actual
 	statusResult, err := bt.CheckStatus(ctx, document, nit)
 	if err == nil && statusResult.Status == ReceivedStatus {
 		logs.Info("Document already received")
 		return statusResult, nil
 	}
 
-	// 3. Aplicar política de reintentos
 	logs.Info("Starting retries because document was not received")
 	retryCount := 0
 	for retryCount < MaxRetries {

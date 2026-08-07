@@ -1,8 +1,8 @@
 package location
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Address struct {
@@ -21,7 +21,7 @@ func NewValidatedAddress(value string) *Address {
 	return &Address{Value: value}
 }
 
-// IsValid verifica si el valor de la dirección es válido (1 a 200 caracteres)
+// IsValid checks whether the address value is valid (1 to 200 characters)
 func (a *Address) IsValid() bool {
 	return len(a.Value) >= 1 && len(a.Value) <= 200
 }

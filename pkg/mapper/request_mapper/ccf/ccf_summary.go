@@ -1,14 +1,14 @@
 package ccf
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// MapCCFRequestSummary mapea un resumen de Comprobante de Crédito Fiscal a un modelo de resumen de Comprobante de Crédito Fiscal -> Origen: Request
+// MapCCFRequestSummary maps a Comprobante de Crédito Fiscal summary to a CCF summary model -> Source: Request
 func MapCCFRequestSummary(summary *structs.CreditSummaryRequest) (*ccf_models.CreditSummary, error) {
 	if summary.TotalInWords == nil {
 		inLetters := utils.InLetters(summary.TotalToPay)

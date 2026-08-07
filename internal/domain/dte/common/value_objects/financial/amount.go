@@ -2,11 +2,12 @@ package financial
 
 import (
 	"fmt"
-	"github.com/shopspring/decimal"
 	"math"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/shopspring/decimal"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Amount struct {
@@ -20,7 +21,6 @@ func NewAmount(value float64) (*Amount, error) {
 	roundedValue, _ := decValue.Float64()
 	amount := &Amount{Value: roundedValue}
 
-	// Validar después del redondeo
 	if !amount.IsValid() {
 		return nil, dte_errors.NewValidationError("InvalidAmount",
 			fmt.Sprintf("%f", roundedValue))
@@ -54,7 +54,7 @@ func NewValidatedAmount(value float64) *Amount {
 	return &Amount{Value: value}
 }
 
-// IsValid válida que el valor de Amount sea mayor o igual a 0 y menor o igual a 99999999999.99
+// IsValid validates that the Amount value is greater than or equal to 0 and less than or equal to 99999999999.99
 func (a *Amount) IsValid() bool {
 	decValue := decimal.NewFromFloat(a.Value)
 

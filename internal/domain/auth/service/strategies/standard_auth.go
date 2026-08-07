@@ -3,14 +3,15 @@ package strategies
 import (
 	"context"
 	"crypto/subtle"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type StandardAuthStrategy struct {
@@ -18,7 +19,7 @@ type StandardAuthStrategy struct {
 	cacheService ports.CacheManager
 }
 
-// NewStandardAuthStrategy crea una instancia de StandardAuthStrategy. Recibe un repositorio de clientes.
+// NewStandardAuthStrategy creates an instance of StandardAuthStrategy. Receives a client repository.
 func NewStandardAuthStrategy(repo auth.AuthRepositoryPort, cacheService ports.CacheManager) *StandardAuthStrategy {
 	return &StandardAuthStrategy{
 		cacheService: cacheService,
@@ -26,12 +27,12 @@ func NewStandardAuthStrategy(repo auth.AuthRepositoryPort, cacheService ports.Ca
 	}
 }
 
-// GetAuthType devuelve el tipo de autenticación.
+// GetAuthType returns the authentication type.
 func (s *StandardAuthStrategy) GetAuthType() string {
 	return constants.StandardAuthType
 }
 
-// ValidateCredentials valida las credenciales de autenticación. Devuelve un error si las credenciales son inválidas.
+// ValidateCredentials validates the authentication credentials. Returns an error if the credentials are invalid.
 func (s *StandardAuthStrategy) ValidateCredentials(credentials *models.AuthCredentials) error {
 	if credentials.APIKey == "" {
 		logs.Error("API key is required", map[string]interface{}{
@@ -58,9 +59,8 @@ func (s *StandardAuthStrategy) ValidateCredentials(credentials *models.AuthCrede
 	return nil
 }
 
-// Authenticate autentica un cliente. Devuelve los claims del cliente autenticado.
+// Authenticate authenticates a client. Returns the claims of the authenticated client.
 func (s *StandardAuthStrategy) Authenticate(ctx context.Context, credentials *models.AuthCredentials) (*models.AuthClaims, error) {
-	// 1. Obtener sucursal por API key
 	branch, err := s.authRepo.GetBranchByBranchApiKey(ctx, credentials.APIKey)
 	if err != nil {
 		logs.Error("Invalid credentials", map[string]interface{}{
@@ -74,7 +74,6 @@ func (s *StandardAuthStrategy) Authenticate(ctx context.Context, credentials *mo
 		)
 	}
 
-	// 2. Verificar credenciales
 	if subtle.ConstantTimeCompare([]byte(credentials.APISecret), []byte(branch.APISecret)) != 1 {
 		logs.Error("Invalid credentials", map[string]interface{}{
 			"apiKey": credentials.APIKey,
@@ -86,7 +85,6 @@ func (s *StandardAuthStrategy) Authenticate(ctx context.Context, credentials *mo
 		)
 	}
 
-	// 3. Obtener usuario por API key
 	user, err := s.authRepo.GetByBranchApiKey(ctx, credentials.APIKey)
 	if err != nil {
 		logs.Error("Invalid credentials", map[string]interface{}{
@@ -100,7 +98,6 @@ func (s *StandardAuthStrategy) Authenticate(ctx context.Context, credentials *mo
 		)
 	}
 
-	// 4. Verificar estado de cuenta de usuario
 	if !user.Status {
 		logs.Error("Client account is not active", map[string]interface{}{
 			"clientID": user.ID,
@@ -112,7 +109,6 @@ func (s *StandardAuthStrategy) Authenticate(ctx context.Context, credentials *mo
 		)
 	}
 
-	// 5. Crear claims
 	claims := &models.AuthClaims{
 		ClientID: user.ID,
 		BranchID: branch.ID,
@@ -128,7 +124,6 @@ func (s *StandardAuthStrategy) Authenticate(ctx context.Context, credentials *mo
 }
 
 func (s *StandardAuthStrategy) GetTokenLifetime(credentials *models.AuthCredentials) (time.Duration, error) {
-	// 1. Obtener informacion del usuario
 	user, err := s.authRepo.GetByBranchApiKey(context.Background(), credentials.APIKey)
 	if err != nil {
 		logs.Error("Failed to get user information", map[string]interface{}{
@@ -145,7 +140,7 @@ func (s *StandardAuthStrategy) GetTokenLifetime(credentials *models.AuthCredenti
 	return time.Duration(user.TokenLifetime) * 24 * time.Hour, nil
 }
 
-// GetHaciendaCredentials obtiene las credenciales de Hacienda. Devuelve las credenciales de Hacienda.
+// GetHaciendaCredentials retrieves the Hacienda credentials. Returns the Hacienda credentials.
 func (s *StandardAuthStrategy) GetHaciendaCredentials(token string) (*models.HaciendaCredentials, error) {
 	creds, err := s.cacheService.GetCredentials(token)
 	if err != nil {

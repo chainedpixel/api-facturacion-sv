@@ -2,14 +2,15 @@ package database
 
 import (
 	"fmt"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/database/db_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
-// modelsToMigrate contiene todos los modelos que se deben migrar
+// modelsToMigrate contains all models that should be migrated
 var modelsToMigrate = []schema.Tabler{
 	&db_models.User{},
 	&db_models.BranchOffice{},
@@ -19,6 +20,7 @@ var modelsToMigrate = []schema.Tabler{
 	&db_models.ContingencyDocument{},
 	&db_models.ControlNumberSequence{},
 	&db_models.FailedSequenceNumber{},
+	&db_models.ReservedSequenceNumber{},
 	&db_models.DomainEvent{},
 	&db_models.UserNotification{},
 	&db_models.NotifiableUser{},
@@ -26,7 +28,7 @@ var modelsToMigrate = []schema.Tabler{
 	&db_models.DTEBalanceTransaction{},
 }
 
-// RunMigrations ejecuta todas las migraciones de la base de datos
+// RunMigrations runs all database migrations
 func RunMigrations(db *gorm.DB) error {
 	logs.Info("Starting database migrations")
 

@@ -3,16 +3,16 @@ package ccf
 import (
 	"context"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/validator"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	buisnessValidator "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/validator"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/dte_documents"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	buisnessValidator "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type creditFiscalService struct {
@@ -20,7 +20,7 @@ type creditFiscalService struct {
 	seqNumberManager dte_documents.SequentialNumberManager
 }
 
-// NewCCFService Crea un nuevo servicio Comprobante de Crédito Fiscal.
+// NewCCFService Creates a new Fiscal Credit Voucher service.
 func NewCCFService(seqNumberManager dte_documents.SequentialNumberManager) ports.DTEService {
 	return &creditFiscalService{
 		validator:        validator.NewCCFRulesValidator(nil),
@@ -69,7 +69,7 @@ func (s *creditFiscalService) validate(ccf *ccf_models.CreditFiscalDocument) err
 	return nil
 }
 
-// generateControlNumber Genera un número de control único para la invoice.
+// generateControlNumber Generates a unique control number for the invoice.
 func (s *creditFiscalService) generateControlNumber(ctx context.Context, ccf *ccf_models.CreditFiscalDocument, branchID uint) error {
 	establishmentCode := ccf.Issuer.GetEstablishmentCode()
 	posCode := ccf.Issuer.GetPOSCode()

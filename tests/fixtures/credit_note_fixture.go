@@ -1,34 +1,34 @@
 package fixtures
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// CreateDefaultCreditNoteItem crea un ítem de nota de crédito predeterminado válido
+// CreateDefaultCreditNoteItem creates a valid default credit note item
 func CreateDefaultCreditNoteItem(index int) structs.CreditNoteItemRequest {
 	code := "CN" + string(rune(65+index))
 
 	return structs.CreditNoteItemRequest{
 		ItemRequest: structs.ItemRequest{
 			Number:      index + 1,
-			Type:        1, // Producto
+			Type:        1,
 			Description: "Devolución Producto " + string(rune(65+index)),
 			Quantity:    5,
-			UnitMeasure: 59, // Unidades
+			UnitMeasure: 59,
 			UnitPrice:   5.0,
 			Discount:    0,
 			Code:        &code,
-			Taxes:       []string{"20"}, // Código IVA
+			Taxes:       []string{"20"},
 		},
 		NonSubjectSale: 0,
 		ExemptSale:     0,
-		TaxedSale:      25.0, // Cantidad * Precio unitario
+		TaxedSale:      25.0,
 	}
 }
 
-// CreateDefaultCreditNoteSummary crea un resumen de nota de crédito predeterminado válido
+// CreateDefaultCreditNoteSummary creates a valid default credit note summary
 func CreateDefaultCreditNoteSummary() *structs.CreditNoteSummaryRequest {
 	return &structs.CreditNoteSummaryRequest{
 		SummaryRequest: structs.SummaryRequest{
@@ -43,13 +43,13 @@ func CreateDefaultCreditNoteSummary() *structs.CreditNoteSummaryRequest {
 			SubTotalSales:      50.0,
 			TotalOperation:     50.0,
 			TotalNonTaxed:      0,
-			TotalToPay:         1, // Por convención en Notas de Crédito
-			OperationCondition: 1, // Contado
+			TotalToPay:         1,
+			OperationCondition: 1,
 			Taxes: []structs.TaxRequest{
 				{
-					Code:        "20", // Código IVA
+					Code:        "20",
 					Description: "IVA",
-					Value:       6.5, // 13% del monto gravado
+					Value:       6.5,
 				},
 			},
 			PaymentTypes: []structs.PaymentRequest{},
@@ -61,7 +61,7 @@ func CreateDefaultCreditNoteSummary() *structs.CreditNoteSummaryRequest {
 	}
 }
 
-// CreateDefaultCreditNoteRequest crea una solicitud de nota de crédito predeterminada válida
+// CreateDefaultCreditNoteRequest creates a valid default credit note request
 func CreateDefaultCreditNoteRequest() *structs.CreateCreditNoteRequest {
 	items := []structs.CreditNoteItemRequest{
 		CreateDefaultCreditNoteItem(1),
@@ -76,7 +76,7 @@ func CreateDefaultCreditNoteRequest() *structs.CreateCreditNoteRequest {
 	return &structs.CreateCreditNoteRequest{
 		Items:     items,
 		Receiver:  receiver,
-		ModelType: constants.ModeloFacturacionPrevio, // Modelo normal
+		ModelType: constants.ModeloFacturacionPrevio,
 		Summary:   CreateDefaultCreditNoteSummary(),
 		RelatedDocs: []structs.RelatedDocRequest{
 			CreateDefaultRelatedDocument(),
@@ -84,7 +84,7 @@ func CreateDefaultCreditNoteRequest() *structs.CreateCreditNoteRequest {
 	}
 }
 
-// CreateDefaultCreditNoteExtension crea una extensión predeterminada válida
+// CreateDefaultCreditNoteExtension creates a valid default extension
 func CreateDefaultCreditNoteExtension() *structs.ExtensionRequest {
 	observation := "Observación de prueba"
 
@@ -97,23 +97,23 @@ func CreateDefaultCreditNoteExtension() *structs.ExtensionRequest {
 	}
 }
 
-// CreateCreditNoteWithInvalidItems crea una solicitud de nota de crédito con ítems inválidos
+// CreateCreditNoteWithInvalidItems creates a credit note request with invalid items
 func CreateCreditNoteWithInvalidItems() *structs.CreateCreditNoteRequest {
 	req := CreateDefaultCreditNoteRequest()
 	item := CreateDefaultCreditNoteItem(0)
-	item.Type = 99 // Tipo inválido
+	item.Type = 99
 	req.Items = []structs.CreditNoteItemRequest{item}
 	return req
 }
 
-// CreateCreditNoteWithoutRelatedDocs crea una solicitud de nota de crédito sin documentos relacionados
+// CreateCreditNoteWithoutRelatedDocs creates a credit note request without related documents
 func CreateCreditNoteWithoutRelatedDocs() *structs.CreateCreditNoteRequest {
 	req := CreateDefaultCreditNoteRequest()
 	req.RelatedDocs = nil
 	return req
 }
 
-// CreateCreditNoteRequestWithAllOptionalFields crea una solicitud de factura con todos los campos opcionales
+// CreateCreditNoteRequestWithAllOptionalFields creates a credit note request with all optional fields
 func CreateCreditNoteRequestWithAllOptionalFields() *structs.CreateCreditNoteRequest {
 	req := CreateDefaultCreditNoteRequest()
 	req.Extension = CreateDefaultCreditNoteExtension()

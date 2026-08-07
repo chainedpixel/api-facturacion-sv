@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	metricsModels "github.com/MarlonG1/api-facturacion-sv/internal/domain/metrics/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	metricsModels "github.com/chainedpixel/ordo-factus/internal/domain/metrics/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type MetricsMiddleware struct {
@@ -44,21 +44,17 @@ func NewMetricsMiddleware(cache ports.CacheManager) *MetricsMiddleware {
 func extractEndpoint(method, path string) string {
 	path = strings.TrimSuffix(path, "/")
 
-	// Primero intentar coincidencia directa
 	if endpoint, exists := endpointMappings[method+":"+path]; exists {
 		return endpoint
 	}
 
-	// Si no hay coincidencia directa, intentar con patrones
 	parts := strings.Split(strings.TrimPrefix(path, "/api/v1/dte/"), "/")
 
 	if len(parts) == 0 || parts[0] == "" {
 		return "dte"
 	}
 
-	// Verificar si el primer segmento es un UUID
 	if uuidRegex.MatchString(parts[0]) {
-		// Transformar la ruta reemplazando el UUID con {uuid}
 		templatePath := "/api/v1/dte/{id}"
 		if len(parts) > 1 {
 			templatePath += "/" + strings.Join(parts[1:], "/")
@@ -73,7 +69,6 @@ func extractEndpoint(method, path string) string {
 		}
 	}
 
-	// Para rutas que no coinciden con ningún patrón específico, usar el primer segmento
 	if len(parts) > 0 && parts[0] != "" {
 		return parts[0]
 	}
@@ -119,6 +114,12 @@ func (m *MetricsMiddleware) Handle(next http.Handler) http.Handler {
 			})
 		}
 
+		if err := m.cache.Expire(durationsKey, 24*time.Hour); err != nil {
+			logs.Error("Failed to set expiration on metrics", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+
 		var counters metricsModels.EndpointCounters
 		if countersData, err := m.cache.Get(countersKey); err == nil {
 			json.Unmarshal([]byte(countersData), &counters)
@@ -131,7 +132,6 @@ func (m *MetricsMiddleware) Handle(next http.Handler) http.Handler {
 			counters.ErrorCount++
 		}
 
-		// Guardar contadores actualizados
 		if countersData, err := json.Marshal(counters); err == nil {
 			if err := m.cache.Set(countersKey, countersData, 24*time.Hour); err != nil {
 				logs.Error("Failed to update counters", map[string]interface{}{

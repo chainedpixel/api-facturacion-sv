@@ -3,18 +3,18 @@ package credit_note
 import (
 	"context"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	buisnessValidator "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/validator"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/validator"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/dte_documents"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	buisnessValidator "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type creditNoteService struct {
@@ -23,7 +23,7 @@ type creditNoteService struct {
 	dteManager       dte_documents.DTEManager
 }
 
-// NewCreditNoteService Crea un nuevo servicio de Nota de Crédito.
+// NewCreditNoteService Creates a new Credit Note service.
 func NewCreditNoteService(seqNumberManager dte_documents.SequentialNumberManager, dteManager dte_documents.DTEManager) ports.DTEService {
 	return &creditNoteService{
 		validator:        validator.NewCreditNoteRulesValidator(nil),
@@ -32,16 +32,14 @@ func NewCreditNoteService(seqNumberManager dte_documents.SequentialNumberManager
 	}
 }
 
-// Create Crea una nueva Nota de Crédito electrónica con base en los datos proporcionados.
+// Create Creates a new electronic Credit Note based on the provided data.
 func (s *creditNoteService) Create(ctx context.Context, input interface{}, branchID uint) (interface{}, error) {
 	data := input.(*credit_note_models.CreditNoteInput)
-	// 1. Validar la existencia de documentos relacionados
 	if err := s.validateRelatedDocs(ctx, data, branchID); err != nil {
 		logs.Error("Failed to validate related documents", map[string]interface{}{"error": err.Error()})
 		return nil, err
 	}
 
-	// 2. Crear el documento base
 	baseDoc := createBaseDocument(data)
 	creditNote := &credit_note_models.CreditNoteModel{
 		DTEDocument:   baseDoc,
@@ -49,19 +47,16 @@ func (s *creditNoteService) Create(ctx context.Context, input interface{}, branc
 		CreditSummary: *data.CreditSummary,
 	}
 
-	// 3. Validar el documento base
 	if err := s.validate(creditNote); err != nil {
 		logs.Error("Failed to validate credit note document basic validation", map[string]interface{}{"error": err.Error()})
 		return nil, err
 	}
 
-	// 4. Validar contra reglas principales de negocio
 	if err := buisnessValidator.ValidateDTEDocument(creditNote); err != nil {
 		logs.Error("Failed to validate credit note document generic validations", map[string]interface{}{"error": err.Error()})
 		return nil, err
 	}
 
-	// 5. Validar totales de documentos relacionados
 	for _, doc := range creditNote.RelatedDocuments {
 		if doc.GetGenerationType() == constants.ElectronicDocument {
 			if err := s.dteManager.ValidateForCreditNote(ctx, branchID, doc.GetDocumentNumber(), creditNote); err != nil {
@@ -71,7 +66,6 @@ func (s *creditNoteService) Create(ctx context.Context, input interface{}, branc
 		}
 	}
 
-	// 6. Generar el número de control y el código UUID
 	if err := s.generateCodeAndIdentifiers(ctx, creditNote, branchID); err != nil {
 		return nil, err
 	}
@@ -79,7 +73,7 @@ func (s *creditNoteService) Create(ctx context.Context, input interface{}, branc
 	return creditNote, nil
 }
 
-// validateRelatedDocs verifica que los documentos relacionados existan en la base de datos
+// validateRelatedDocs verifies that the related documents exist in the database
 func (s *creditNoteService) validateRelatedDocs(ctx context.Context, data *credit_note_models.CreditNoteInput, branchID uint) error {
 	if data.RelatedDocs == nil || len(data.RelatedDocs) == 0 {
 		return shared_error.NewFormattedGeneralServiceError(
@@ -89,9 +83,7 @@ func (s *creditNoteService) validateRelatedDocs(ctx context.Context, data *credi
 		)
 	}
 
-	// Verificar que cada documento relacionado exista en la base de datos
 	for i, relatedDoc := range data.RelatedDocs {
-		// 1. Verificar si el documento existe y obtenerlo
 		doc, err := s.dteManager.GetByGenerationCode(ctx, branchID, relatedDoc.GetDocumentNumber())
 		if err != nil {
 			return err
@@ -112,14 +104,12 @@ func (s *creditNoteService) validateRelatedDocs(ctx context.Context, data *credi
 			)
 		}
 
-		// 2. Extraer el NIT del receptor del documento relacionado
 		data.RelatedDocs[i].EmissionDate = *temporal.NewValidatedEmissionDate(doc.CreatedAt)
 		extractor, err := utils.ExtractDTEReceiverFromString(doc.Details.JSONData)
 		if err != nil {
 			return err
 		}
 
-		// 3. Verificar que el NIT del receptor del documento relacionado coincida con el NIT del receptor de la Nota de Crédito
 		if data.Receiver.NIT.GetValue() != extractor.Receiver.NIT {
 			return shared_error.NewFormattedGeneralServiceError(
 				"CreditNoteService",
@@ -132,7 +122,7 @@ func (s *creditNoteService) validateRelatedDocs(ctx context.Context, data *credi
 	return nil
 }
 
-// Validate Valida una Nota de Crédito electrónica con base en las reglas de negocio.
+// Validate Validates an electronic Credit Note based on the business rules.
 func (s *creditNoteService) validate(creditNote *credit_note_models.CreditNoteModel) error {
 	s.validator = validator.NewCreditNoteRulesValidator(creditNote)
 	err := s.validator.Validate()
@@ -147,7 +137,7 @@ func (s *creditNoteService) validate(creditNote *credit_note_models.CreditNoteMo
 	return nil
 }
 
-// generateControlNumber Genera un número de control único para la Nota de Crédito.
+// generateControlNumber Generates a unique control number for the Credit Note.
 func (s *creditNoteService) generateControlNumber(ctx context.Context, creditNote *credit_note_models.CreditNoteModel, branchID uint) error {
 	establishmentCode := creditNote.Issuer.GetEstablishmentCode()
 	posCode := creditNote.Issuer.GetPOSCode()
@@ -175,7 +165,7 @@ func (s *creditNoteService) generateControlNumber(ctx context.Context, creditNot
 	return nil
 }
 
-// generateCodeAndIdentifiers Genera el código UUID y número de control de la Nota de Crédito.
+// generateCodeAndIdentifiers Generates the UUID code and control number of the Credit Note.
 func (s *creditNoteService) generateCodeAndIdentifiers(ctx context.Context, creditNote *credit_note_models.CreditNoteModel, branchID uint) error {
 	err := creditNote.Identification.GenerateCode()
 	if err != nil {
@@ -185,7 +175,7 @@ func (s *creditNoteService) generateCodeAndIdentifiers(ctx context.Context, cred
 	return s.generateControlNumber(ctx, creditNote, branchID)
 }
 
-// createBaseDocument Crea un documento base para la Nota de Crédito electrónica.
+// createBaseDocument Creates a base document for the electronic Credit Note.
 func createBaseDocument(data *credit_note_models.CreditNoteInput) *models.DTEDocument {
 	var extInterface interfaces.Extension
 	var thirdPartySale interfaces.ThirdPartySale

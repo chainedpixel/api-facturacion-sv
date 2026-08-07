@@ -1,29 +1,30 @@
 package request_mapper
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/retention_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/retention"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/retention"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
+// RetentionMapper maps retention creation requests to the retention domain model.
 type RetentionMapper struct{}
 
+// NewRetentionMapper creates a new RetentionMapper instance.
 func NewRetentionMapper() *RetentionMapper {
 	return &RetentionMapper{}
 }
 
-// MapToRetentionData convierte una solicitud de retención a datos de retención_models.
+// MapToRetentionData converts a CreateRetentionRequest to an InputRetentionData domain model.
 func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest, client *dte.IssuerDTE) (*retention_models.InputRetentionData, error) {
 	if req == nil {
 		return nil, dte_errors.NewValidationError("RequiredField", "Request")
 	}
-
 	if req.Summary == nil {
 		return nil, dte_errors.NewValidationError("RequiredField", "Request->Summary")
 	}
@@ -43,7 +44,7 @@ func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Identification")
 	}
 
-	if err = validateReceiverRequest(req); err != nil {
+	if err = validateRetentionReceiverRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -74,22 +75,21 @@ func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest
 	return result, nil
 }
 
-func validateReceiverRequest(req *structs.CreateRetentionRequest) error {
-
+// validateRetentionReceiverRequest validates the receiver section of a retention request.
+func validateRetentionReceiverRequest(req *structs.CreateRetentionRequest) error {
 	if req.Receiver == nil {
 		return dte_errors.NewValidationError("RequiredField", "Request->Receiver")
 	}
-
 	if req.Receiver.DocumentType == nil {
 		return dte_errors.NewValidationError("InvalidField", "Request->Receiver->DocumentType")
 	}
 	if req.Receiver.DocumentNumber == nil {
 		return dte_errors.NewValidationError("InvalidField", "Request->Receiver->DocumentNumber")
 	}
-
 	return nil
 }
 
+// mapRetentionOptionalFields maps the optional fields of the retention request into the result model.
 func mapRetentionOptionalFields(req *structs.CreateRetentionRequest, result *retention_models.InputRetentionData) error {
 	if req.Extension != nil {
 		if req.Extension.VehiculePlate != nil {
@@ -98,7 +98,7 @@ func mapRetentionOptionalFields(req *structs.CreateRetentionRequest, result *ret
 
 		extension, err := common.MapCommonRequestExtension(req.Extension)
 		if err != nil {
-			return shared_error.NewFormattedGeneralServiceWithError("MapCommonRequestExtension", "MapToRetentionData", err, "ErrorMapping", "Retention->Extension")
+			return shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Extension")
 		}
 		result.Extension = extension
 	}
@@ -106,7 +106,7 @@ func mapRetentionOptionalFields(req *structs.CreateRetentionRequest, result *ret
 	if req.Appendixes != nil {
 		appendixes, err := common.MapCommonRequestAppendix(req.Appendixes)
 		if err != nil {
-			return shared_error.NewFormattedGeneralServiceWithError("MapAppendixes", "MapToRetentionData", err, "ErrorMapping", "Retention->Appendixes")
+			return shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Appendixes")
 		}
 		result.Appendixes = appendixes
 	}

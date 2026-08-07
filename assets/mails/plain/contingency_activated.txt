@@ -1,0 +1,22 @@
+[ORDO-FACTUS] Contingencia activada
+=========================================
+{{- if .ClientName}}
+Cliente: {{.ClientName}}{{end}}
+{{- if .NIT}}
+NIT del emisor: {{.NIT}}{{end}}
+
+Sucursal: #{{.BranchID}}{{if .BranchAddress}} — {{.BranchAddress}}{{end}}
+Tipo de contingencia: {{if .ContingencyTypeLabel}}{{.ContingencyTypeLabel}}{{else}}{{.ContingencyType}}{{end}}
+Documentos afectados: {{.AffectedDocs}}
+Hora de activación: {{.Timestamp}}
+
+Motivo reportado:
+{{.Reason}}
+
+Mientras dure la contingencia, los DTE se almacenan localmente y serán
+retransmitidos automáticamente cuando el servicio se restablezca.
+
+-----------------------------------------
+Ordo Factus | Ambiente: {{.Environment}} | API v{{.APIVersion}}
+{{.AggregateID}}
+Correo automático del sistema. No responder.

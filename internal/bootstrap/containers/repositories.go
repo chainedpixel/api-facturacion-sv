@@ -1,12 +1,12 @@
 package containers
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
-	contiPorts "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/contingency"
-	dtePorts "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/dte_documents"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/repositories"
+	"github.com/chainedpixel/ordo-factus/config/drivers"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	contiPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
+	dtePorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/repositories"
 	"gorm.io/gorm"
 )
 
@@ -17,6 +17,7 @@ type RepositoryContainer struct {
 	authRepo                   auth.AuthRepositoryPort
 	sequentialNumberRepo       ports.SequentialNumberRepositoryPort
 	failedSequentialNumberRepo ports.FailedSequenceNumberRepositoryPort
+	reservedSequenceRepo       dtePorts.ReservedSequenceRepositoryPort
 	dteRepo                    dtePorts.DTERepositoryPort
 	contingencyRepo            contiPorts.ContingencyRepositoryPort
 }
@@ -31,6 +32,7 @@ func NewRepositoryContainer(connection *drivers.DbConnection) *RepositoryContain
 func (c *RepositoryContainer) Initialize() {
 	c.authRepo = repositories.NewAuthRepository(c.db)
 	c.sequentialNumberRepo = repositories.NewControlNumberRepository(c.db)
+	c.reservedSequenceRepo = repositories.NewReservedSequenceRepository(c.db)
 	c.dteRepo = repositories.NewDTERepository(c.db)
 	c.contingencyRepo = repositories.NewContingencyRepository(c.db)
 	c.failedSequentialNumberRepo = repositories.NewFailedSequenceNumberRepository(c.db)
@@ -54,4 +56,8 @@ func (c *RepositoryContainer) AuthRepo() auth.AuthRepositoryPort {
 
 func (c *RepositoryContainer) SequentialNumberRepo() ports.SequentialNumberRepositoryPort {
 	return c.sequentialNumberRepo
+}
+
+func (c *RepositoryContainer) ReservedSequenceRepo() dtePorts.ReservedSequenceRepositoryPort {
+	return c.reservedSequenceRepo
 }

@@ -3,8 +3,8 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/config/drivers"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type DBConnectionMiddleware struct {
@@ -26,7 +26,13 @@ func (m *DBConnectionMiddleware) Handler(next http.Handler) http.Handler {
 			http.Error(w, "Error connecting to database", http.StatusInternalServerError)
 			return
 		}
-		sqlDB.Ping()
+		err = sqlDB.Ping()
+		if err != nil {
+			logs.Warn("Database initial ping middleware has failed, please check why", map[string]interface{}{
+				"error": err.Error(),
+			})
+			return
+		}
 
 		logs.Debug("Database connection established")
 		next.ServeHTTP(w, r)

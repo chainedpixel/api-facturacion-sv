@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
 	"io/ioutil"
 	"net/http"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type DTESigner struct {
@@ -32,7 +33,7 @@ type SignResponse struct {
 	Body   string `json:"body"`
 }
 
-// SpringBootError representa el formato estándar de error de Spring Boot
+// SpringBootError represents the standard Spring Boot error format
 type SpringBootError struct {
 	Timestamp string `json:"timestamp"`
 	Status    int    `json:"status"`
@@ -87,7 +88,6 @@ func (s *DTESigner) SignDTE(ctx context.Context, dte json.RawMessage, nit string
 	}
 	defer resp.Body.Close()
 
-	// Leer el cuerpo de la respuesta
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("error reading response body: %w", err)
@@ -96,14 +96,12 @@ func (s *DTESigner) SignDTE(ctx context.Context, dte json.RawMessage, nit string
 	if resp.StatusCode != http.StatusOK {
 		var springError SpringBootError
 		if err := json.Unmarshal(body, &springError); err == nil {
-			// Si podemos deserializar como error de Spring Boot, usamos ese formato
 			return "", fmt.Errorf("signer service error - status: %d, error: %s, message: %s",
 				springError.Status,
 				springError.Error,
 				springError.Message)
 		}
 
-		// Si no es un error de Spring Boot, intentamos el formato de error del firmador
 		var errorResp struct {
 			Status string `json:"status"`
 			Body   struct {
@@ -117,12 +115,10 @@ func (s *DTESigner) SignDTE(ctx context.Context, dte json.RawMessage, nit string
 				errorResp.Body.Mensaje)
 		}
 
-		// Si ninguno de los formatos coincide, devolvemos el body como string
 		return "", fmt.Errorf("unexpected error response from signer service (status %d): %s",
 			resp.StatusCode, string(body))
 	}
 
-	// Para respuestas exitosas
 	var signResp SignResponse
 	if err := json.Unmarshal(body, &signResp); err != nil {
 		return "", fmt.Errorf("error decoding successful response: %w, body: %s", err, string(body))

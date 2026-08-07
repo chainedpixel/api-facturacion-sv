@@ -11,8 +11,8 @@ type Metrics struct {
 type DTEMetrics struct {
 	Total     int64            `json:"total"`
 	LastMonth int64            `json:"last_month"`
-	ByType    map[string]int64 `json:"by_type"`   // Factura, CCF, etc.
-	ByStatus  map[string]int64 `json:"by_status"` // RECEIVED, INVALIDATED, REJECTED
+	ByType    map[string]int64 `json:"by_type"`
+	ByStatus  map[string]int64 `json:"by_status"`
 }
 
 type RequestMetric struct {

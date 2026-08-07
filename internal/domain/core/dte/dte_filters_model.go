@@ -10,8 +10,8 @@ type DTEFilters struct {
 	Status       string     `query:"status,omitempty"`
 	Transmission string     `query:"transmission,omitempty"`
 	DTEType      string     `query:"type,omitempty"`
+	DTETypes     []string   `query:"types,omitempty"`
 
-	// Paginación
 	Page     int `json:"page,omitempty"`
 	PageSize int `json:"page_size,omitempty"`
 }

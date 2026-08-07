@@ -1,13 +1,13 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	itemVO "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	itemVO "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// MapCommonRequestItems mapea un arreglo de items comunes a un modelo de item -> Origen: Request
+// MapCommonRequestItems maps an array of common items to an item model -> Source: Request
 func MapCommonRequestItems(items []structs.ItemRequest) ([]models.Item, error) {
 	result := make([]models.Item, len(items))
 
@@ -21,7 +21,7 @@ func MapCommonRequestItems(items []structs.ItemRequest) ([]models.Item, error) {
 	return result, nil
 }
 
-// MapCommonRequestItem mapea un item común a un modelo de item -> Origen: Request
+// MapCommonRequestItem maps a common item to an item model -> Source: Request
 func MapCommonRequestItem(item structs.ItemRequest, index int) (*models.Item, error) {
 	var err error
 

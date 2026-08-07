@@ -2,10 +2,11 @@ package checkers
 
 import (
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/health"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"github.com/dimiro1/health/db"
 	"gorm.io/gorm"
 )
@@ -23,7 +24,6 @@ func (c *databaseChecker) Name() string {
 }
 
 func (c *databaseChecker) Check() models.Health {
-	// 1. Check the database connection
 	sql, err := c.db.DB()
 	if err != nil {
 		return models.Health{
@@ -35,7 +35,6 @@ func (c *databaseChecker) Check() models.Health {
 	checker := db.NewMySQLChecker(sql)
 	health := checker.Check()
 
-	// 2. Check if the database is up
 	if health.IsDown() {
 		details := utils.TranslateHealthDown(c.Name())
 

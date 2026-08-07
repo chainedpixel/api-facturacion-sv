@@ -6,11 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
 	"github.com/gtank/cryptopasta"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type CryptService struct{}
@@ -19,7 +20,7 @@ func NewCryptService() ports.CryptManager {
 	return &CryptService{}
 }
 
-// GenerateAPIKey genera una API key segura
+// GenerateAPIKey generates a secure API key
 func (cs *CryptService) GenerateAPIKey() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -28,7 +29,7 @@ func (cs *CryptService) GenerateAPIKey() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// GenerateAPISecret genera un API secret seguro
+// GenerateAPISecret generates a secure API secret
 func (cs *CryptService) GenerateAPISecret() (string, error) {
 	bytes := make([]byte, 48)
 	if _, err := rand.Read(bytes); err != nil {
@@ -37,13 +38,13 @@ func (cs *CryptService) GenerateAPISecret() (string, error) {
 	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
-// DeriveKeyFromToken deriva una clave de un token dado a través de SHA-256
+// DeriveKeyFromToken derives a key from a given token via SHA-256
 func (cs *CryptService) deriveKeyFromToken(token string) *[32]byte {
 	hash := sha256.Sum256([]byte(token))
 	return &hash
 }
 
-// EncryptStruct encripta una estructura de HaciendaCredentials y la convierte en un string
+// EncryptStruct encrypts a HaciendaCredentials struct and converts it to a string
 func (cs *CryptService) EncryptStruct(token string, data models.HaciendaCredentials) (string, error) {
 	key := cs.deriveKeyFromToken(token)
 
@@ -60,7 +61,7 @@ func (cs *CryptService) EncryptStruct(token string, data models.HaciendaCredenti
 	return base64.StdEncoding.EncodeToString(secret), nil
 }
 
-// DecryptStruct desencripta un string y lo convierte en una estructura de HaciendaCredentials
+// DecryptStruct decrypts a string and converts it into a HaciendaCredentials struct
 func (cs *CryptService) DecryptStruct(token string, data string) (models.HaciendaCredentials, error) {
 	var creds models.HaciendaCredentials
 	key := cs.deriveKeyFromToken(token)
@@ -83,7 +84,7 @@ func (cs *CryptService) DecryptStruct(token string, data string) (models.Haciend
 	return creds, nil
 }
 
-// GenerateBulkAPIKeys es una funcion de tipo bulk que genera una cantidad determinada de API KEYS y API SECRETs
+// GenerateBulkAPIKeys is a bulk function that generates a specified number of API keys and API secrets
 func (cs *CryptService) GenerateBulkAPIKeys(amount int) ([]string, []string, error) {
 	var err error
 	keys := make([]string, amount)

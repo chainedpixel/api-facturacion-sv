@@ -20,7 +20,6 @@ on:
     branches:
       - main
 
-# Añadir permisos explícitos para el workflow
 permissions:
   contents: write
   packages: read
@@ -119,7 +118,7 @@ jobs:
 
     strategy:
       matrix:
-        architecture: [amd64, arm64]
+        architecture: [ amd64, arm64 ]
         include:
           - architecture: amd64
             docker_base: alpine:latest
@@ -155,50 +154,46 @@ jobs:
           # Asegurar que el repositorio tiene el token correcto
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
           
-          # Verificar si existe la rama release-{arquitectura}
-          if git ls-remote --heads origin release-${ARCHITECTURE} | grep release-${ARCHITECTURE}; then
-            git checkout release-${ARCHITECTURE}
-          else
-            git checkout -b release-${ARCHITECTURE}
-          fi
-
-          # Traer todo de la rama main
-          git checkout main -- .
+          # Eliminar la carpeta test que es innecesaria para este paso
+          rm -rf ./tests
           
-          # Eliminar solo los archivos y directorios específicos que no son necesarios
-          rm -rf ./.github 2>/dev/null || true
-          rm -rf ./scripts 2>/dev/null || true
-          rm -rf ./tests 2>/dev/null || true
-          rm -f ./.gitignore 2>/dev/null || true
-          rm -f ./.gitattributes 2>/dev/null || true
-          rm -f ./README.md 2>/dev/null || true
-          
-          # Compilar la aplicación para la arquitectura específica
+          # Compilar la aplicación desde main antes de cambiar de rama
           echo "Compilando la aplicación para ${ARCHITECTURE_NAME}..."
           go mod tidy
           go mod download
-          CGO_ENABLED=0 GOOS=linux GOARCH=${ARCHITECTURE} go build -o dte-service ./cmd
-          chmod +x dte-service
+          CGO_ENABLED=0 GOOS=linux GOARCH=${ARCHITECTURE} go build -o /tmp/dte-service ./cmd
+          chmod +x /tmp/dte-service
           
-          # Verificar que el binario existe
-          if [ -f "./dte-service" ]; then
-            echo "Binario 'dte-service' compilado correctamente"
-            ls -la ./dte-service
-          else
+          if [ ! -f "/tmp/dte-service" ]; then
             echo "Error: No se pudo compilar el binario 'dte-service'"
             exit 1
           fi
+          echo "Binario 'dte-service' compilado correctamente"
           
-          # Crear un Dockerfile para despliegue
-          cat > Dockerfile <<EOF
-          FROM ${DOCKER_BASE}
-          WORKDIR /app
-          COPY dte-service .
-          COPY config ./config
-          EXPOSE 7319
-          CMD ["./dte-service"]
-          EOF
+          # Copiar archivos de i18n a temporal antes de cambiar de rama
+          cp -r ./assets/i18n /tmp/i18n
+          
+          # Verificar si existe la rama release-{arquitectura}
+          if git ls-remote --heads origin release-${ARCHITECTURE} | grep release-${ARCHITECTURE}; then
+            git checkout -f release-${ARCHITECTURE}
+          else
+            git checkout --orphan release-${ARCHITECTURE}
+          fi
 
+          # Limpiar todo el contenido de la rama
+          git rm -rf . 2>/dev/null || true
+          rm -rf ./* 2>/dev/null || true
+          
+          # Colocar solo lo necesario
+          cp /tmp/dte-service ./dte-service
+          
+          mkdir -p ./assets/i18n
+          cp -r /tmp/i18n/* ./assets/i18n/
+          
+          mkdir -p ./assets/logs
+          touch ./assets/logs/dte_microservice.log
+          chmod 666 ./assets/logs/dte_microservice.log
+          
           cat > README.md <<EOF
           # Release Branch (${ARCHITECTURE_NAME})
 
@@ -206,10 +201,9 @@ jobs:
           Generada automáticamente a partir de la rama main.
 
           ## Estructura
-          Esta versión ha sido optimizada para despliegue, eliminando archivos innecesarios como documentación,
-          scripts de desarrollo y configuraciones de Swagger.
-          
-          El binario ya está precompilado y listo para ejecutarse en entornos ${ARCHITECTURE_NAME}.
+          - \`dte-service\` - Binario precompilado
+          - \`assets/i18n/\` - Archivos de traducción
+          - \`assets/logs/\` - Directorio de logs
           EOF
 
           git add .

@@ -1,17 +1,18 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
 )
 
-// Identification es una estructura que representa la identificación de un DTE, contiene Version, Ambient, DTEType, ControlNumber,
-// GenerationCode, ModelType, OperationType, EmissionDate, EmissionTime, Currency, ContingencyType y ContingencyReason
+// Identification is a struct that represents the identification of a DTE, containing Version, Ambient, DTEType, ControlNumber,
+// GenerationCode, ModelType, OperationType, EmissionDate, EmissionTime, Currency, ContingencyType and ContingencyReason
 type Identification struct {
 	Version           document.Version              `json:"version"`
 	Ambient           document.Ambient              `json:"ambient"`

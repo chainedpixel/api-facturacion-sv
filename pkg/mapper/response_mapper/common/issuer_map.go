@@ -1,11 +1,11 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapCommonResponseIssuer mapea el emisor de una invoice electrónica a un modelo de emisor -> Origen: Response
+// MapCommonResponseIssuer maps the issuer of an electronic invoice to an issuer model -> Source: Response
 func MapCommonResponseIssuer(issuer interfaces.Issuer) structs.DTEIssuer {
 	result := structs.DTEIssuer{
 		NIT:                 issuer.GetNIT(),
@@ -19,7 +19,6 @@ func MapCommonResponseIssuer(issuer interfaces.Issuer) structs.DTEIssuer {
 		Correo:              issuer.GetEmail(),
 	}
 
-	// Mapear campos opcionales si tienen valor
 	if name := issuer.GetCommercialName(); name != "" {
 		result.NombreComercial = &name
 	}

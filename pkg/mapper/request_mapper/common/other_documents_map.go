@@ -1,13 +1,13 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// MapCommonRequestOtherDocuments mapea una lista de documentos adicionales a un modelo de documento adicional -> Origen: Request
+// MapCommonRequestOtherDocuments maps a list of additional documents to an additional document model -> Source: Request
 func MapCommonRequestOtherDocuments(otherDocuments []structs.OtherDocRequest) ([]models.OtherDocument, error) {
 	otherDocs := make([]models.OtherDocument, len(otherDocuments))
 
@@ -22,7 +22,7 @@ func MapCommonRequestOtherDocuments(otherDocuments []structs.OtherDocRequest) ([
 	return otherDocs, nil
 }
 
-// MapCommonRequestOtherDocument mapea un documento adicional a un modelo de documento adicional -> Origen: Request
+// MapCommonRequestOtherDocument maps an additional document to an additional document model -> Source: Request
 func MapCommonRequestOtherDocument(doc structs.OtherDocRequest) (*models.OtherDocument, error) {
 	var doctor *models.DoctorInfo
 	var err error

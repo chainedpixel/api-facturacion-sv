@@ -2,16 +2,17 @@ package fixtures
 
 import (
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// CreditNoteBuilder - Builder especializado para Nota de Crédito Electrónica
-// que reutiliza el DTEBuilder base para evitar duplicación de código
+// CreditNoteBuilder - Specialized builder for Electronic Credit Note
+// that reuses the base DTEBuilder to avoid code duplication
 type CreditNoteBuilder struct {
 	baseBuilder *DTEBuilder
 	document    *credit_note_models.CreditNoteModel
@@ -278,21 +279,18 @@ func (b *CreditNoteBuilder) AddSummaryWithCreditOperation() *CreditNoteBuilder {
 }
 
 func (b *CreditNoteBuilder) AddRelatedDocuments() *CreditNoteBuilder {
-	// Agregar un documento relacionado (obligatorio para Nota de Crédito)
 	relatedDoc := &models.RelatedDocument{}
 
-	// La nota de crédito debe tener un documento relacionado (la factura original)
 	b.setError(relatedDoc.SetDocumentType(constants.CCFElectronico))
 	b.setError(relatedDoc.SetGenerationType(constants.ElectronicDocument))
 	b.setError(relatedDoc.SetDocumentNumber("0ACAD9C9-81B0-4D9B-98A7-E85387673875"))
-	b.setError(relatedDoc.SetEmissionDate(utils.TimeNow().AddDate(0, 0, -1))) // Ayer
+	b.setError(relatedDoc.SetEmissionDate(utils.TimeNow().AddDate(0, 0, -1)))
 
 	if b.err == nil {
 		relatedDocs := []interfaces.RelatedDocument{relatedDoc}
 		b.setError(b.baseBuilder.document.SetRelatedDocuments(relatedDocs))
 	}
 
-	// Establecer la referencia en los ítems
 	for _, item := range b.document.CreditItems {
 		docRef := "0ACAD9C9-81B0-4D9B-98A7-E85387673875"
 		b.setError(item.SetRelatedDoc(&docRef))

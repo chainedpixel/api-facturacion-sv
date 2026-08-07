@@ -1,11 +1,11 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
 )
 
-// Extension es una estructura que representa una extensión de un DTE, contiene DeliveryName, DeliveryDocument, ReceiverName,
-// ReceiverDocument y Observation
+// Extension is a struct that represents an extension of a DTE, containing DeliveryName, DeliveryDocument, ReceiverName,
+// ReceiverDocument and Observation
 type Extension struct {
 	DeliveryName     document.DeliveryName     `json:"deliveryName"`
 	DeliveryDocument document.DeliveryDocument `json:"deliveryDocument"`

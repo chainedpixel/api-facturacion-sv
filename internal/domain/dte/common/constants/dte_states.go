@@ -18,7 +18,6 @@ const (
 )
 
 var (
-	// ValidReceiverDocumentStates contiene los estados válidos para un documento tributario electrónico
 	ValidReceiverDocumentStates = map[string]bool{
 		DocumentReceived: true,
 		DocumentPending:  true,
@@ -26,7 +25,6 @@ var (
 		DocumentInvalid:  true,
 	}
 
-	// ValidTransmissionTypes contiene los tipos de transmisión válidos para un documento tributario electrónico
 	ValidTransmissionTypes = map[string]bool{
 		TransmissionContingency: true,
 		TransmissionNormal:      true,

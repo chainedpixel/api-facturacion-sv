@@ -3,15 +3,15 @@ package retention
 import (
 	"context"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/dte_documents"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/retention_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/validator"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type retentionService struct {
@@ -20,7 +20,7 @@ type retentionService struct {
 	seqNumberManager dte_documents.SequentialNumberManager
 }
 
-// NewRetentionService crea una nueva instancia de RetentionManager
+// NewRetentionService creates a new instance of RetentionManager
 func NewRetentionService(seqNumberManager dte_documents.SequentialNumberManager, dteManager dte_documents.DTEManager) ports.DTEService {
 	return &retentionService{
 		validator:        validator.NewRetentionRulesValidator(nil),
@@ -32,7 +32,6 @@ func NewRetentionService(seqNumberManager dte_documents.SequentialNumberManager,
 func (s *retentionService) Create(ctx context.Context, input interface{}, branchID uint) (interface{}, error) {
 	data := input.(*retention_models.InputRetentionData)
 
-	// 1. Crear el documento base para la retención
 	data.RetentionSummary.TotalIVARetentionLetters = utils.InLetters(data.RetentionSummary.TotalIVARetention.GetValue())
 	baseDoc := createBaseDocument(data)
 	retention := &retention_models.RetentionModel{
@@ -41,13 +40,11 @@ func (s *retentionService) Create(ctx context.Context, input interface{}, branch
 		RetentionSummary: data.RetentionSummary,
 	}
 
-	// 2. Validar el documento de retention generado
 	err := s.validate(retention)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Generar el codigo de generacion y el numero de control
 	if err := s.generateCodeAndIdentifiers(ctx, retention, branchID); err != nil {
 		return nil, err
 	}
@@ -71,7 +68,7 @@ func (s *retentionService) validate(retention *retention_models.RetentionModel) 
 	return nil
 }
 
-// createBaseDocument Crea un documento base para la invoice electrónica.
+// createBaseDocument Creates a base document for the electronic invoice.
 func createBaseDocument(data *retention_models.InputRetentionData) *models.DTEDocument {
 	var extInterface interfaces.Extension
 	var appendixes []interfaces.Appendix
@@ -133,7 +130,7 @@ func (s *retentionService) generateCodeAndIdentifiers(ctx context.Context, reten
 	return retention.Identification.GenerateCode()
 }
 
-// generateControlNumber Genera un número de control único para la invoice.
+// generateControlNumber Generates a unique control number for the invoice.
 func (s *retentionService) generateControlNumber(ctx context.Context, retention *retention_models.RetentionModel, branchID uint) error {
 	establishmentCode := retention.Issuer.GetEstablishmentCode()
 	posCode := retention.Issuer.GetPOSCode()

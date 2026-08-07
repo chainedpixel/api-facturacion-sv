@@ -1,8 +1,8 @@
 package strategy
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
 )
 
 type InvalidationBasicStrategy struct {
@@ -10,12 +10,10 @@ type InvalidationBasicStrategy struct {
 }
 
 func (s *InvalidationBasicStrategy) Validate() *dte_errors.DTEError {
-	// 1. Validar campos requeridos de identificación
 	if err := s.validateIdentification(); err != nil {
 		return err
 	}
 
-	// 2. Validar campos requeridos del emisor
 	if err := s.validateIssuer(); err != nil {
 		return err
 	}
@@ -29,7 +27,6 @@ func (s *InvalidationBasicStrategy) validateIdentification() *dte_errors.DTEErro
 		return dte_errors.NewDTEErrorSimple("RequiredField", "Identification")
 	}
 
-	//Validar campos requeridos
 	if id.Version.GetValue() == 0 || id.Ambient.GetValue() == "" || id.GenerationCode.GetValue() == "" ||
 		id.GetEmissionDate().IsZero() || id.GetEmissionTime().IsZero() {
 		return dte_errors.NewDTEErrorSimple("RequiredField", "Identification fields")
@@ -44,12 +41,10 @@ func (s *InvalidationBasicStrategy) validateIssuer() *dte_errors.DTEError {
 		return dte_errors.NewDTEErrorSimple("RequiredField", "Issuer")
 	}
 
-	// Validar campos requeridos del emisor según schema
 	if issuer.NIT.GetValue() == "" || issuer.Name == "" || issuer.EstablishmentType.GetValue() == "" {
 		return dte_errors.NewDTEErrorSimple("RequiredField", "Issuer required fields")
 	}
 
-	// Validar correo y teléfono
 	if issuer.Email.GetValue() == "" {
 		return dte_errors.NewDTEErrorSimple("RequiredField", "Issuer email")
 	}

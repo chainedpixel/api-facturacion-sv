@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
 )
 
-// InvoiceBuilder - Builder especializado para Factura Electrónica
-// que reutiliza el DTEBuilder base para evitar duplicación de código
+// InvoiceBuilder - Specialized builder for Electronic Invoice
+// that reuses the base DTEBuilder to avoid code duplication
 type InvoiceBuilder struct {
 	baseBuilder *DTEBuilder
 	document    *invoice_models.ElectronicInvoice
@@ -228,7 +228,6 @@ func (b *InvoiceBuilder) AddSummary() *InvoiceBuilder {
 		Summary: baseSummary,
 	}
 
-	// Calcular el total de IVA
 	var totalIva float64
 	totalTaxed := financial.NewValidatedAmount(0)
 	for _, item := range b.document.InvoiceItems {
@@ -257,7 +256,6 @@ func (b *InvoiceBuilder) AddSummary() *InvoiceBuilder {
 	invoiceSummary.TotalToPay = invoiceSummary.TotalOperation
 	invoiceSummary.TotalTaxes = nil
 
-	// Modificar los pagos
 	payments := baseSummary.GetPaymentTypes()
 	payments[0].SetAmount(invoiceSummary.TotalToPay.GetValue())
 

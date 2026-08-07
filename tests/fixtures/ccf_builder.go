@@ -3,15 +3,13 @@ package fixtures
 import (
 	"fmt"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
 )
 
-// CCFBuilder - Builder especializado para Comprobante de Crédito Fiscal
-// que reutiliza el DTEBuilder base para evitar duplicación de código
 type CCFBuilder struct {
 	baseBuilder *DTEBuilder
 	document    *ccf_models.CreditFiscalDocument
@@ -121,7 +119,7 @@ func (b *CCFBuilder) AddIssuer() *CCFBuilder {
 	return b
 }
 
-// AddReceiverForCCF añade datos de receptor válidos para CCF
+// AddReceiverForCCF adds valid receiver data for CCF
 func (b *CCFBuilder) AddReceiverForCCF() *CCFBuilder {
 	b.baseBuilder.AddReceiver()
 
@@ -142,7 +140,7 @@ func (b *CCFBuilder) AddReceiverForCCF() *CCFBuilder {
 	commercialName := "CLIENT COMPANY INC."
 	nit := "98765432101234"
 
-	b.setError(baseReceiver.SetNRC(&nrc)) // Importante para CCF
+	b.setError(baseReceiver.SetNRC(&nrc))
 	b.setError(baseReceiver.SetActivityDescription(&activityDescription))
 	b.setError(baseReceiver.SetActivityCode(&activityCode))
 	b.setError(baseReceiver.SetCommercialName(&commercialName))
@@ -151,7 +149,7 @@ func (b *CCFBuilder) AddReceiverForCCF() *CCFBuilder {
 	return b
 }
 
-// AddReceiverWithNoNRC añade datos de receptor sin NRC (inválido para CCF)
+// AddReceiverWithNoNRC adds receiver data without NRC (invalid for CCF)
 func (b *CCFBuilder) AddReceiverWithNoNRC() *CCFBuilder {
 	b.baseBuilder.AddReceiver()
 
@@ -315,7 +313,7 @@ func (b *CCFBuilder) AddSummaryWithCashOperation() *CCFBuilder {
 	return b
 }
 
-// AddSummaryWithZeroTaxes añade resumen con ceros para test de validación NRC
+// AddSummaryWithZeroTaxes adds a summary with zeros for NRC validation testing
 func (b *CCFBuilder) AddSummaryWithZeroTaxes() *CCFBuilder {
 	baseSummary := &models.Summary{}
 

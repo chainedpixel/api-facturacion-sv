@@ -2,7 +2,7 @@ package notification
 
 import "time"
 
-// UserNotification representa una notificación para un usuario
+// UserNotification represents a notification for a user
 type UserNotification struct {
 	ID               uint      `json:"id,omitempty"`
 	UserID           uint      `json:"user_id"`

@@ -1,10 +1,10 @@
 package response_mapper
 
 import (
-	commonModels "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/invalidation"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	commonModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/invalidation"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
 func ToMHInvalidation(doc interface{}) *structs.InvalidationResponse {

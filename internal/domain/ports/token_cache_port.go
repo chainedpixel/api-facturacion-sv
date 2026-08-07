@@ -1,36 +1,39 @@
 package ports
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/go-redis/redis/v8"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/go-redis/redis/v8"
 )
 
-// CacheManager interface para abstracción del cache
+// CacheManager interface for cache abstraction
 type CacheManager interface {
-	Set(key string, claims []byte, ttl time.Duration) error                                       // Set guarda un token en el cache
-	SetCredentials(token string, cipherInfo *models.HaciendaCredentials, ttl time.Duration) error // SetCredentials guarda las credenciales en el cache
-	GetCredentials(token string) (*models.HaciendaCredentials, error)                             // GetCredentials obtiene las credenciales del cache
-	Get(key string) (string, error)                                                               // Get obtiene un token del cache
-	Delete(token string) error                                                                    // Delete elimina un token del cache
-	GetRedisClient() *redis.Client                                                                // GetRedisClient retorna el cliente de Redis
+	Set(key string, claims []byte, ttl time.Duration) error
+	SetCredentials(token string, cipherInfo *models.HaciendaCredentials, ttl time.Duration) error
+	GetCredentials(token string) (*models.HaciendaCredentials, error)
+	Get(key string) (string, error)
+	Delete(token string) error
+	GetRedisClient() *redis.Client
 	CacheListManager
 }
 
-// CacheListManager define el comportamiento para la gestión de listas en caché
+// CacheListManager defines the behavior for cache list management
 type CacheListManager interface {
-	RPush(key string, value []byte) error                   // Añade elemento al final de la lista
-	LPush(key string, value []byte) error                   // Añade elemento al inicio de la lista
-	LRange(key string, start, stop int64) ([]string, error) // Obtiene rango de elementos de la lista
-	LLen(key string) (int64, error)                         // Obtiene longitud de la lista
-	LTrim(key string, start, stop int64) error              // Mantiene solo el rango especificado
+	RPush(key string, value []byte) error
+	LPush(key string, value []byte) error
+	LRange(key string, start, stop int64) ([]string, error)
+	LLen(key string) (int64, error)
+	LTrim(key string, start, stop int64) error
+	Expire(key string, ttl time.Duration) error
+	ScanKeys(pattern string) ([]string, error)
 }
 
-// TokenManager define el comportamiento para la gestión de tokens
+// TokenManager defines the behavior for token management
 type TokenManager interface {
-	GenerateToken(claims *models.AuthClaims, tokenLifetime time.Duration) (string, error)                                     // GenerateToken genera un nuevo token JWT con los claims proporcionados
-	ValidateToken(token string) (*models.AuthClaims, error)                                                                   // ValidateToken valida un token y retorna sus claims
-	RevokeToken(token string) error                                                                                           // RevokeToken revoca un token específico
-	SaveTimestampsForContingency(issuedAt, expiresAt time.Time, tokenLifetime time.Duration, claims *models.AuthClaims) error // SaveTimestampsForContingency guarda los timestamps de un token en contingencia
-	GetSecretKey() string                                                                                                     // GetSecretKey retorna la clave secreta para firmar los tokens
+	GenerateToken(claims *models.AuthClaims, tokenLifetime time.Duration) (string, error)
+	ValidateToken(token string) (*models.AuthClaims, error)
+	RevokeToken(token string) error
+	SaveTimestampsForContingency(issuedAt, expiresAt time.Time, tokenLifetime time.Duration, claims *models.AuthClaims) error
+	GetSecretKey() string
 }

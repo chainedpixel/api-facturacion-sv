@@ -53,13 +53,11 @@ type AuxiliarRelatedDocAndItemsExtractor struct {
 func ExtractAuxiliarIdentification(document interface{}) (AuxiliarIdentificationExtractor, error) {
 	var identification AuxiliarIdentificationExtractor
 
-	// 1. Convertir a formato JSON el documento
 	jsonData, err := json.Marshal(document)
 	if err != nil {
 		return identification, err
 	}
 
-	// 2. Extraer parte de la información de Identificación
 	if err := json.Unmarshal(jsonData, &identification); err != nil {
 		return identification, err
 	}
@@ -70,10 +68,8 @@ func ExtractAuxiliarIdentification(document interface{}) (AuxiliarIdentification
 func ExtractAuxiliarIdentificationFromStringJSON(document interface{}) (AuxiliarIdentificationExtractor, error) {
 	var identification AuxiliarIdentificationExtractor
 
-	// 1. Convertir a formato JSON el documento
 	jsonData := []byte(document.(string))
 
-	// 2. Extraer parte de la información de Identificación
 	if err := json.Unmarshal(jsonData, &identification); err != nil {
 		return identification, err
 	}
@@ -84,13 +80,11 @@ func ExtractAuxiliarIdentificationFromStringJSON(document interface{}) (Auxiliar
 func ExtractSummaryTotalAmounts(document interface{}) (AuxiliarTotalAmountsExtractor, error) {
 	var summary AuxiliarTotalAmountsExtractor
 
-	// 1. Convertir a formato JSON el documento
 	jsonData, err := json.Marshal(document)
 	if err != nil {
 		return summary, err
 	}
 
-	// 2. Extraer parte de la información del Resumen
 	if err = json.Unmarshal(jsonData, &summary); err != nil {
 		return summary, err
 	}
@@ -101,10 +95,8 @@ func ExtractSummaryTotalAmounts(document interface{}) (AuxiliarTotalAmountsExtra
 func ExtractSummaryTotalAmountsFromStringJSON(document interface{}) (AuxiliarTotalAmountsExtractor, error) {
 	var summary AuxiliarTotalAmountsExtractor
 
-	// 1. Convertir a formato JSON el documento
 	jsonData := []byte(document.(string))
 
-	// 2. Extraer parte de la información del Resumen
 	if err := json.Unmarshal(jsonData, &summary); err != nil {
 		return summary, err
 	}
@@ -115,10 +107,8 @@ func ExtractSummaryTotalAmountsFromStringJSON(document interface{}) (AuxiliarTot
 func ExtractRelatedDocAndItemsFromStringJSON(document interface{}) AuxiliarRelatedDocAndItemsExtractor {
 	var relatedDocAndItems AuxiliarRelatedDocAndItemsExtractor
 
-	// 1. Convertir a formato JSON el documento
 	jsonData := []byte(document.(string))
 
-	// 2. Extraer parte de la información del Resumen
 	_ = json.Unmarshal(jsonData, &relatedDocAndItems)
 	return relatedDocAndItems
 }
@@ -126,10 +116,8 @@ func ExtractRelatedDocAndItemsFromStringJSON(document interface{}) AuxiliarRelat
 func ExtractDTEReceiverFromString(document interface{}) (AuxiliarReceiverExtractor, error) {
 	var receiver AuxiliarReceiverExtractor
 
-	// 1. Convertir a formato JSON el documento
 	jsonData := []byte(document.(string))
 
-	// 2. Extraer parte de la información del Resumen
 	if err := json.Unmarshal(jsonData, &receiver); err != nil {
 		return receiver, err
 	}

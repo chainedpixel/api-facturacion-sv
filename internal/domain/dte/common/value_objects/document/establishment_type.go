@@ -1,9 +1,9 @@
 package document
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type EstablishmentType struct {
@@ -22,7 +22,7 @@ func NewValidatedEstablishmentType(value string) *EstablishmentType {
 	return &EstablishmentType{Value: value}
 }
 
-// IsValid valida que el valor de EstablishmentType sea 01, 02, 04, 07 o 20
+// IsValid validates that the EstablishmentType value is 01, 02, 04, 07 or 20
 func (et *EstablishmentType) IsValid() bool {
 	for _, v := range constants.AllowedEstablishmentTypes {
 		if et.Value == v {

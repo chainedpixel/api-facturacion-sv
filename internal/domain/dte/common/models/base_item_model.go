@@ -1,13 +1,13 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
 )
 
-// Item es una estructura que representa un item de un DTE, contiene Number, Type, Code, Description, Quantity,
-// UnitMeasure, UnitPrice, Discount, Taxes, TaxCode y RelatedDoc
+// Item is a struct that represents an item of a DTE, containing Number, Type, Code, Description, Quantity,
+// UnitMeasure, UnitPrice, Discount, Taxes, TaxCode and RelatedDoc
 type Item struct {
 	Number      item.ItemNumber    `json:"number"`
 	Type        item.ItemType      `json:"type"`

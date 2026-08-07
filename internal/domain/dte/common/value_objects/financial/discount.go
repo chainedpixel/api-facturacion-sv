@@ -5,8 +5,8 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Discount struct {
@@ -25,7 +25,7 @@ func NewValidatedDiscount(value float64) *Discount {
 	return &Discount{Value: value}
 }
 
-// IsValid valida que el valor de Discount sea mayor o igual a 0 y menor o igual a 100
+// IsValid validates that the discount percentage is in the range [0, 100].
 func (d *Discount) IsValid() bool {
 	value, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", d.Value), 64)
 	return value >= 0 && value <= 100
@@ -40,5 +40,5 @@ func (d *Discount) GetValue() float64 {
 }
 
 func (d *Discount) ToString() string {
-	return fmt.Sprintf("%.2f%%", d.Value)
+	return fmt.Sprintf("%.2f", d.Value)
 }

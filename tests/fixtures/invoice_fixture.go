@@ -1,58 +1,58 @@
 package fixtures
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	respStructs "github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	respStructs "github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// CreateDefaultInvoiceItem crea un ítem de factura predeterminado válido
+// CreateDefaultInvoiceItem creates a valid default invoice item
 func CreateDefaultInvoiceItem(index int) structs.InvoiceItemRequest {
 	code := "COD" + string(rune(65+index))
 
 	return structs.InvoiceItemRequest{
 		ItemRequest: structs.ItemRequest{
 			Number:      index + 1,
-			Type:        1, // Producto
+			Type:        1,
 			Description: "Producto " + string(rune(65+index)),
 			Quantity:    10,
-			UnitMeasure: 59, // Unidades
+			UnitMeasure: 59,
 			UnitPrice:   5.0,
 			Discount:    0,
 			Code:        &code,
-			Taxes:       []string{"20"}, // Código IVA
+			Taxes:       []string{"20"},
 		},
 		NonSubjectSale: 0,
 		ExemptSale:     0,
-		TaxedSale:      50.0, // Cantidad * Precio unitario
+		TaxedSale:      50.0,
 		SuggestedPrice: 0,
 		NonTaxed:       0,
-		IVAItem:        6.5, // TaxedSale * 0.13
+		IVAItem:        6.5,
 	}
 }
 
-// CreateInvoiceItemWithInvalidType crea un ítem de factura con tipo inválido
+// CreateInvoiceItemWithInvalidType creates an invoice item with an invalid type
 func CreateInvoiceItemWithInvalidType() structs.InvoiceItemRequest {
 	item := CreateDefaultInvoiceItem(0)
-	item.Type = 99 // Tipo inválido
+	item.Type = 99
 	return item
 }
 
-// CreateInvoiceItemWithNegativeQuantity crea un ítem de factura con cantidad negativa
+// CreateInvoiceItemWithNegativeQuantity creates an invoice item with a negative quantity
 func CreateInvoiceItemWithNegativeQuantity() structs.InvoiceItemRequest {
 	item := CreateDefaultInvoiceItem(0)
-	item.Quantity = -1 // Cantidad negativa
+	item.Quantity = -1
 	return item
 }
 
-// CreateInvoiceItemWithInvalidIVA crea un ítem de factura con IVA inválido
+// CreateInvoiceItemWithInvalidIVA creates an invoice item with an invalid IVA
 func CreateInvoiceItemWithInvalidIVA() structs.InvoiceItemRequest {
 	item := CreateDefaultInvoiceItem(0)
-	item.IVAItem = 100 // Monto IVA inválido
+	item.IVAItem = 100
 	return item
 }
 
-// CreateDefaultInvoiceSummary crea un resumen de factura predeterminado válido
+// CreateDefaultInvoiceSummary creates a valid default invoice summary
 func CreateDefaultInvoiceSummary() *structs.InvoiceSummaryRequest {
 	return &structs.InvoiceSummaryRequest{
 		SummaryRequest: structs.SummaryRequest{
@@ -68,17 +68,17 @@ func CreateDefaultInvoiceSummary() *structs.InvoiceSummaryRequest {
 			TotalOperation:     100.0,
 			TotalNonTaxed:      0,
 			TotalToPay:         100.0,
-			OperationCondition: 1, // Contado
+			OperationCondition: 1,
 			Taxes: []structs.TaxRequest{
 				{
-					Code:        "20", // Código IVA
+					Code:        "20",
 					Description: "IVA",
-					Value:       13.0, // 13% del monto gravado
+					Value:       13.0,
 				},
 			},
 			PaymentTypes: []structs.PaymentRequest{
 				{
-					Code:   "01", // Efectivo
+					Code:   "01",
 					Amount: 100.0,
 				},
 			},
@@ -91,21 +91,21 @@ func CreateDefaultInvoiceSummary() *structs.InvoiceSummaryRequest {
 	}
 }
 
-// CreateInvoiceSummaryWithInvalidTaxCode crea un resumen de factura con código de impuesto inválido
+// CreateInvoiceSummaryWithInvalidTaxCode creates an invoice summary with an invalid tax code
 func CreateInvoiceSummaryWithInvalidTaxCode() *structs.InvoiceSummaryRequest {
 	summary := CreateDefaultInvoiceSummary()
-	summary.Taxes[0].Code = "99" // Código de impuesto inválido
+	summary.Taxes[0].Code = "99"
 	return summary
 }
 
-// CreateInvoiceSummaryWithMismatchedTotals crea un resumen de factura con totales inconsistentes
+// CreateInvoiceSummaryWithMismatchedTotals creates an invoice summary with inconsistent totals
 func CreateInvoiceSummaryWithMismatchedTotals() *structs.InvoiceSummaryRequest {
 	summary := CreateDefaultInvoiceSummary()
-	summary.TotalToPay = 50.0 // No coincide con TotalOperation
+	summary.TotalToPay = 50.0
 	return summary
 }
 
-// CreateDefaultInvoiceRequest crea una solicitud de factura predeterminada válida
+// CreateDefaultInvoiceRequest creates a valid default invoice request
 func CreateDefaultInvoiceRequest() *structs.CreateInvoiceRequest {
 	items := []structs.InvoiceItemRequest{
 		CreateDefaultInvoiceItem(0),
@@ -115,12 +115,12 @@ func CreateDefaultInvoiceRequest() *structs.CreateInvoiceRequest {
 	return &structs.CreateInvoiceRequest{
 		Items:     items,
 		Receiver:  CreateDefaultReceiver(),
-		ModelType: 1, // Modelo normal
+		ModelType: 1,
 		Summary:   CreateDefaultInvoiceSummary(),
 	}
 }
 
-// CreateInvoiceRequestWithInvalidItems crea una solicitud de factura con ítems inválidos
+// CreateInvoiceRequestWithInvalidItems creates an invoice request with invalid items
 func CreateInvoiceRequestWithInvalidItems() *structs.CreateInvoiceRequest {
 	req := CreateDefaultInvoiceRequest()
 	req.Items = []structs.InvoiceItemRequest{
@@ -129,21 +129,21 @@ func CreateInvoiceRequestWithInvalidItems() *structs.CreateInvoiceRequest {
 	return req
 }
 
-// CreateInvoiceRequestWithInvalidSummary crea una solicitud de factura con resumen inválido
+// CreateInvoiceRequestWithInvalidSummary creates an invoice request with an invalid summary
 func CreateInvoiceRequestWithInvalidSummary() *structs.CreateInvoiceRequest {
 	req := CreateDefaultInvoiceRequest()
 	req.Summary = CreateInvoiceSummaryWithMismatchedTotals()
 	return req
 }
 
-// CreateInvoiceRequestWithInvalidReceiver crea una solicitud de factura con receptor inválido
+// CreateInvoiceRequestWithInvalidReceiver creates an invoice request with an invalid receiver
 func CreateInvoiceRequestWithInvalidReceiver() *structs.CreateInvoiceRequest {
 	req := CreateDefaultInvoiceRequest()
 	req.Receiver = CreateReceiverWithInvalidEmail()
 	return req
 }
 
-// CreateInvoiceRequestWithAllOptionalFields crea una solicitud de factura con todos los campos opcionales
+// CreateInvoiceRequestWithAllOptionalFields creates an invoice request with all optional fields
 func CreateInvoiceRequestWithAllOptionalFields() *structs.CreateInvoiceRequest {
 	req := CreateDefaultInvoiceRequest()
 	req.Extension = CreateDefaultExtension()
@@ -154,25 +154,23 @@ func CreateInvoiceRequestWithAllOptionalFields() *structs.CreateInvoiceRequest {
 	return req
 }
 
-// CreateExpectedInvoiceResponse crea una respuesta esperada de factura para pruebas
+// CreateExpectedInvoiceResponse creates an expected invoice response for testing
 func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
-	// Campos de identificación
 	identificacion := &respStructs.DTEIdentification{
 		Version:          1,
 		Ambiente:         "00",
 		TipoDte:          "01",
 		NumeroControl:    "DTE-01-00000000-000000000000001",
-		CodigoGeneracion: "FF54E9DB-79C3-42CE-B432-EC522C97EFB9", // Será ignorado en las comparaciones
+		CodigoGeneracion: "FF54E9DB-79C3-42CE-B432-EC522C97EFB9",
 		TipoModelo:       1,
 		TipoOperacion:    1,
 		TipoContingencia: nil,
 		MotivoContin:     nil,
-		FecEmi:           "2025-04-18", // Sera ignroado en las comparaciones - fecha actual en formato YYYY-MM-DD
-		HorEmi:           "15:30:00",   // Sera ignorado en las comparaciones - hora actual en formato HH:MM:SS
+		FecEmi:           "2025-04-18",
+		HorEmi:           "15:30:00",
 		TipoMoneda:       "USD",
 	}
 
-	// Datos del emisor
 	emisor := respStructs.DTEIssuer{
 		NIT:                 "11111111111111",
 		NRC:                 "1111111",
@@ -194,7 +192,6 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		CodPuntoVenta:   nil,
 	}
 
-	// Datos del receptor
 	receptor := respStructs.InvoiceReceiver{
 		Nombre:        utils.ToStringPointer("Empresa Servicios Generales, S.A. de C.V."),
 		TipoDocumento: utils.ToStringPointer("36"),
@@ -211,7 +208,6 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		Correo:   utils.ToStringPointer("empresa@example.com"),
 	}
 
-	// Ítems del documento
 	items := []respStructs.InvoiceItem{
 		{
 			NumItem:      1,
@@ -249,7 +245,6 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		},
 	}
 
-	// Resumen
 	resumen := &respStructs.InvoiceSummary{
 		TotalNoSuj:          0,
 		TotalExenta:         0,
@@ -283,13 +278,11 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		NumPagoElectronico: nil,
 	}
 
-	// Construir respuesta completa
 	return &respStructs.InvoiceDTEResponse{
 		Identificacion:  identificacion,
 		Emisor:          emisor,
 		Receptor:        receptor,
 		CuerpoDocumento: items,
 		Resumen:         resumen,
-		// Otros campos quedan como nil al no estar en el fixture básico
 	}
 }

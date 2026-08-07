@@ -3,27 +3,24 @@ package mappers
 import (
 	"testing"
 
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMapToInvoiceData(t *testing.T) {
 	test.TestMain(t)
 
-	// Emisor por defecto para todas las pruebas
 	issuer := fixtures.CreateDefaultIssuer()
 
-	// Definir casos de prueba
 	tests := []struct {
 		name      string
 		req       func() *structs.CreateInvoiceRequest
 		wantErr   bool
 		errorCode string
 	}{
-		// ------ VALIDACIONES BÁSICAS ------
 		{
 			name: "Valid invoice request",
 			req: func() *structs.CreateInvoiceRequest {
@@ -60,12 +57,11 @@ func TestMapToInvoiceData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 
-		// ------ VALIDACIONES DE RECEPTOR ------
 		{
 			name: "Invoice with DocumentType but no DocumentNumber",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
-				docType := "36" // NIT
+				docType := "36"
 				req.Receiver.DocumentType = &docType
 				req.Receiver.DocumentNumber = nil
 				return req
@@ -88,7 +84,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			name: "Invoice with invalid phone",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
-				invalidPhone := "123" // Demasiado corto
+				invalidPhone := "123"
 				req.Receiver.Phone = &invalidPhone
 				return req
 			},
@@ -96,14 +92,13 @@ func TestMapToInvoiceData(t *testing.T) {
 			errorCode: "InvalidPhone",
 		},
 
-		// ------ VALIDACIONES DE DIRECCIÓN ------
 		{
 			name: "Invoice with invalid municipality",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.Receiver.Address = &structs.AddressRequest{
 					Department:   "06",
-					Municipality: "99", // Inválido
+					Municipality: "99",
 					Complement:   "Dirección de prueba",
 				}
 				return req
@@ -126,13 +121,12 @@ func TestMapToInvoiceData(t *testing.T) {
 			errorCode: "ErrorMapping",
 		},
 
-		// ------ VALIDACIONES DE ITEMS ------
 		{
 			name: "Invoice with invalid item type",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Type = 99 // Tipo inválido
+				item.Type = 99
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -144,7 +138,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Quantity = -5 // Cantidad negativa
+				item.Quantity = -5
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -156,7 +150,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.UnitMeasure = 0 // Inválido (debe ser 1-99)
+				item.UnitMeasure = 0
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -164,13 +158,12 @@ func TestMapToInvoiceData(t *testing.T) {
 			errorCode: "InvalidNumberRange",
 		},
 
-		// ------ VALIDACIONES DE CAMPOS FINANCIEROS ------
 		{
 			name: "Invoice with negative amount",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.UnitPrice = -10.0 // Precio negativo
+				item.UnitPrice = -10.0
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -182,7 +175,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Discount = -5.0 // Descuento negativo
+				item.Discount = -5.0
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -194,7 +187,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Discount = 150.0 // Más de 100%
+				item.Discount = 150.0
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -202,7 +195,6 @@ func TestMapToInvoiceData(t *testing.T) {
 			errorCode: "InvalidDiscount",
 		},
 
-		// ------ VALIDACIONES DE CAMPOS OPCIONALES ------
 		{
 			name: "Invoice with all valid optional fields",
 			req: func() *structs.CreateInvoiceRequest {
@@ -215,7 +207,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "", // Requerido pero vacío
+					DeliveryName:     "",
 					DeliveryDocument: "123456",
 					ReceiverName:     "Ana López",
 					ReceiverDocument: "98765432-1",
@@ -230,7 +222,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "", // Requerido pero vacío
+					NIT:  "",
 					Name: "Empresa Tercero",
 				}
 				return req
@@ -244,7 +236,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.Appendixes = []structs.AppendixRequest{
 					{
-						Field: "", // Requerido pero vacío
+						Field: "",
 						Label: "Etiqueta",
 						Value: "Valor",
 					},
@@ -261,7 +253,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				req.Appendixes = []structs.AppendixRequest{
 					{
 						Field: "campo",
-						Label: "ab", // Demasiado corto (mínimo 3)
+						Label: "ab",
 						Value: "Valor",
 					},
 				}
@@ -276,7 +268,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.Payments = []structs.PaymentRequest{
 					{
-						Code:   "77", // Código inválido
+						Code:   "77",
 						Amount: 100.0,
 					},
 				}
@@ -293,7 +285,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				detail := "Detalle del documento adicional"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 99, // Inválido (debe ser 1-4)
+						DocumentCode: 99,
 						Description:  &description,
 						Detail:       &detail,
 					},
@@ -311,10 +303,10 @@ func TestMapToInvoiceData(t *testing.T) {
 				detail := "Detalle médico"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 3, // Documento médico
+						DocumentCode: 3,
 						Description:  &description,
 						Detail:       &detail,
-						Doctor:       nil, // Requerido pero nulo
+						Doctor:       nil,
 					},
 				}
 				return req
@@ -329,9 +321,9 @@ func TestMapToInvoiceData(t *testing.T) {
 				nit := "12345678901234"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 3, // Documento médico
+						DocumentCode: 3,
 						Doctor: &structs.DoctorRequest{
-							Name:        "", // Requerido pero vacío
+							Name:        "",
 							NIT:         &nit,
 							ServiceType: 1,
 						},
@@ -348,11 +340,10 @@ func TestMapToInvoiceData(t *testing.T) {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 3, // Documento médico
+						DocumentCode: 3,
 						Doctor: &structs.DoctorRequest{
 							Name:        "Dr. Juan Pérez",
 							ServiceType: 1,
-							// NIT e IdentificationDoc ambos nulos
 						},
 					},
 				}
@@ -361,12 +352,11 @@ func TestMapToInvoiceData(t *testing.T) {
 			wantErr:   true,
 			errorCode: "ErrorMapping",
 		},
-		// ------ CASOS VÁLIDOS PARA RECEPTOR ------
 		{
 			name: "Invoice with valid DocumentType and DocumentNumber",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
-				docType := "36" // NIT
+				docType := "36"
 				docNumber := "06141804941035"
 				req.Receiver.DocumentType = &docType
 				req.Receiver.DocumentNumber = &docNumber
@@ -405,7 +395,6 @@ func TestMapToInvoiceData(t *testing.T) {
 			wantErr: true,
 		},
 
-		// ------ CASOS VÁLIDOS PARA DIRECCIÓN ------
 		{
 			name: "Invoice with valid municipality",
 			req: func() *structs.CreateInvoiceRequest {
@@ -433,13 +422,12 @@ func TestMapToInvoiceData(t *testing.T) {
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA ITEMS ------
 		{
 			name: "Invoice with valid item type (product)",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Type = 1 // Producto (válido)
+				item.Type = 1
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -450,7 +438,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Type = 2 // Servicio (válido)
+				item.Type = 2
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -461,7 +449,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Quantity = 10.5 // Cantidad positiva
+				item.Quantity = 10.5
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -472,20 +460,19 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.UnitMeasure = 59 // Unidades (válido)
+				item.UnitMeasure = 59
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA CAMPOS FINANCIEROS ------
 		{
 			name: "Invoice with positive amount",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.UnitPrice = 100.50 // Precio positivo
+				item.UnitPrice = 100.50
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -496,7 +483,7 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Discount = 0.0 // Sin descuento
+				item.Discount = 0.0
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
@@ -507,14 +494,13 @@ func TestMapToInvoiceData(t *testing.T) {
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Discount = 10.0 // 10% de descuento
+				item.Discount = 10.0
 				req.Items = []structs.InvoiceItemRequest{item}
 				return req
 			},
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA CAMPOS OPCIONALES ------
 		{
 			name: "Invoice with valid extension",
 			req: func() *structs.CreateInvoiceRequest {
@@ -565,7 +551,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				reference := "REF-123"
 				req.Payments = []structs.PaymentRequest{
 					{
-						Code:      "01", // Código válido
+						Code:      "01",
 						Amount:    100.0,
 						Reference: &reference,
 					},
@@ -582,7 +568,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				detail := "Detalle válido"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 1, // Código válido
+						DocumentCode: 1,
 						Description:  &description,
 						Detail:       &detail,
 					},
@@ -598,7 +584,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				nit := "06141804941035"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 3, // Documento médico
+						DocumentCode: 3,
 						Doctor: &structs.DoctorRequest{
 							Name:        "Dr. Juan Pérez",
 							NIT:         &nit,
@@ -612,7 +598,6 @@ func TestMapToInvoiceData(t *testing.T) {
 		},
 	}
 
-	// Ejecutar casos de prueba
 	mapper := request_mapper.NewInvoiceMapper()
 
 	for _, tt := range tests {
@@ -638,7 +623,6 @@ func TestMapToInvoiceData(t *testing.T) {
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.InvoiceSummary)
 
-			// Verificar campos opcionales si están presentes
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
 			}

@@ -1,12 +1,12 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// MapCommonResponsePayments mapea los pagos a un modelo de pagos -> Origen: Response
+// MapCommonResponsePayments maps payments to a payments model -> Source: Response
 func MapCommonResponsePayments(payments []interfaces.PaymentType) []structs.DTEPayment {
 	result := make([]structs.DTEPayment, len(payments))
 	for i, payment := range payments {

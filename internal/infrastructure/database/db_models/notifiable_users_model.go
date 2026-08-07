@@ -1,9 +1,9 @@
 package db_models
 
-// NotifiableUser representa la tabla cuya información será crucial para el proceso de notificaciones que generaran mediante
-// los eventos de dominio. Esta tabla almacenará la información de los usuarios que desean recibir notificaciones.
-// EntityID y EntityType representa que dichos atributos son polimórficos, es decir, pueden ser un Usuario Cliente o un
-// Usuario Administrador.
+// NotifiableUser represents the table whose information will be crucial for the notification process generated through
+// domain events. This table will store the information of users who wish to receive notifications.
+// EntityID and EntityType indicate that these attributes are polymorphic, meaning they can be either a Client User or an
+// Administrator User.
 type NotifiableUser struct {
 	ID          uint   `gorm:"column:id;type:uint;primaryKey;autoIncrement;not null"`
 	UserID      uint   `gorm:"column:user_id;type:uint;not null;index:idx_entity,priority:1"`

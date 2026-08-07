@@ -1,26 +1,26 @@
 package interfaces
 
-import "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 
-// Validator Interfaz que define los métodos que deben ser implementados por los objetos que validan un campo
+// Validator Interface that defines the methods that must be implemented by objects that validate a field
 type Validator interface {
-	IsValid() bool // IsValid Valida que el valor del campo cumpla con las reglas de negocio definidas
+	IsValid() bool
 }
 
-// DTEValidator Interfaz que define los métodos que deben ser implementados por los objetos que validan un DTE
+// DTEValidator Interface that defines the methods that must be implemented by objects that validate a DTE
 type DTEValidator interface {
-	ValidateDTERules() *dte_errors.DTEError // ValidateDTERules Valida las reglas de negocio de un DTE
+	ValidateDTERules() *dte_errors.DTEError
 }
 
-// ValueObject Interfaz que define los métodos que deben ser implementados por los objetos de valor
+// ValueObject Interface that defines the methods that must be implemented by value objects
 type ValueObject[T any] interface {
-	Validator                         // Validator Interfaz que define los métodos que deben ser implementados por los objetos que validan un DTE
-	ToString() string                 // ToString Convierte el valor del campo a un string
-	Equals(value ValueObject[T]) bool // Equals Compara el valor del campo con el valor de otro objeto de valor, a través de generics se define el tipo de dato que se espera
-	GetValue() T                      // GetValue Obtiene el valor del campo, a través de generics se define el tipo de dato que se espera
+	Validator
+	ToString() string
+	Equals(value ValueObject[T]) bool
+	GetValue() T
 }
 
-// DTEValidationStrategy Interfaz que define los métodos que deben ser implementados por las estrategias de validación de DTE
+// DTEValidationStrategy Interface that defines the methods that must be implemented by DTE validation strategies
 type DTEValidationStrategy interface {
-	Validate() *dte_errors.DTEError // Validate Valida un DTE
+	Validate() *dte_errors.DTEError
 }

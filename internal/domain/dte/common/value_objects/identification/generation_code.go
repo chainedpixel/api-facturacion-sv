@@ -3,8 +3,8 @@ package identification
 import (
 	"strings"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 	"github.com/google/uuid"
 )
 
@@ -12,7 +12,7 @@ type GenerationCode struct {
 	Value string `json:"value"`
 }
 
-// NewGenerationCode crea un nuevo GenerationCode con un UUID aleatorio
+// NewGenerationCode creates a new GenerationCode with a random UUID
 func NewGenerationCode() (*GenerationCode, error) {
 	code := &GenerationCode{Value: strings.ToUpper(uuid.New().String())}
 	if code.IsValid() {

@@ -1,11 +1,11 @@
 package retention
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapRetentionResponseExtension mapea una extensión a un modelo de extensión -> Origen: Response
+// MapRetentionResponseExtension maps an extension to an extension model -> Source: Response
 func MapRetentionResponseExtension(extension interfaces.Extension) *structs.RetentionExtension {
 	if extension == nil {
 		return nil

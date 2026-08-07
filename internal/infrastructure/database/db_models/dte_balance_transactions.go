@@ -1,15 +1,16 @@
 package db_models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"gorm.io/gorm"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"gorm.io/gorm"
 )
 
-// DTEBalanceTransaction representa una transacción de saldo de un DTE (Documento Tributario Electrónico).
-// Su propósito es almacenar las transacciones de saldo de un DTE en la base de datos y recuperarlas para su procesamiento
-// en esta tabla se registran las transacciones de Notas de Crédito y Débito que afectan el saldo de un DTE.
+// DTEBalanceTransaction represents a balance transaction for a DTE (Documento Tributario Electrónico).
+// Its purpose is to store DTE balance transactions in the database and retrieve them for processing.
+// This table records Credit and Debit Note transactions that affect the balance of a DTE.
 type DTEBalanceTransaction struct {
 	ID                   uint      `gorm:"primaryKey;autoIncrement:true;not null;index:idx_dte_balance_transaction"`
 	BalanceControlID     uint      `gorm:"column:balance_control_id;type:int;not null;index:idx_dte_balance_control"`
@@ -29,7 +30,6 @@ func (DTEBalanceTransaction) TableName() string {
 }
 
 func (d *DTEBalanceTransaction) AfterCreate(tx *gorm.DB) error {
-	// Realizar una resta o suma en el balance de acuerdo al tipo de transacción
 	if d.TransactionType == constants.NotaCreditoElectronica {
 		d.BalanceControl.RemainingTaxedAmount -= d.TaxedAmount
 		d.BalanceControl.RemainingExemptAmount -= d.ExemptAmount

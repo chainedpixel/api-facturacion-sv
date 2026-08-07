@@ -1,11 +1,11 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapCommonResponseIdentification mapea la identificación de una invoice electrónica a un modelo de identificación -> Origen: Response
+// MapCommonResponseIdentification maps the identification of an electronic invoice to an identification model -> Source: Response
 func MapCommonResponseIdentification(identification interfaces.Identification) *structs.DTEIdentification {
 	return &structs.DTEIdentification{
 		Version:          identification.GetVersion(),

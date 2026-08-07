@@ -6,7 +6,6 @@ const (
 )
 
 var (
-	// AllowedModeloFacturacion contiene los tipos de modelos de facturación permitidos, usado para validaciones
 	AllowedModeloFacturacion = []int{
 		ModeloFacturacionPrevio,
 		ModeloFacturacionDiferido,

@@ -1,10 +1,10 @@
 package containers
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/handlers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/helpers"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/handlers"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
 type HandlerContainer struct {
@@ -17,6 +17,7 @@ type HandlerContainer struct {
 	testHandler        *handlers.TestHandler
 	metricsHandler     *handlers.MetricsHandler
 	contingencyHandler *helpers.ContingencyHandler
+	debugNotifyHandler *handlers.DebugNotifyHandler
 }
 
 func NewHandlerContainer(useCases *UseCaseContainer, services *ServicesContainer) *HandlerContainer {
@@ -35,13 +36,12 @@ func (c *HandlerContainer) Initialize() {
 	c.dteHandler = handlers.NewDTEHandler(c.useCases.DTEConsultUseCase(), c.useCases.InvalidationUseCase(),
 		c.initializeGenericCreatorHandler(c.contingencyHandler),
 	)
+	c.debugNotifyHandler = handlers.NewDebugNotifyHandler(c.services.Mailer(), c.services.MailRenderer())
 }
 
 func (c *HandlerContainer) initializeGenericCreatorHandler(contingencyHandler *helpers.ContingencyHandler) *handlers.GenericCreatorDTEHandler {
-	// Crear el handler genérico
 	genericHandler := handlers.NewGenericDTEHandler(contingencyHandler)
 
-	// Registrar los tipos de documentos
 	genericHandler.RegisterDocument("/dte/invoices", helpers.DocumentConfig{
 		UseCase:         c.useCases.InvoiceUseCase(),
 		RequestType:     &structs.CreateInvoiceRequest{},
@@ -60,7 +60,7 @@ func (c *HandlerContainer) initializeGenericCreatorHandler(contingencyHandler *h
 		UseCase:         c.useCases.CreditNoteUseCase(),
 		RequestType:     &structs.CreateCreditNoteRequest{},
 		DocumentType:    constants.NotaCreditoElectronica,
-		UsesContingency: false, // TODO: activar cuando Hacienda resuelva el problema
+		UsesContingency: false,
 	})
 
 	genericHandler.RegisterDocument("/dte/retention", helpers.DocumentConfig{
@@ -68,6 +68,27 @@ func (c *HandlerContainer) initializeGenericCreatorHandler(contingencyHandler *h
 		RequestType:     &structs.CreateRetentionRequest{},
 		DocumentType:    constants.ComprobanteRetencionElectronico,
 		UsesContingency: false,
+	})
+
+	genericHandler.RegisterDocument("/dte/remissionnote", helpers.DocumentConfig{
+		UseCase:         c.useCases.RemissionNoteUseCase(),
+		RequestType:     &structs.CreateRemissionNoteRequest{},
+		DocumentType:    constants.NotaRemisionElectronica,
+		UsesContingency: true,
+	})
+
+	genericHandler.RegisterDocument("/dte/fse", helpers.DocumentConfig{
+		UseCase:         c.useCases.FSEUseCase(),
+		RequestType:     &structs.CreateFSERequest{},
+		DocumentType:    constants.FacturaSujetoExcluidoElectronica,
+		UsesContingency: true,
+	})
+
+	genericHandler.RegisterDocument("/dte/debitnote", helpers.DocumentConfig{
+		UseCase:         c.useCases.DebitNoteUseCase(),
+		RequestType:     &structs.CreateDebitNoteRequest{},
+		DocumentType:    constants.NotaDebitoElectronica,
+		UsesContingency: true,
 	})
 
 	return genericHandler
@@ -91,4 +112,8 @@ func (c *HandlerContainer) DTEHandler() *handlers.DTEHandler {
 
 func (c *HandlerContainer) AuthHandler() *handlers.AuthHandler {
 	return c.authHandler
+}
+
+func (c *HandlerContainer) DebugNotifyHandler() *handlers.DebugNotifyHandler {
+	return c.debugNotifyHandler
 }

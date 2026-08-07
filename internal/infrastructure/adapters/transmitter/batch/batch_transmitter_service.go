@@ -6,58 +6,69 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/contingency"
-	batchPorts "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter"
-	ports2 "github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
 	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
-	authPorts "github.com/MarlonG1/api-facturacion-sv/internal/application/ports"
-	authModels "github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/circuit"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/config/drivers"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	batchPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
+	ports2 "github.com/chainedpixel/ordo-factus/internal/domain/ports"
+
+	authPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
+	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/circuit"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"github.com/google/uuid"
 )
 
-// BatchTransmitterService implementa la lógica de transmisión de lotes a Hacienda
+// BatchTransmitterService implements the batch transmission logic to Hacienda
 type BatchTransmitterService struct {
-	haciendaAuth    authPorts.HaciendaAuthManager
-	signer          authPorts.SignerManager
-	contingencyRepo contingency.ContingencyRepositoryPort
-	timeProvider    ports2.TimeProvider
-	config          *models.TransmissionConfig
-	httpClient      *http.Client
-	circuitBreaker  *circuit.CircuitBreaker
-	connection      *drivers.DbConnection
+	haciendaAuth      authPorts.HaciendaAuthManager
+	signer            authPorts.SignerManager
+	contingencyRepo   contingency.ContingencyRepositoryPort
+	sequentialManager dte_documents.SequentialNumberManager
+	timeProvider      ports2.TimeProvider
+	config            *models.TransmissionConfig
+	httpClient        *http.Client
+	circuitBreaker    *circuit.CircuitBreaker
+	connection        *drivers.DbConnection
+	bus               event.Bus
 }
 
-// NewBatchTransmitterService constructor para BatchTransmitterService
+func (s *BatchTransmitterService) SetEventBus(bus event.Bus) {
+	s.bus = bus
+}
+
+// NewBatchTransmitterService constructor for BatchTransmitterService
 func NewBatchTransmitterService(
 	haciendaAuth authPorts.HaciendaAuthManager,
 	signer authPorts.SignerManager,
 	contingencyRepo contingency.ContingencyRepositoryPort,
+	sequentialManager dte_documents.SequentialNumberManager,
 	config *models.TransmissionConfig,
 	timeProvider ports2.TimeProvider,
 	connection *drivers.DbConnection,
 ) batchPorts.BatchTransmitterPort {
 	return &BatchTransmitterService{
-		haciendaAuth:    haciendaAuth,
-		signer:          signer,
-		contingencyRepo: contingencyRepo,
-		config:          config,
-		timeProvider:    timeProvider,
-		connection:      connection,
+		haciendaAuth:      haciendaAuth,
+		signer:            signer,
+		contingencyRepo:   contingencyRepo,
+		sequentialManager: sequentialManager,
+		config:            config,
+		timeProvider:      timeProvider,
+		connection:        connection,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
@@ -73,17 +84,17 @@ func NewBatchTransmitterService(
 	}
 }
 
-// GetDTEVersion determina la versión según el tipo de DTE
+// GetDTEVersion determines the version based on the DTE type
 func (s *BatchTransmitterService) GetDTEVersion(dteType string) int {
 	switch dteType {
 	case constants.FacturaElectronica:
 		return 1
 	default:
-		return 2 // Versión por defecto
+		return 2
 	}
 }
 
-// TransmitBatch transmite un lote de documentos a Hacienda
+// TransmitBatch transmits a batch of documents to Hacienda
 func (s *BatchTransmitterService) TransmitBatch(
 	ctx context.Context,
 	systemNIT string,
@@ -129,7 +140,7 @@ func (s *BatchTransmitterService) TransmitBatch(
 	return response, haciendaToken, nil
 }
 
-// getHaciendaTokenWithRetry obtiene un token de autenticación de Hacienda con reintentos
+// getHaciendaTokenWithRetry retrieves a Hacienda authentication token with retries
 func (s *BatchTransmitterService) getHaciendaTokenWithRetry(
 	ctx context.Context,
 	token string,
@@ -155,7 +166,7 @@ func (s *BatchTransmitterService) getHaciendaTokenWithRetry(
 	return "", shared_error.NewGeneralServiceError("BatchTransmitterService", "getHaciendaTokenWithRetry", "max retry attempts reached", err)
 }
 
-// sendBatchWithRetry envía un lote con reintentos
+// sendBatchWithRetry sends a batch with retries
 func (s *BatchTransmitterService) sendBatchWithRetry(
 	ctx context.Context,
 	batch *models.BatchRequest,
@@ -181,7 +192,7 @@ func (s *BatchTransmitterService) sendBatchWithRetry(
 	return nil, shared_error.NewGeneralServiceError("BatchTransmitterService", "sendBatchWithRetry", "max retry attempts reached", err)
 }
 
-// transmitToHacienda envía el lote a Hacienda
+// transmitToHacienda sends the batch to Hacienda
 func (s *BatchTransmitterService) transmitToHacienda(
 	ctx context.Context,
 	batch *models.BatchRequest,
@@ -245,7 +256,7 @@ func (s *BatchTransmitterService) transmitToHacienda(
 	return &batchResp, nil
 }
 
-// VerifyContingencyBatchStatus verifica el estado de un lote
+// VerifyContingencyBatchStatus verifies the status of a batch
 func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 	ctx context.Context,
 	batchID string,
@@ -291,9 +302,9 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 			}
 			sqlDb.Ping()
 
-			// Procesar documentos procesados
 			if len(status.Processed) > 0 {
-				var processedIDs []string
+				var processedContingencyIDs []string
+				var processedDocumentIDs []string
 				var processedStamps map[string]string
 				var proccesedObservations []string
 				processedStamps = make(map[string]string)
@@ -305,14 +316,17 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 							"observations":    processed.Observations,
 							"processedAt":     processed.ProcessingDate,
 							"reception_stamp": processed.ReceptionStamp,
+							"contingencyID":   doc.ID,
+							"documentID":      doc.DocumentID,
 						})
 						processedStamps[doc.ID] = processed.ReceptionStamp
 						proccesedObservations = append(proccesedObservations, processed.DescriptionMessage)
-						processedIDs = append(processedIDs, doc.ID)
+						processedContingencyIDs = append(processedContingencyIDs, doc.ID)
+						processedDocumentIDs = append(processedDocumentIDs, doc.DocumentID)
 					}
 				}
 
-				if err := s.contingencyRepo.UpdateBatch(ctx, processedIDs, proccesedObservations, processedStamps, batchID, mhBatchID, constants.DocumentReceived); err != nil {
+				if err := s.contingencyRepo.UpdateBatch(ctx, processedContingencyIDs, proccesedObservations, processedStamps, batchID, mhBatchID, constants.DocumentReceived); err != nil {
 					logs.Error("Failed to update processed documents", map[string]interface{}{
 						"error":   err.Error(),
 						"batchID": batchID,
@@ -320,33 +334,120 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 					return shared_error.NewGeneralServiceError("BatchTransmitterService", "VerifyContingencyBatchStatus", "failed to update processed documents", err)
 				}
 
+				for _, docID := range processedDocumentIDs {
+					if confirmErr := s.sequentialManager.ConfirmReservationByDocumentID(ctx, docID); confirmErr != nil {
+						logs.Warn("Failed to confirm reservation for processed document", map[string]interface{}{
+							"error":      confirmErr.Error(),
+							"documentID": docID,
+						})
+					} else {
+						logs.Info("Reservation confirmed for processed contingency document", map[string]interface{}{
+							"documentID": docID,
+						})
+					}
+				}
+
 				logs.Info("Processed documents updated", map[string]interface{}{
 					"batchID": batchID,
 				})
 			}
 
-			// Procesar documentos rechazados
 			if len(status.Rejected) > 0 {
-				var rejectedIDs []string
-				var rejectedObservations []string
+				type rejectedEntry struct {
+					contingencyID string
+					documentID    string
+					controlNumber string
+					code          string
+					description   string
+					observations  []string
+				}
+				var entries []rejectedEntry
+
 				for _, rejected := range status.Rejected {
 					if doc, exists := docsMap[rejected.GenerationCode]; exists {
+						code := rejected.ClassifyMessage
+						if code == "" && rejected.MessageCode != "" {
+							code = rejected.MessageCode
+						}
+						controlNum := ""
+						if doc.Document != nil {
+							controlNum = doc.Document.ControlNumber
+						}
 						logs.Info("Document rejected", map[string]interface{}{
-							"code":         rejected.MessageCode,
-							"message":      rejected.DescriptionMessage,
-							"observations": rejected.Observations,
-							"processedAt":  rejected.ProcessingDate,
+							"classifyMsg":   rejected.ClassifyMessage,
+							"messageCode":   rejected.MessageCode,
+							"codeUsed":      code,
+							"message":       rejected.DescriptionMessage,
+							"observations":  rejected.Observations,
+							"processedAt":   rejected.ProcessingDate,
+							"contingencyID": doc.ID,
+							"documentID":    doc.DocumentID,
 						})
-						rejectedIDs = append(rejectedIDs, doc.ID)
-						rejectedObservations = append(rejectedObservations, rejected.DescriptionMessage)
+						entries = append(entries, rejectedEntry{
+							contingencyID: doc.ID,
+							documentID:    doc.DocumentID,
+							controlNumber: controlNum,
+							code:          code,
+							description:   rejected.DescriptionMessage,
+							observations:  rejected.Observations,
+						})
 					}
 				}
 
-				if err := s.contingencyRepo.UpdateBatch(ctx, rejectedIDs, rejectedObservations, nil, batchID, mhBatchID, constants.DocumentRejected); err != nil {
+				contingencyIDs := make([]string, len(entries))
+				descriptions := make([]string, len(entries))
+				for i, e := range entries {
+					contingencyIDs[i] = e.contingencyID
+					descriptions[i] = e.description
+				}
+
+				if err := s.contingencyRepo.UpdateBatch(ctx, contingencyIDs, descriptions, nil, batchID, mhBatchID, constants.DocumentRejected); err != nil {
 					logs.Error("Failed to update rejected documents", map[string]interface{}{
 						"error":   err.Error(),
 						"batchID": batchID,
 					})
+				}
+
+				if s.bus != nil {
+					var failedDocs []event.RejectedDocSummary
+					for _, e := range entries {
+						s.bus.Publish(ctx, event.EmissionFailureEvent{
+							ControlNumber:        e.controlNumber,
+							GenerationCode:       e.documentID,
+							ErrorCode:            e.code,
+							LastError:            e.description,
+							HaciendaObservations: e.observations,
+							Attempts:             1,
+							OccurredAtTime:       time.Now(),
+						})
+						failedDocs = append(failedDocs, event.RejectedDocSummary{
+							ControlNumber: e.controlNumber,
+							ErrorCode:     e.code,
+							Description:   e.description,
+							Observations:  e.observations,
+						})
+					}
+					if len(failedDocs) > 0 {
+						s.bus.Publish(ctx, event.RetransmissionJobFailedEvent{
+							JobName:         "contingency_retransmission",
+							FailedDocuments: failedDocs,
+							OccurredAtTime:  time.Now(),
+						})
+					}
+				}
+
+				documentIDs := make([]string, len(entries))
+				for i, e := range entries {
+					documentIDs[i] = e.documentID
+				}
+
+				for _, e := range entries {
+					if releaseErr := s.sequentialManager.ReleaseReservationByDocumentID(ctx, e.documentID, e.description, e.code); releaseErr != nil {
+						logs.Warn("Failed to release reservation for rejected document", map[string]interface{}{
+							"error":      releaseErr.Error(),
+							"documentID": e.documentID,
+						})
+					}
 				}
 
 				logs.Info("Rejected documents updated", map[string]interface{}{
@@ -365,7 +466,7 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 	}
 }
 
-// checkBatchStatus verifica el estado de un lote en Hacienda
+// checkBatchStatus verifies the status of a batch in Hacienda
 func (s *BatchTransmitterService) checkBatchStatus(ctx context.Context, batchID string, haciendaToken string) (*models.ConsultBatchResponse, bool, error) {
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -390,7 +491,7 @@ func (s *BatchTransmitterService) checkBatchStatus(ctx context.Context, batchID 
 		"batchID": batchID,
 	})
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		logs.Error("Failed to check batch status inner", map[string]interface{}{
 			"error":   err.Error(),
@@ -400,15 +501,30 @@ func (s *BatchTransmitterService) checkBatchStatus(ctx context.Context, batchID 
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logs.Error("Failed to read batch response body", map[string]interface{}{
+			"error":   err.Error(),
+			"batchID": batchID,
+		})
+		return nil, false, err
+	}
+
+	if len(bodyBytes) == 0 {
+		return nil, false, nil
+	}
+
+	logs.Debug("Raw batch status response from Hacienda", map[string]interface{}{
+		"batchID":  batchID,
+		"response": string(bodyBytes),
+	})
+
 	var batchResp models.ConsultBatchResponse
-	if err := json.NewDecoder(resp.Body).Decode(&batchResp); err != nil {
-		if err == io.EOF {
-			// Si no hay contenido, el lote aun no ha sido procesado
-			return nil, false, nil
-		}
+	if err := json.Unmarshal(bodyBytes, &batchResp); err != nil {
 		logs.Error("Failed to decode batch response", map[string]interface{}{
 			"error":   err.Error(),
 			"batchID": batchID,
+			"rawBody": string(bodyBytes),
 		})
 		return nil, false, err
 	}
@@ -420,9 +536,12 @@ func (s *BatchTransmitterService) checkBatchStatus(ctx context.Context, batchID 
 	return &batchResp, true, nil
 }
 
-// shouldRetry determina si se debe reintentar una operación
+// shouldRetry determines whether an operation should be retried
 func (s *BatchTransmitterService) shouldRetry(err error) bool {
-	// Errores de red/conexión - siempre reintentar
+	if s.circuitBreaker.GetState() == constants.StateOpen {
+		return false
+	}
+
 	var netErr *net.OpError
 	if errors.As(err, &netErr) {
 		logs.Info("Network error detected, will retry", map[string]interface{}{
@@ -441,18 +560,17 @@ func (s *BatchTransmitterService) shouldRetry(err error) bool {
 		}
 
 		switch httpErr.StatusCode {
-		case http.StatusTooManyRequests, // 429
-			http.StatusRequestTimeout,     // 408
-			http.StatusBadGateway,         // 502
-			http.StatusServiceUnavailable, // 503
-			http.StatusGatewayTimeout:     // 504
+		case http.StatusTooManyRequests,
+			http.StatusRequestTimeout,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
 			logs.Info("Retryable HTTP error detected", map[string]interface{}{
 				"statusCode": httpErr.StatusCode,
 			})
 			return true
 		}
 
-		// No reintentar otros codigos HTTP
 		logs.Info("Non-retryable HTTP error", map[string]interface{}{
 			"statusCode": httpErr.StatusCode,
 		})
@@ -461,7 +579,6 @@ func (s *BatchTransmitterService) shouldRetry(err error) bool {
 
 	var haciendaErr *hacienda_error.HaciendaResponseError
 	if errors.As(err, &haciendaErr) {
-		// No reintentar errores de validación o autorización
 		if strings.Contains(strings.ToLower(haciendaErr.Description), "validaci") ||
 			strings.Contains(strings.ToLower(haciendaErr.Description), "autoriza") {
 			logs.Info("Non-retryable Hacienda error", map[string]interface{}{
@@ -471,7 +588,6 @@ func (s *BatchTransmitterService) shouldRetry(err error) bool {
 			return false
 		}
 
-		// Reintentar otros errores de Hacienda
 		logs.Info("Retryable Hacienda error", map[string]interface{}{
 			"code":    haciendaErr.Code,
 			"message": haciendaErr.Description,
@@ -479,7 +595,6 @@ func (s *BatchTransmitterService) shouldRetry(err error) bool {
 		return true
 	}
 
-	// Errores de contexto
 	if errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, context.Canceled) {
 		logs.Info("Context error detected, will retry", map[string]interface{}{
@@ -488,15 +603,13 @@ func (s *BatchTransmitterService) shouldRetry(err error) bool {
 		return true
 	}
 
-	// Para errores no clasificados, no son retryables
-	// pero se loguea para análisis
 	logs.Warn("Unclassified error, defaulting to retry", map[string]interface{}{
 		"error": err.Error(),
 	})
 	return true
 }
 
-// sleep implementa el backoff exponencial para reintentos
+// sleep implements exponential backoff for retries
 func (s *BatchTransmitterService) sleep(attempt int) {
 	retryPolicy := s.config.GetRetryPolicy()
 	backoff := retryPolicy.InitialInterval * time.Duration(float64(attempt)*retryPolicy.BackoffFactor)

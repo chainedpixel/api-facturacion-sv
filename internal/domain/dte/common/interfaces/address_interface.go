@@ -1,20 +1,20 @@
 package interfaces
 
-// AddressGetter es una interfaz que define los métodos getter que debe implementar una dirección
+// AddressGetter is an interface that defines the getter methods that an address must implement
 type AddressGetter interface {
-	GetDepartment() string   // GetDepartment obtiene el departamento de la dirección
-	GetMunicipality() string // GetMunicipality obtiene el municipio de la dirección
-	GetComplement() string   // GetComplement obtiene el complemento de la dirección
+	GetDepartment() string
+	GetMunicipality() string
+	GetComplement() string
 }
 
-// AddressSetter es una interfaz que define los métodos setter que debe implementar una dirección
+// AddressSetter is an interface that defines the setter methods that an address must implement
 type AddressSetter interface {
-	SetDepartment(department string) error     // SetDepartment establece el departamento de la dirección
-	SetMunicipality(municipality string) error // SetMunicipality establece el municipio de la dirección
-	SetComplement(complement string) error     // SetComplement establece el complemento de la dirección
+	SetDepartment(department string) error
+	SetMunicipality(municipality string) error
+	SetComplement(complement string) error
 }
 
-// Address es una interfaz que combina los getters y setters de Address
+// Address is an interface that combines the getters and setters of Address
 type Address interface {
 	AddressGetter
 	AddressSetter

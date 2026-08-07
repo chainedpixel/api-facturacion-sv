@@ -1,25 +1,25 @@
 package interfaces
 
-// PaymentTypeGetter es una interfaz que define los métodos getter que debe implementar un tipo de pago
+// PaymentTypeGetter is an interface that defines the getter methods that a payment type must implement
 type PaymentTypeGetter interface {
-	GetCode() string        // GetCode obtiene el código del tipo de pago
-	GetAmount() float64     // GetAmount obtiene el monto del tipo de pago
-	GetReference() string   // GetReference obtiene la referencia del tipo de pago
-	GetTerm() *string       // GetTerm obtiene el plazo del tipo de pago
-	GetPeriod() *int        // GetPeriod obtiene el periodo del tipo de pago
-	GetPeriodPointer() *int // GetPeriodPointer obtiene el periodo del tipo de pago como puntero
+	GetCode() string
+	GetAmount() float64
+	GetReference() string
+	GetTerm() *string
+	GetPeriod() *int
+	GetPeriodPointer() *int
 }
 
-// PaymentTypeSetter es una interfaz que define los métodos setter que debe implementar un tipo de pago
+// PaymentTypeSetter is an interface that defines the setter methods that a payment type must implement
 type PaymentTypeSetter interface {
-	SetCode(code string) error           // SetCode establece el código del tipo de pago
-	SetAmount(amount float64) error      // SetAmount establece el monto del tipo de pago
-	SetReference(reference string) error // SetReference establece la referencia del tipo de pago
-	SetTerm(term *string) error          // SetTerm establece el plazo del tipo de pago
-	SetPeriod(period *int) error         // SetPeriod establece el periodo del tipo de pago
+	SetCode(code string) error
+	SetAmount(amount float64) error
+	SetReference(reference string) error
+	SetTerm(term *string) error
+	SetPeriod(period *int) error
 }
 
-// PaymentType es una interfaz que combina los getters y setters de PaymentType
+// PaymentType is an interface that combines the getters and setters of PaymentType
 type PaymentType interface {
 	PaymentTypeGetter
 	PaymentTypeSetter

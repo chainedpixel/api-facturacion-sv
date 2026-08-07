@@ -3,18 +3,18 @@ package fixtures
 import (
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// InvalidationBuilder - Builder especializado para documentos de invalidación
+// InvalidationBuilder - Specialized builder for invalidation documents
 type InvalidationBuilder struct {
 	document *invalidation_models.InvalidationDocument
 	err      error
@@ -64,7 +64,6 @@ func (b *InvalidationBuilder) AddIdentification() *InvalidationBuilder {
 		return b
 	}
 
-	// Crear identificación básica
 	b.setError(b.document.Identification.SetVersion(1))
 	b.setError(b.document.Identification.SetAmbient(constants.Testing))
 	b.setError(b.document.Identification.SetDTEType(constants.FacturaElectronica))
@@ -84,7 +83,6 @@ func (b *InvalidationBuilder) AddIssuer() *InvalidationBuilder {
 		return b
 	}
 
-	// Crear datos del emisor
 	b.setError(b.document.Issuer.SetNIT("12345678901234"))
 	b.setError(b.document.Issuer.SetNRC("12345678"))
 	b.setError(b.document.Issuer.SetName("EMPRESA EMISORA, S.A. DE C.V."))
@@ -92,13 +90,11 @@ func (b *InvalidationBuilder) AddIssuer() *InvalidationBuilder {
 	b.setError(b.document.Issuer.SetActivityDescription("Venta de productos electrónicos"))
 	b.setError(b.document.Issuer.SetEstablishmentType(constants.CasaMatriz))
 
-	// Crear y configurar la dirección
 	address := &models.Address{}
 	b.setError(address.SetDepartment("06"))
 	b.setError(address.SetMunicipality("21"))
 	b.setError(address.SetComplement("Calle Principal, Edificio Central #123"))
 
-	// Asignar dirección al emisor
 	if b.err == nil {
 		b.setError(b.document.Issuer.SetAddress(address))
 	}
@@ -107,7 +103,6 @@ func (b *InvalidationBuilder) AddIssuer() *InvalidationBuilder {
 	b.setError(b.document.Issuer.SetEmail("info@google.com"))
 	b.setError(b.document.Issuer.SetCommercialName("EMPRESA TECH"))
 
-	// Establecer campos opcionales
 	establishmentCode := "001"
 	establishmentMHCode := "EST001"
 	posCode := "POS01"
@@ -125,7 +120,6 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 		return b
 	}
 
-	// Establecer tipo de documento a invalidar
 	docType, err := document.NewDTEType(constants.FacturaElectronica)
 	if err != nil {
 		b.setError(err)
@@ -133,7 +127,6 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 	}
 	b.document.Document.Type = *docType
 
-	// Establecer código de generación
 	generationCode, err := identification.NewGenerationCode()
 	if err != nil {
 		b.setError(err)
@@ -141,7 +134,6 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 	}
 	b.document.Document.GenerationCode = *generationCode
 
-	// Establecer número de control
 	controlNumber, err := identification.NewControlNumber("DTE-01-00000000-000000000000001")
 	if err != nil {
 		b.setError(err)
@@ -149,10 +141,8 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 	}
 	b.document.Document.ControlNumber = *controlNumber
 
-	// Establecer sello de recepción
 	b.document.Document.ReceptionStamp = "2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"
 
-	// Establecer fecha de emisión
 	emissionDate, err := temporal.NewEmissionDate(time.Now().Add(-24 * time.Hour))
 	if err != nil {
 		b.setError(err)
@@ -160,7 +150,6 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 	}
 	b.document.Document.EmissionDate = *emissionDate
 
-	// Establecer monto de IVA
 	ivaAmount, err := financial.NewAmount(13.00)
 	if err != nil {
 		b.setError(err)
@@ -168,7 +157,6 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 	}
 	b.document.Document.IVAAmount = ivaAmount
 
-	// Datos del receptor del documento original
 	docTypeReceiver, err := document.NewDTEType(constants.FacturaElectronica)
 	if err != nil {
 		b.setError(err)
@@ -208,7 +196,6 @@ func (b *InvalidationBuilder) AddReplacementCode() *InvalidationBuilder {
 		return b
 	}
 
-	// Solo necesario para invalidaciones tipo 1 (reemplazo)
 	replacementCode, err := identification.NewGenerationCode()
 	if err != nil {
 		b.setError(err)
@@ -224,7 +211,6 @@ func (b *InvalidationBuilder) AddInvalidationReason(invalidationType int) *Inval
 		return b
 	}
 
-	// Establecer tipo de invalidación
 	invalidationTypeObj, err := document.NewInvalidationType(invalidationType)
 	if err != nil {
 		b.setError(err)
@@ -232,7 +218,6 @@ func (b *InvalidationBuilder) AddInvalidationReason(invalidationType int) *Inval
 	}
 	b.document.Reason.Type = *invalidationTypeObj
 
-	// Datos del responsable
 	b.document.Reason.ResponsibleName = "JUAN RESPONSABLE"
 
 	responsibleDocType, err := document.NewDTETypeForReceiver(constants.DUI)
@@ -249,7 +234,6 @@ func (b *InvalidationBuilder) AddInvalidationReason(invalidationType int) *Inval
 	}
 	b.document.Reason.ResponsibleDocNum = *responsibleDocNum
 
-	// Datos del solicitante
 	b.document.Reason.RequesterName = "ANA SOLICITANTE"
 
 	requesterDocType, err := document.NewDTETypeForReceiver(constants.DUI)
@@ -266,7 +250,6 @@ func (b *InvalidationBuilder) AddInvalidationReason(invalidationType int) *Inval
 	}
 	b.document.Reason.RequesterDocNum = *requesterDocNum
 
-	// Si es tipo 3 (definitiva), agregar razón
 	if invalidationType == 3 {
 		reasonText := "Documento con errores graves que impiden su utilización"
 		invalidReason, err := document.NewInvalidationReason(reasonText)
@@ -276,14 +259,13 @@ func (b *InvalidationBuilder) AddInvalidationReason(invalidationType int) *Inval
 		}
 		b.document.Reason.Reason = invalidReason
 	} else {
-		// Para tipos 1 y 2, la razón debe ser nil
 		b.document.Reason.Reason = nil
 	}
 
 	return b
 }
 
-// BuildInvalidationWithReplacement construye un documento de invalidación tipo 1 (con reemplazo)
+// BuildInvalidationWithReplacement builds a type 1 invalidation document (with replacement)
 func BuildInvalidationWithReplacement() (*invalidation_models.InvalidationDocument, error) {
 	builder := NewInvalidationBuilder()
 
@@ -296,7 +278,7 @@ func BuildInvalidationWithReplacement() (*invalidation_models.InvalidationDocume
 	return builder.Build()
 }
 
-// BuildInvalidationWithAnnulment construye un documento de invalidación tipo 2 (anulación)
+// BuildInvalidationWithAnnulment builds a type 2 invalidation document (annulment)
 func BuildInvalidationWithAnnulment() (*invalidation_models.InvalidationDocument, error) {
 	builder := NewInvalidationBuilder()
 
@@ -308,33 +290,33 @@ func BuildInvalidationWithAnnulment() (*invalidation_models.InvalidationDocument
 	return builder.Build()
 }
 
-// BuildInvalidationDefinitive construye un documento de invalidación tipo 3 (definitiva)
+// BuildInvalidationDefinitive builds a type 3 invalidation document (definitive)
 func BuildInvalidationDefinitive() (*invalidation_models.InvalidationDocument, error) {
 	builder := NewInvalidationBuilder()
 
 	builder.AddIdentification().
 		AddIssuer().
 		AddInvalidatedDocument().
-		AddReplacementCode(). // Algunas invalidaciones tipo 3 pueden tener código de reemplazo
+		AddReplacementCode().
 		AddInvalidationReason(3)
 
 	return builder.Build()
 }
 
-// BuildInvalidInvalidation construye un documento de invalidación inválido (tipo 2 con código de reemplazo)
+// BuildInvalidInvalidation builds an invalid invalidation document (type 2 with replacement code)
 func BuildInvalidInvalidation() (*invalidation_models.InvalidationDocument, error) {
 	builder := NewInvalidationBuilder()
 
 	builder.AddIdentification().
 		AddIssuer().
 		AddInvalidatedDocument().
-		AddReplacementCode(). // Inválido para tipo 2
+		AddReplacementCode().
 		AddInvalidationReason(2)
 
 	return builder.BuildWithoutValidation()
 }
 
-// BuildInvalidationWithInvalidReason construye un documento de invalidación inválido por tener razón para tipo 1/2
+// BuildInvalidationWithInvalidReason builds an invalid invalidation document due to having a reason for type 1/2
 func BuildInvalidationWithInvalidReason() (*invalidation_models.InvalidationDocument, error) {
 	builder := NewInvalidationBuilder()
 
@@ -343,7 +325,6 @@ func BuildInvalidationWithInvalidReason() (*invalidation_models.InvalidationDocu
 		AddInvalidatedDocument().
 		AddInvalidationReason(1)
 
-	// Agregar razón incorrectamente para tipo 1
 	reasonText := "Esta razón no debería existir para tipo 1"
 	invalidReason, _ := document.NewInvalidationReason(reasonText)
 	builder.document.Reason.Reason = invalidReason
@@ -351,7 +332,7 @@ func BuildInvalidationWithInvalidReason() (*invalidation_models.InvalidationDocu
 	return builder.BuildWithoutValidation()
 }
 
-// BuildInvalidationWithMissingReason construye una invalidación tipo 3 sin razón (inválido)
+// BuildInvalidationWithMissingReason builds a type 3 invalidation without a reason (invalid)
 func BuildInvalidationWithMissingReason() (*invalidation_models.InvalidationDocument, error) {
 	builder := NewInvalidationBuilder()
 
@@ -360,11 +341,9 @@ func BuildInvalidationWithMissingReason() (*invalidation_models.InvalidationDocu
 		AddInvalidatedDocument().
 		AddReplacementCode()
 
-	// Crear tipo 3 pero sin especificar razón
 	invalidationType, _ := document.NewInvalidationType(3)
 	builder.document.Reason.Type = *invalidationType
 
-	// Datos del responsable
 	builder.document.Reason.ResponsibleName = "JUAN RESPONSABLE"
 
 	responsibleDocType, _ := document.NewDTETypeForReceiver(constants.DUI)
@@ -373,7 +352,6 @@ func BuildInvalidationWithMissingReason() (*invalidation_models.InvalidationDocu
 	responsibleDocNum, _ := identification.NewDocumentNumber("01234567-8", constants.DUI)
 	builder.document.Reason.ResponsibleDocNum = *responsibleDocNum
 
-	// Datos del solicitante
 	builder.document.Reason.RequesterName = "ANA SOLICITANTE"
 
 	requesterDocType, _ := document.NewDTETypeForReceiver(constants.DUI)
@@ -382,13 +360,12 @@ func BuildInvalidationWithMissingReason() (*invalidation_models.InvalidationDocu
 	requesterDocNum, _ := identification.NewDocumentNumber("98765432-1", constants.DUI)
 	builder.document.Reason.RequesterDocNum = *requesterDocNum
 
-	// Dejar razón como nil (inválido para tipo 3)
 	builder.document.Reason.Reason = nil
 
 	return builder.BuildWithoutValidation()
 }
 
-// BuildInvalidation es un método genérico para construir una invalidación válida
+// BuildInvalidation is a generic method to build a valid invalidation
 func BuildInvalidation() (*invalidation_models.InvalidationDocument, error) {
 	return BuildInvalidationWithReplacement()
 }

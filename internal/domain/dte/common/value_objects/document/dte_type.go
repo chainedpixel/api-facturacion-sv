@@ -3,16 +3,16 @@ package document
 import (
 	"reflect"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type DTEType struct {
 	Value string `json:"value"`
 }
 
-// NewDTEType crea un nuevo tipo de documento electrónico válido para emisión
+// NewDTEType creates a new valid electronic document type for emission
 func NewDTEType(value string) (*DTEType, error) {
 	tipoDte := &DTEType{Value: value}
 	if tipoDte.IsValid() {
@@ -25,7 +25,7 @@ func NewValidatedDTEType(value string) *DTEType {
 	return &DTEType{Value: value}
 }
 
-// NewDTETypeForReceiver crea un nuevo tipo de documento electrónico válido para recepción
+// NewDTETypeForReceiver creates a new valid electronic document type for reception
 func NewDTETypeForReceiver(value string) (*DTEType, error) {
 	tipoDte := &DTEType{Value: value}
 	if tipoDte.IsForReception() {
@@ -34,7 +34,7 @@ func NewDTETypeForReceiver(value string) (*DTEType, error) {
 	return &DTEType{}, dte_errors.NewValidationError("InvalidDocumentForReceiver", value)
 }
 
-// NewDTETypeForRetention crea un nuevo tipo de documento electrónico válido para retención
+// NewDTETypeForRetention creates a new valid electronic document type for retention
 func NewDTETypeForRetention(value string) (*DTEType, error) {
 	tipoDte := &DTEType{Value: value}
 	if tipoDte.IsForRetention() {
@@ -43,7 +43,7 @@ func NewDTETypeForRetention(value string) (*DTEType, error) {
 	return &DTEType{}, dte_errors.NewValidationError("InvalidDTETypeForRetention", value)
 }
 
-// IsValid válido si el valor es un string y es un tipo de documento electrónico válido
+// IsValid validates that the value is a string and is a valid electronic document type
 func (t *DTEType) IsValid() bool {
 	return constants.ValidDTETypes[t.Value]
 }

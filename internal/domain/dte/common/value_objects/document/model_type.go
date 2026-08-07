@@ -3,8 +3,8 @@ package document
 import (
 	"fmt"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type ModelType struct {
@@ -23,7 +23,7 @@ func NewValidatedModelType(value int) *ModelType {
 	return &ModelType{Value: value}
 }
 
-// IsValid válida que el valor de ModelType sea 1 o 2
+// IsValid validates that the ModelType value is 1 or 2
 func (mt *ModelType) IsValid() bool {
 	return mt.Value == 1 || mt.Value == 2
 }

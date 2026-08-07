@@ -1,34 +1,34 @@
 package fixtures
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// CreateDefaultCreditItem crea un ítem de CCF predeterminado válido
+// CreateDefaultCreditItem creates a valid default CCF item
 func CreateDefaultCreditItem(index int) structs.CreditItemRequest {
 	code := "CCF" + string(rune(65+index))
 
 	return structs.CreditItemRequest{
 		ItemRequest: structs.ItemRequest{
 			Number:      index + 1,
-			Type:        1, // Producto
+			Type:        1,
 			Description: "Producto CCF " + string(rune(65+index)),
 			Quantity:    15,
-			UnitMeasure: 59, // Unidades
+			UnitMeasure: 59,
 			UnitPrice:   10.0,
 			Discount:    0,
 			Code:        &code,
-			Taxes:       []string{"20"}, // Código IVA
+			Taxes:       []string{"20"},
 		},
 		NonSubjectSale: 0,
 		ExemptSale:     0,
-		TaxedSale:      150.0, // Cantidad * Precio unitario
+		TaxedSale:      150.0,
 		SuggestedPrice: 0,
 		NonTaxed:       0,
 	}
 }
 
-// CreateDefaultCreditSummary crea un resumen de CCF predeterminado válido
+// CreateDefaultCreditSummary creates a valid default CCF summary
 func CreateDefaultCreditSummary() *structs.CreditSummaryRequest {
 	return &structs.CreditSummaryRequest{
 		SummaryRequest: structs.SummaryRequest{
@@ -44,17 +44,17 @@ func CreateDefaultCreditSummary() *structs.CreditSummaryRequest {
 			TotalOperation:     300.0,
 			TotalNonTaxed:      0,
 			TotalToPay:         300.0,
-			OperationCondition: 1, // Contado
+			OperationCondition: 1,
 			Taxes: []structs.TaxRequest{
 				{
-					Code:        "20", // Código IVA
+					Code:        "20",
 					Description: "IVA",
-					Value:       39.0, // 13% del monto gravado
+					Value:       39.0,
 				},
 			},
 			PaymentTypes: []structs.PaymentRequest{
 				{
-					Code:   "01", // Efectivo
+					Code:   "01",
 					Amount: 300.0,
 				},
 			},
@@ -67,7 +67,7 @@ func CreateDefaultCreditSummary() *structs.CreditSummaryRequest {
 	}
 }
 
-// CreateDefaultCreditFiscalRequest crea una solicitud de CCF predeterminada válida
+// CreateDefaultCreditFiscalRequest creates a valid default CCF request
 func CreateDefaultCreditFiscalRequest() *structs.CreateCreditFiscalRequest {
 	items := []structs.CreditItemRequest{
 		CreateDefaultCreditItem(1),
@@ -77,30 +77,30 @@ func CreateDefaultCreditFiscalRequest() *structs.CreateCreditFiscalRequest {
 	return &structs.CreateCreditFiscalRequest{
 		Items:     items,
 		Receiver:  CreateDefaultReceiverWithoutDocsFields(),
-		ModelType: 1, // Modelo normal
+		ModelType: 1,
 		Summary:   CreateDefaultCreditSummary(),
 	}
 }
 
-// CreateCreditFiscalWithInvalidItems crea una solicitud de CCF con ítems inválidos
+// CreateCreditFiscalWithInvalidItems creates a CCF request with invalid items
 func CreateCreditFiscalWithInvalidItems() *structs.CreateCreditFiscalRequest {
 	req := CreateDefaultCreditFiscalRequest()
 	item := CreateDefaultCreditItem(0)
-	item.Type = 99 // Tipo inválido
+	item.Type = 99
 	req.Items = []structs.CreditItemRequest{item}
 	return req
 }
 
-// CreateCreditFiscalWithNonSubjectSale crea una solicitud de CCF con venta no sujeta (inválido)
+// CreateCreditFiscalWithNonSubjectSale creates a CCF request with a non-subject sale (invalid)
 func CreateCreditFiscalWithNonSubjectSale() *structs.CreateCreditFiscalRequest {
 	req := CreateDefaultCreditFiscalRequest()
 	item := CreateDefaultCreditItem(0)
-	item.NonSubjectSale = 50.0 // CCF no puede incluir ventas no sujetas
+	item.NonSubjectSale = 50.0
 	req.Items = []structs.CreditItemRequest{item}
 	return req
 }
 
-// CreateCCFRequestWithAllOptionalFields crea una solicitud de factura con todos los campos opcionales
+// CreateCCFRequestWithAllOptionalFields creates a CCF request with all optional fields
 func CreateCCFRequestWithAllOptionalFields() *structs.CreateCreditFiscalRequest {
 	req := CreateDefaultCreditFiscalRequest()
 	req.Extension = CreateDefaultExtension()

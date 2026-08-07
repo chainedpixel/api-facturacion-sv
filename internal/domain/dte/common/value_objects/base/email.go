@@ -3,9 +3,13 @@ package base
 import (
 	"github.com/badoux/checkmail"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
+
+// SkipMXValidation disables live DNS MX record lookup during email validation.
+// Set to true in test environments to avoid network calls.
+var SkipMXValidation bool
 
 type Email struct {
 	Value string `json:"value"`
@@ -23,19 +27,16 @@ func NewValidatedEmail(value string) *Email {
 	return &Email{Value: value}
 }
 
-// IsValid válido si el email cumple con el patrón de email
+// IsValid validates that the email has correct format, a valid length, and (unless SkipMXValidation is set) a reachable MX record.
 func (e *Email) IsValid() bool {
-
-	// 1. Validar el formato del email
-	err := checkmail.ValidateFormat(e.Value)
-	if err != nil {
+	if err := checkmail.ValidateFormat(e.Value); err != nil {
 		return false
 	}
 
-	// 2. Validar el dominio del email
-	err = checkmail.ValidateMX(e.Value)
-	if err != nil {
-		return false
+	if !SkipMXValidation {
+		if err := checkmail.ValidateMX(e.Value); err != nil {
+			return false
+		}
 	}
 
 	return len(e.Value) >= 3 && len(e.Value) <= 100

@@ -1,12 +1,13 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/contingency/models"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
 )
 
-// TransmissionConfig configuración específica para el servicio de contingencia
+// TransmissionConfig specific configuration for the contingency service
 type TransmissionConfig struct {
 	Ambient       string
 	BatchSize     int
@@ -15,35 +16,35 @@ type TransmissionConfig struct {
 	BackoffFactor float64
 }
 
-// GetAmbient obtiene el ambiente configurado
+// GetAmbient returns the configured environment
 func (c *TransmissionConfig) GetAmbient() string {
 	return c.Ambient
 }
 
-// GetBatchSize obtiene el tamaño de lote configurado
+// GetBatchSize returns the configured batch size
 func (c *TransmissionConfig) GetBatchSize() int {
 	return c.BatchSize
 }
 
-// GetRetryInterval obtiene el intervalo de reintento inicial
+// GetRetryInterval returns the initial retry interval
 func (c *TransmissionConfig) GetRetryInterval() time.Duration {
 	return c.RetryInterval
 }
 
-// GetMaxInterval obtiene el intervalo máximo de reintento
+// GetMaxInterval returns the maximum retry interval
 func (c *TransmissionConfig) GetMaxInterval() time.Duration {
 	return c.MaxInterval
 }
 
-// GetBackoffFactor obtiene el factor de crecimiento para backoff exponencial
+// GetBackoffFactor returns the growth factor for exponential backoff
 func (c *TransmissionConfig) GetBackoffFactor() float64 {
 	return c.BackoffFactor
 }
 
-// GetRetryPolicy construye una política de reintentos
+// GetRetryPolicy builds a retry policy
 func (c *TransmissionConfig) GetRetryPolicy() models.RetryPolicy {
 	return models.RetryPolicy{
-		MaxAttempts:     3, // Valor por defecto
+		MaxAttempts:     3,
 		InitialInterval: c.RetryInterval,
 		MaxInterval:     c.MaxInterval,
 		BackoffFactor:   c.BackoffFactor,

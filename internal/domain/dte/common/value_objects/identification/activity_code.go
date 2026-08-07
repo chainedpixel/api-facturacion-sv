@@ -3,8 +3,8 @@ package identification
 import (
 	"regexp"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type ActivityCode struct {
@@ -23,7 +23,7 @@ func NewValidatedActivityCode(value string) *ActivityCode {
 	return &ActivityCode{Value: value}
 }
 
-// IsValid válida que el código de actividad económica tenga entre 2 y 6 dígitos
+// IsValid validates that the economic activity code has between 2 and 6 digits
 func (ac *ActivityCode) IsValid() bool {
 	pattern := `^[0-9]{2,6}$`
 	matched, _ := regexp.MatchString(pattern, ac.Value)

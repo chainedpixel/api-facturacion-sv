@@ -1,12 +1,13 @@
 package helpers
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/application/dte"
-	"github.com/gorilla/mux"
 	"net/http"
+
+	"github.com/chainedpixel/ordo-factus/internal/application/dte"
+	"github.com/gorilla/mux"
 )
 
-// DocumentConfig contiene la configuración para manejar un tipo específico de documento
+// DocumentConfig contains the configuration for handling a specific type of document
 type DocumentConfig struct {
 	UseCase         *dte.GenericDTEUseCase
 	RequestType     interface{}

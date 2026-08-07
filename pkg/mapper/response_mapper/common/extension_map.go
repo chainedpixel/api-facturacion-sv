@@ -1,11 +1,11 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapCommonResponseExtension mapea una extensión a un modelo de extensión -> Origen: Response
+// MapCommonResponseExtension maps an extension to an extension model -> Source: Response
 func MapCommonResponseExtension(extension interfaces.Extension) *structs.DTEExtension {
 	if extension == nil {
 		return nil

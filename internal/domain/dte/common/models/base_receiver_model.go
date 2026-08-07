@@ -1,16 +1,16 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// Receiver es una estructura que representa el receptor de un DTE, contiene Name, DocumentType, DocumentNumber, Address,
-// Email, Phone, NRC, ActivityDescription, ActivityCode y CommercialName
+// Receiver is a struct that represents the receiver of a DTE, containing Name, DocumentType, DocumentNumber, Address,
+// Email, Phone, NRC, ActivityDescription, ActivityCode and CommercialName
 type Receiver struct {
 	Name                *string                        `json:"name,omitempty"`
 	DocumentType        *document.DTEType              `json:"documentType,omitempty"`
@@ -108,7 +108,6 @@ func (r *Receiver) SetDocumentNumber(documentNumber *string) error {
 		return nil
 	}
 
-	// Si DocumentType no está establecido, no podemos validar DocumentNumber correctamente
 	if r.DocumentType == nil {
 		return dte_errors.NewValidationError("RequiredField", "DocumentType")
 	}

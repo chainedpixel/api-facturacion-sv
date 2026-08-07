@@ -1,8 +1,8 @@
 package invalidation_models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
 )
 
 type InvalidationReason struct {
@@ -13,5 +13,5 @@ type InvalidationReason struct {
 	RequesterName      string                        `json:"requesterName"`
 	RequesterDocType   document.DTEType              `json:"requesterDocType"`
 	RequesterDocNum    identification.DocumentNumber `json:"requesterDocNum"`
-	Reason             *document.InvalidationReason  `json:"reason"` // null si no es tipo 3
+	Reason             *document.InvalidationReason  `json:"reason"`
 }

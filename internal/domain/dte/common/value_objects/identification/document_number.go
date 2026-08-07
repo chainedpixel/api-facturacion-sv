@@ -1,20 +1,20 @@
 package identification
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
 	"strings"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
-// DocumentNumber representa el número de documento de identificación, un atributo opcional de un receptor
+// DocumentNumber represents the identification document number, an optional attribute of a receiver
 type DocumentNumber struct {
 	Value string
 }
 
 func NewDocumentNumber(value string, dteType string) (*DocumentNumber, error) {
 
-	// Si el tipo de documento es NIT, limpiar los guiones
 	if dteType == constants.NIT {
 		if strings.Contains(value, "-") {
 			value = strings.ReplaceAll(value, "-", "")

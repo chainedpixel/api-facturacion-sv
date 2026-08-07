@@ -1,12 +1,12 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// MapCommonResponseOtherDocuments mapea los documentos asociados a una invoice electrónica a un modelo de documento asociado -> Origen: Response
+// MapCommonResponseOtherDocuments maps the associated documents of an electronic invoice to an associated document model -> Source: Response
 func MapCommonResponseOtherDocuments(docs []interfaces.OtherDocuments) []structs.DTEOtherDocument {
 	result := make([]structs.DTEOtherDocument, len(docs))
 	for i, doc := range docs {
@@ -14,7 +14,6 @@ func MapCommonResponseOtherDocuments(docs []interfaces.OtherDocuments) []structs
 			CodDocAsociado: doc.GetAssociatedDocument(),
 		}
 
-		// Mapear campos opcionales si existen
 		if doc.GetDescription() != "" {
 			result[i].Description = utils.ToStringPointer(doc.GetDescription())
 		}

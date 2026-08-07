@@ -3,8 +3,8 @@ package financial
 import (
 	"regexp"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type PaymentType struct {
@@ -23,7 +23,7 @@ func NewValidatedPaymentType(value string) *PaymentType {
 	return &PaymentType{Value: value}
 }
 
-// IsValid válida que el valor de PaymentType sea 01 a 14, 99 (dos dígitos)
+// IsValid validates that the PaymentType value is 01 to 14, 99 (two digits)
 func (pt *PaymentType) IsValid() bool {
 	pattern := `^(0[1-9]||1[0-4]||99)$`
 	matched, _ := regexp.MatchString(pattern, pt.Value)

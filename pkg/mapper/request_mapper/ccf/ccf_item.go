@@ -1,10 +1,10 @@
 package ccf
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
 func MapCCFItems(item []structs.CreditItemRequest) ([]ccf_models.CreditItem, error) {
@@ -21,7 +21,7 @@ func MapCCFItems(item []structs.CreditItemRequest) ([]ccf_models.CreditItem, err
 	return result, nil
 }
 
-// MapCCFRequestItem mapea un item de Comprobante de Crédito Fiscal -> Origen: Request
+// MapCCFRequestItem maps an item of Comprobante de Crédito Fiscal -> Source: Request
 func MapCCFRequestItem(item structs.CreditItemRequest, index int) (*ccf_models.CreditItem, error) {
 
 	baseItem, err := common.MapCommonRequestItem(structs.ItemRequest{

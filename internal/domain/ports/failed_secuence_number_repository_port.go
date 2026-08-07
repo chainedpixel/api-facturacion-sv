@@ -2,12 +2,12 @@ package ports
 
 import (
 	"context"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/database/db_models"
+
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
 )
 
-// FailedSequenceNumberRepositoryPort define la interfaz para el repositorio de números de secuencia fallidos
+// FailedSequenceNumberRepositoryPort defines the interface for the failed sequence number repository
 type FailedSequenceNumberRepositoryPort interface {
-	// RegisterFailedSequence registra un número de secuencia fallido con detalles
 	RegisterFailedSequence(
 		ctx context.Context,
 		branchID uint,
@@ -20,7 +20,6 @@ type FailedSequenceNumberRepositoryPort interface {
 		mhResponse string,
 	) error
 
-	// GetFailedSequences devuelve una lista de números de secuencia fallidos para una sucursal y tipo de DTE específicos
 	GetFailedSequences(
 		ctx context.Context,
 		branchID uint,
@@ -28,7 +27,6 @@ type FailedSequenceNumberRepositoryPort interface {
 		limit int,
 	) ([]db_models.FailedSequenceNumber, error)
 
-	// GetFailedSequencesByYear devuelve una lista de números de secuencia fallidos para una sucursal, tipo de DTE y año específicos
 	GetFailedSequencesByYear(
 		ctx context.Context,
 		branchID uint,

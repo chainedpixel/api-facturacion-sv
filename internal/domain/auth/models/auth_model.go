@@ -1,11 +1,12 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 )
 
-// AuthCredentials representa las credenciales de autenticación
+// AuthCredentials represents the authentication credentials
 type AuthCredentials struct {
 	MHCredentials *HaciendaCredentials `json:"credentials"`
 	APIKey        string               `json:"api_key"`
@@ -35,7 +36,7 @@ func (a *AuthCredentials) Validate() error {
 	return nil
 }
 
-// AuthClaims representa la información que se incluirá en el token JWT
+// AuthClaims represents the information that will be included in the JWT token
 type AuthClaims struct {
 	ClientID  uint      `json:"sub"`
 	BranchID  uint      `json:"branch_sub"`
@@ -44,7 +45,7 @@ type AuthClaims struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-// HaciendaCredentials representa las credenciales de hacienda
+// HaciendaCredentials represents the Hacienda credentials
 type HaciendaCredentials struct {
 	Username string `json:"username"`
 	Password string `json:"password"`

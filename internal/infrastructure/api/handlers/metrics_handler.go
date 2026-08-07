@@ -3,10 +3,10 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/metrics"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/metrics"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type MetricsHandler struct {
@@ -21,27 +21,13 @@ func NewMetricsHandler(metricsManager metrics.MetricsManager) *MetricsHandler {
 	}
 }
 
-// GetEndpointMetrics godoc
-// @Summary      Get endpoint metrics
-// @Description  Get metrics for a specific endpoint
-// @Tags         Metrics
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param Authorization header string true "Token JWT with Format 'Bearer {token}'"
-// @Param endpoint query string false "Endpoint to filter metrics"
-// @Param method query string false "HTTP method to filter metrics"
-// @Success      200 {object} models.EndpointMetrics
-// @Failure      400 {object} response.APIError
-// @Failure      500 {object} response.APIError
-// @Router       /api/v1/metrics [get]
+// GetEndpointMetrics returns request metrics scoped to the caller's NIT, optionally filtered by endpoint and method.
 func (h *MetricsHandler) GetEndpointMetrics(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value("claims").(*models.AuthClaims)
 
 	endpoint := r.URL.Query().Get("endpoint")
 	method := r.URL.Query().Get("method")
 
-	// Si no hay filtros, obtenemos todas las métricas de endpoints
 	if endpoint == "" || method == "" {
 		allMetrics, err := h.metricsManager.GetAllMetricsEndpoint(claims.NIT)
 		if err != nil {
@@ -56,7 +42,6 @@ func (h *MetricsHandler) GetEndpointMetrics(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Si hay filtros, obtenemos las métricas específicas
 	endpointMetrics, err := h.metricsManager.GetEndpointMetrics(claims.NIT, method, endpoint)
 	if err != nil {
 		logs.Error("Failed to get endpoint endpointMetrics", map[string]interface{}{

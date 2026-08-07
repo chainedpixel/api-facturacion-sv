@@ -1,8 +1,8 @@
 package containers
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/middleware"
+	"github.com/chainedpixel/ordo-factus/config/drivers"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/middleware"
 )
 
 type MiddlewareContainer struct {

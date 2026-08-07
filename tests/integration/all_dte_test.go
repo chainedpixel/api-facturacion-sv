@@ -8,29 +8,29 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/application/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	transmitterModels "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/handlers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/helpers"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
-	"github.com/MarlonG1/api-facturacion-sv/tests/mocks"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/application/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/handlers"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/tests/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// DTETestConfig contiene la configuración para el tipo de documento a probar
+// DTETestConfig contains the configuration for the document type to test
 type DTETestConfig struct {
 	EndpointPath string
 	DocumentType string
@@ -48,7 +48,6 @@ func TestAllDTETypes(t *testing.T) {
 
 	factory := mapper.NewMapperFactory()
 
-	// Configuraciones para cada tipo de documento
 	dteConfigs := map[string]DTETestConfig{
 		"Invoice": {
 			EndpointPath: "/invoice",
@@ -128,12 +127,11 @@ func TestAllDTETypes(t *testing.T) {
 		},
 	}
 
-	// Definir todos los escenarios de prueba
 	testCases := []struct {
 		name       string
 		setupMocks func(mockAuthManager *mocks.MockAuthManager, mockDTEService *mocks.MockDTEService,
 			mockDTEManager *mocks.MockDTEManager, mockTransmitter *mocks.MockBaseTransmitter, mockContingency *mocks.MockContingencyManager,
-			dteConfig DTETestConfig)
+			mockSeqNumberManager *mocks.MockSequentialNumberManager, dteConfig DTETestConfig)
 		prepareRequest    func(dteConfig DTETestConfig) (*http.Request, error)
 		expectedStatus    int
 		validateResponse  func(t *testing.T, recorder *httptest.ResponseRecorder, dteConfig DTETestConfig)
@@ -143,15 +141,13 @@ func TestAllDTETypes(t *testing.T) {
 			name: "Normal emission - success case",
 			setupMocks: func(mockAuthManager *mocks.MockAuthManager, mockDTEService *mocks.MockDTEService,
 				mockDTEManager *mocks.MockDTEManager, mockTransmitter *mocks.MockBaseTransmitter,
-				mockContingency *mocks.MockContingencyManager, dteConfig DTETestConfig) {
+				mockContingency *mocks.MockContingencyManager, mockSeqNumberManager *mocks.MockSequentialNumberManager, dteConfig DTETestConfig) {
 
-				// 1. Mock para obtener el emisor
 				issuer := fixtures.CreateDefaultIssuer()
 				mockAuthManager.EXPECT().
 					GetIssuer(gomock.Any(), uint(1)).
 					Return(issuer, nil)
 
-				// 2. Mock para crear a nivel de servicio
 				mockDTE, err := dteConfig.DteBuilder()
 				if err != nil {
 					t.Fatalf("Error building DTE document: %v", err)
@@ -165,7 +161,6 @@ func TestAllDTETypes(t *testing.T) {
 					).
 					Return(mockDTE, nil)
 
-				// 3. Mock para transmitir a Hacienda
 				transmitResponse := &transmitterModels.TransmitResult{
 					Status:         "PROCESADO",
 					ReceptionStamp: utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
@@ -179,7 +174,10 @@ func TestAllDTETypes(t *testing.T) {
 					).
 					Return(transmitResponse, nil)
 
-				// 4. Mock para guardar el documento
+				mockSeqNumberManager.EXPECT().
+					ConfirmReservation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(nil)
+
 				mockDTEManager.EXPECT().
 					Create(
 						gomock.Any(),
@@ -190,7 +188,6 @@ func TestAllDTETypes(t *testing.T) {
 					).
 					Return(nil)
 
-				// 5. Mock de contingencia - NUNCA DEBE SER LLAMADO EN ESTE CASO
 				mockContingency.EXPECT().
 					StoreDocumentInContingency(
 						gomock.Any(),
@@ -213,7 +210,6 @@ func TestAllDTETypes(t *testing.T) {
 				}
 				req.Header.Set("Content-Type", "application/json")
 
-				// Agregar contexto con claims de autenticación simulados
 				claims := &models.AuthClaims{
 					BranchID: 1,
 					NIT:      "11111111111111",
@@ -236,13 +232,11 @@ func TestAllDTETypes(t *testing.T) {
 				err := json.NewDecoder(recorder.Body).Decode(&response)
 				require.NoError(t, err)
 
-				// Verificar la respuesta general
 				assert.True(t, response.Success)
 				assert.NotEmpty(t, response.ReceptionStamp)
 				assert.NotEmpty(t, response.QRLink)
 				assert.Equal(t, "2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM", response.ReceptionStamp)
 
-				// Verificar identificación básica en todos los documentos
 				var identification struct {
 					Identificacion struct {
 						Version       int    `json:"version"`
@@ -270,15 +264,13 @@ func TestAllDTETypes(t *testing.T) {
 			name: "Contingency emission - success case",
 			setupMocks: func(mockAuthManager *mocks.MockAuthManager, mockDTEService *mocks.MockDTEService,
 				mockDTEManager *mocks.MockDTEManager, mockTransmitter *mocks.MockBaseTransmitter,
-				mockContingency *mocks.MockContingencyManager, dteConfig DTETestConfig) {
+				mockContingency *mocks.MockContingencyManager, mockSeqNumberManager *mocks.MockSequentialNumberManager, dteConfig DTETestConfig) {
 
-				// 1. Mock para obtener el emisor
 				issuer := fixtures.CreateDefaultIssuer()
 				mockAuthManager.EXPECT().
 					GetIssuer(gomock.Any(), uint(1)).
 					Return(issuer, nil)
 
-				// 2. Mock para crear a nivel de servicio
 				mockDTE, err := dteConfig.DteBuilder()
 				if err != nil {
 					t.Fatalf("Error building DTE document: %v", err)
@@ -292,7 +284,6 @@ func TestAllDTETypes(t *testing.T) {
 					).
 					Return(mockDTE, nil)
 
-				// 3. En contingencia no hay transmisión exitosa
 				mockTransmitter.EXPECT().
 					RetryTransmission(
 						gomock.Any(),
@@ -308,7 +299,6 @@ func TestAllDTETypes(t *testing.T) {
 					}).
 					AnyTimes()
 
-				// 4. Mock de contingencia - En caso de error, se guarda en contingencia
 				mockContingency.EXPECT().
 					StoreDocumentInContingency(
 						gomock.Any(),
@@ -331,7 +321,6 @@ func TestAllDTETypes(t *testing.T) {
 				}
 				req.Header.Set("Content-Type", "application/json")
 
-				// Agregar contexto con claims de autenticación simulados
 				claims := &models.AuthClaims{
 					BranchID: 1,
 					NIT:      "11111111111111",
@@ -354,11 +343,9 @@ func TestAllDTETypes(t *testing.T) {
 				err := json.NewDecoder(recorder.Body).Decode(&response)
 				require.NoError(t, err)
 
-				// Verificar la respuesta general
 				assert.True(t, response.Success)
-				assert.Nil(t, response.ReceptionStamp) // Sin sello en contingencia
+				assert.Nil(t, response.ReceptionStamp)
 
-				// Verificar identificación con campos de contingencia
 				var identification struct {
 					Identificacion struct {
 						Version          int    `json:"version"`
@@ -387,15 +374,13 @@ func TestAllDTETypes(t *testing.T) {
 			name: "Validation error - error case",
 			setupMocks: func(mockAuthManager *mocks.MockAuthManager, mockDTEService *mocks.MockDTEService,
 				mockDTEManager *mocks.MockDTEManager, mockTransmitter *mocks.MockBaseTransmitter,
-				mockContingency *mocks.MockContingencyManager, dteConfig DTETestConfig) {
+				mockContingency *mocks.MockContingencyManager, mockSeqNumberManager *mocks.MockSequentialNumberManager, dteConfig DTETestConfig) {
 
-				// 1. Mock para obtener el emisor
 				issuer := fixtures.CreateDefaultIssuer()
 				mockAuthManager.EXPECT().
 					GetIssuer(gomock.Any(), uint(1)).
 					Return(issuer, nil)
 
-				// 2. Mock para crear a nivel de servicio - devuelve error de validación
 				mockDTEService.EXPECT().
 					Create(
 						gomock.Any(),
@@ -404,7 +389,6 @@ func TestAllDTETypes(t *testing.T) {
 					).
 					Return(nil, dte_errors.NewValidationError("RequiredField", "Request->Receiver"))
 
-				// 3. Mock de contingencia - NUNCA DEBE SER LLAMADO EN ESTE CASO
 				mockContingency.EXPECT().
 					StoreDocumentInContingency(
 						gomock.Any(),
@@ -415,7 +399,6 @@ func TestAllDTETypes(t *testing.T) {
 					).Times(0)
 			},
 			prepareRequest: func(dteConfig DTETestConfig) (*http.Request, error) {
-				// Obtener request por defecto y modificarlo para que sea inválido
 				dteRequest := dteConfig.GetRequest()
 				doInvalidAmount(dteRequest)
 
@@ -430,7 +413,6 @@ func TestAllDTETypes(t *testing.T) {
 				}
 				req.Header.Set("Content-Type", "application/json")
 
-				// Agregar contexto con claims de autenticación simulados
 				claims := &models.AuthClaims{
 					BranchID: 1,
 					NIT:      "11111111111111",
@@ -451,11 +433,9 @@ func TestAllDTETypes(t *testing.T) {
 				err := json.NewDecoder(recorder.Body).Decode(&response)
 				require.NoError(t, err)
 
-				// Verificar que hay un error
 				assert.False(t, response.Success)
 				assert.NotNil(t, response.Error)
 
-				// Verificar que el error contiene la palabra "required"
 				errorStr := string(response.Error)
 				assert.Contains(t, errorStr, "required")
 			},
@@ -463,42 +443,37 @@ func TestAllDTETypes(t *testing.T) {
 		},
 	}
 
-	// Para cada tipo de DTE, ejecutar todas las pruebas
 	for dteName, dteConfig := range dteConfigs {
 		t.Run(dteName, func(t *testing.T) {
-			// Para cada caso de prueba
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
 					ctrl := gomock.NewController(t)
 					defer ctrl.Finish()
 
-					// Crear los mocks
 					mockAuthManager := mocks.NewMockAuthManager(ctrl)
 					mockDTEService := mocks.NewMockDTEService(ctrl)
 					mockDTEManager := mocks.NewMockDTEManager(ctrl)
 					mockTransmitter := mocks.NewMockBaseTransmitter(ctrl)
 					mockContingency := mocks.NewMockContingencyManager(ctrl)
+					mockSeqNumberManager := mocks.NewMockSequentialNumberManager(ctrl)
 
-					// Configurar los mocks según el caso de prueba
-					tc.setupMocks(mockAuthManager, mockDTEService, mockDTEManager, mockTransmitter, mockContingency, dteConfig)
+					tc.setupMocks(mockAuthManager, mockDTEService, mockDTEManager, mockTransmitter, mockContingency, mockSeqNumberManager, dteConfig)
 
-					// Crear el caso de uso para el tipo de documento
 					var additionalOps dte.AdditionalOperationsFunc = nil
 					genericUseCase := dte.NewGenericDTEUseCase(
 						mockAuthManager,
 						mockDTEManager,
 						mockTransmitter,
 						mockDTEService,
+						mockSeqNumberManager,
 						dteConfig.MapperConfig.RequestMapperAdapter,
 						dteConfig.MapperConfig.ResponseMapper,
 						additionalOps,
 					)
 
-					// Configurar el handler
 					contingencyHandler := helpers.NewContingencyHandler(mockContingency)
 					genericHandler := handlers.NewGenericDTEHandler(contingencyHandler)
 
-					// Registrar el documento
 					genericHandler.RegisterDocument(dteConfig.EndpointPath, helpers.DocumentConfig{
 						DocumentType:    dteConfig.DocumentType,
 						UseCase:         genericUseCase,
@@ -506,20 +481,16 @@ func TestAllDTETypes(t *testing.T) {
 						UsesContingency: true,
 					})
 
-					// Preparar la solicitud HTTP para este tipo de DTE
 					req, err := tc.prepareRequest(dteConfig)
 					require.NoError(t, err)
 
-					// Ejecutar la solicitud
 					recorder := httptest.NewRecorder()
 					router := mux.NewRouter()
 					router.HandleFunc("/api/v1"+dteConfig.EndpointPath, genericHandler.HandleCreate).Methods("POST")
 					router.ServeHTTP(recorder, req)
 
-					// Verificar el código de estado HTTP
 					assert.Equal(t, tc.expectedStatus, recorder.Code)
 
-					// Verificar la respuesta según el caso de prueba
 					tc.validateResponse(t, recorder, dteConfig)
 				})
 			}
@@ -527,7 +498,7 @@ func TestAllDTETypes(t *testing.T) {
 	}
 }
 
-// doInvalidAmount modifica el monto de un DTE para que sea inválido a nivel de dominio
+// doInvalidAmount modifies the amount of a DTE to make it invalid at the domain level
 func doInvalidAmount(
 	dteRequest interface{},
 ) {

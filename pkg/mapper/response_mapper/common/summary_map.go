@@ -1,11 +1,11 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapCommonResponseSummary mapea un resumen de invoice a un modelo de resumen de invoice -> Origen: Response
+// MapCommonResponseSummary maps an invoice summary to an invoice summary model -> Source: Response
 func MapCommonResponseSummary(summary interfaces.Summary) *structs.DTESummary {
 	result := &structs.DTESummary{
 		TotalNoSuj:          summary.GetTotalNonSubject(),
@@ -25,7 +25,6 @@ func MapCommonResponseSummary(summary interfaces.Summary) *structs.DTESummary {
 		Tributos:            MapTaxes(summary.GetTotalTaxes()),
 	}
 
-	// Mapear pagos
 	if len(summary.GetPaymentTypes()) > 0 {
 		result.Pagos = MapCommonResponsePayments(summary.GetPaymentTypes())
 	}

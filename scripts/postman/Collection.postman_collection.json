@@ -1,0 +1,604 @@
+{
+	"info": {
+		"_postman_id": "api-dte-collection",
+		"name": "Ordo Factus API",
+		"description": "Colección completa de la API de Ordo Factus - Microservicio de Documentos Tributarios Electrónicos (DTE) compatible con el Ministerio de Hacienda de El Salvador.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{bearer_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:7319"
+		},
+		{
+			"key": "api_version",
+			"value": "v1"
+		}
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						},
+						"description": "Verifica el estado de salud de todos los servicios del sistema."
+					},
+					"response": [],
+					"auth": {
+						"type": "noauth"
+					}
+				}
+			],
+			"description": "Endpoints de verificación de salud del sistema."
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.length > 0) {",
+									"        pm.environment.set('api_key', jsonData.data[0].api_key);",
+									"        pm.environment.set('api_secret', jsonData.data[0].api_secret);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"nit\": \"06141101690011\",\n    \"nrc\": \"1937\",\n    \"auth_type\": \"password\",\n    \"password_pri\": \"your_private_password\",\n    \"commercial_name\": \"Mi Empresa S.A. de C.V.\",\n    \"business_name\": \"Mi Empresa\",\n    \"economic_activity\": \"10005\",\n    \"economic_activity_desc\": \"Venta al por mayor de productos diversos\",\n    \"email\": \"empresa@example.com\",\n    \"phone\": \"22223333\",\n    \"year_in_dte\": false,\n    \"token_lifetime\": 24,\n    \"branch_offices\": [\n        {\n            \"establishment_type\": \"01\",\n            \"establishment_code\": \"M001\",\n            \"establishment_code_mh\": \"0001\",\n            \"pos_code\": \"P001\",\n            \"pos_code_mh\": \"0001\",\n            \"address\": {\n                \"department\": \"06\",\n                \"municipality\": \"20\",\n                \"complement\": \"Calle Principal #123, Col. Centro\"\n            }\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "auth", "register"]
+						},
+						"description": "Registra un nuevo emisor en el sistema. Retorna las credenciales API (api_key y api_secret) para cada sucursal."
+					},
+					"response": [],
+					"auth": {
+						"type": "noauth"
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data) {",
+									"        pm.environment.set('bearer_token', jsonData.data);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"api_key\": \"{{api_key}}\",\n    \"api_secret\": \"{{api_secret}}\",\n    \"credentials\": {\n        \"username\": \"{{mh_username}}\",\n        \"password\": \"{{mh_password}}\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "auth", "login"]
+						},
+						"description": "Autentica al emisor y retorna un token JWT. El token se guarda automáticamente en la variable de entorno `bearer_token`."
+					},
+					"response": [],
+					"auth": {
+						"type": "noauth"
+					}
+				}
+			],
+			"description": "Endpoints de autenticación. No requieren Bearer token."
+		},
+		{
+			"name": "DTE",
+			"item": [
+				{
+					"name": "Crear Factura Electrónica",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.codigoGeneracion) {",
+									"        pm.environment.set('generation_code', jsonData.data.codigoGeneracion);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"06141101690011\",\n        \"name\": \"Super Selectos S.A. de C.V.\",\n        \"nrc\": \"1937\",\n        \"activity_code\": \"10005\",\n        \"activity_description\": \"Venta de productos\",\n        \"commercial_name\": \"Cliente Comercial\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"20\",\n            \"complement\": \"Calle Ejemplo #456\"\n        },\n        \"phone\": \"22221111\",\n        \"email\": \"cliente@example.com\"\n    },\n    \"items\": [\n        {\n            \"type\": 1,\n            \"description\": \"Zapatos Deportivos Campus/NEGRO-BLANCO/8\",\n            \"quantity\": 3,\n            \"unit_measure\": 59,\n            \"code\": \"ZAP-001-NEG-8\",\n            \"unit_price\": 75,\n            \"discount\": 30,\n            \"taxed_sale\": 195,\n            \"iva_item\": 22.43\n        }\n    ],\n    \"summary\": {\n        \"total_taxed\": 195,\n        \"sub_total\": 185,\n        \"sub_total_sales\": 195,\n        \"taxed_discount\": 10,\n        \"discount_percentage\": 13.33,\n        \"total_discount\": 30,\n        \"total_operation\": 185,\n        \"total_to_pay\": 185,\n        \"operation_condition\": 1,\n        \"total_iva\": 21.28,\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 185\n            }\n        ]\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "dte", "invoices"]
+						},
+						"description": "Crea una Factura Electrónica (DTE tipo 01). Soporta contingencia automática."
+					},
+					"response": []
+				},
+				{
+					"name": "Crear CCF Electrónico",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.codigoGeneracion) {",
+									"        pm.environment.set('generation_code', jsonData.data.codigoGeneracion);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"type\": 1,\n            \"description\": \"CODO PVC 1\",\n            \"quantity\": 50,\n            \"unit_measure\": 59,\n            \"unit_price\": 0.66371681,\n            \"discount\": 0,\n            \"code\": \"MAT-002\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 33.1858405,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"taxes\": [\"20\"]\n        }\n    ],\n    \"receiver\": {\n        \"nrc\": \"1937\",\n        \"nit\": \"06141101690011\",\n        \"name\": \"Super Selectos S.A. de C.V.\",\n        \"commercial_name\": \"Super Selectos\",\n        \"activity_code\": \"01271\",\n        \"activity_description\": \"Cultivo de café\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"23\",\n            \"complement\": \"Dirección de ejemplo, San Salvador\"\n        },\n        \"phone\": \"22220000\",\n        \"email\": \"receptor@example.com\"\n    },\n    \"summary\": {\n        \"operation_condition\": 1,\n        \"total_taxed\": 33.19,\n        \"total_exempt\": 0,\n        \"total_non_taxed\": 0,\n        \"total_non_subject\": 0,\n        \"sub_total_sales\": 33.19,\n        \"sub_total\": 33.19,\n        \"total_operation\": 37.5,\n        \"total_to_pay\": 37.5,\n        \"iva_retention\": 0,\n        \"taxes\": [\n            {\n                \"value\": 4.31,\n                \"description\": \"IVA 13%\",\n                \"code\": \"20\"\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 37.5\n            }\n        ]\n    },\n    \"extension\": {\n        \"delivery_name\": \"Nombre del Entregador\",\n        \"delivery_document\": \"06141101690011\",\n        \"receiver_name\": \"Super Selectos S.A. de C.V.\",\n        \"receiver_document\": \"06141101690011\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/ccf",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "dte", "ccf"]
+						},
+						"description": "Crea un Comprobante de Crédito Fiscal Electrónico (DTE tipo 03). Soporta contingencia automática."
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Nota de Crédito",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.codigoGeneracion) {",
+									"        pm.environment.set('generation_code', jsonData.data.codigoGeneracion);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"receiver\": {\n        \"nit\": \"06141101690011\",\n        \"nrc\": \"1937\",\n        \"name\": \"Super Selectos S.A. de C.V.\",\n        \"activity_code\": \"10005\",\n        \"activity_description\": \"Venta al por mayor\",\n        \"commercial_name\": \"Empresa Receptora\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"20\",\n            \"complement\": \"Boulevard Los Proceres #789\"\n        },\n        \"phone\": \"22225555\",\n        \"email\": \"receptor@example.com\"\n    },\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Devolución de producto\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 50.00,\n            \"discount\": 0.00,\n            \"code\": \"DEV-001\",\n            \"taxes\": [\"20\"],\n            \"non_subject_sale\": 0.00,\n            \"exempt_sale\": 0.00,\n            \"taxed_sale\": 50.00,\n            \"related_doc\": \"CODIGO_DE_GENERACION_VALIDO_AQUI\"\n        }\n    ],\n    \"summary\": {\n        \"total_non_subject\": 0.00,\n        \"total_exempt\": 0.00,\n        \"total_taxed\": 50.00,\n        \"sub_total\": 50.00,\n        \"non_subject_discount\": 0.00,\n        \"exempt_discount\": 0.00,\n        \"taxed_discount\": 0.00,\n        \"discount_percentage\": 0.00,\n        \"total_discount\": 0.00,\n        \"total_operation\": 56.50,\n        \"total_non_taxed\": 0.00,\n        \"sub_total_sales\": 50.00,\n        \"total_to_pay\": 56.50,\n        \"operation_condition\": 1,\n        \"iva_perception\": 0.00,\n        \"iva_retention\": 0.00,\n        \"income_retention\": 0.00,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.50\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 56.50\n            }\n        ],\n        \"total_in_words\": \"CINCUENTA Y SEIS DOLARES CON CINCUENTA CENTAVOS\"\n    },\n    \"related_docs\": [\n        {\n            \"document_type\": \"03\",\n            \"generation_type\": 2,\n            \"document_number\": \"CODIGO_DE_GENERACION_VALIDO_AQUI\",\n            \"emission_date\": \"2026-03-19\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/creditnote",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "dte", "creditnote"]
+						},
+						"description": "Crea una Nota de Crédito Electrónica (DTE tipo 05). No soporta contingencia. Requiere documentos relacionados."
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Nota de Débito",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.codigoGeneracion) {",
+									"        pm.environment.set('generation_code', jsonData.data.codigoGeneracion);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"receiver\": {\n        \"nit\": \"06141101690011\",\n        \"nrc\": \"1937\",\n        \"name\": \"Super Selectos S.A. de C.V.\",\n        \"activity_code\": \"10005\",\n        \"activity_description\": \"Venta al por mayor\",\n        \"commercial_name\": \"Empresa Receptora\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"20\",\n            \"complement\": \"Boulevard Los Proceres #789\"\n        },\n        \"phone\": \"22225555\",\n        \"email\": \"receptor@example.com\"\n    },\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Ajuste por intereses moratorios\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 25.00,\n            \"discount\": 0.00,\n            \"code\": \"INT-001\",\n            \"taxes\": [\"20\"],\n            \"non_subject_sale\": 0.00,\n            \"exempt_sale\": 0.00,\n            \"taxed_sale\": 25.00,\n            \"related_doc\": \"CODIGO_DE_GENERACION_VALIDO_AQUI\"\n        }\n    ],\n    \"summary\": {\n        \"total_non_subject\": 0.00,\n        \"total_exempt\": 0.00,\n        \"total_taxed\": 25.00,\n        \"sub_total\": 25.00,\n        \"non_subject_discount\": 0.00,\n        \"exempt_discount\": 0.00,\n        \"taxed_discount\": 0.00,\n        \"discount_percentage\": 0.00,\n        \"total_discount\": 0.00,\n        \"total_operation\": 28.25,\n        \"total_non_taxed\": 0.00,\n        \"sub_total_sales\": 25.00,\n        \"total_to_pay\": 28.25,\n        \"operation_condition\": 1,\n        \"iva_perception\": 0.00,\n        \"iva_retention\": 0.00,\n        \"income_retention\": 0.00,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 3.25\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 28.25\n            }\n        ],\n        \"total_in_words\": \"VEINTIOCHO DOLARES CON VEINTICINCO CENTAVOS\"\n    },\n    \"related_docs\": [\n        {\n            \"document_type\": \"03\",\n            \"generation_type\": 2,\n            \"document_number\": \"CODIGO_DE_GENERACION_VALIDO_AQUI\",\n            \"emission_date\": \"2026-03-19\"\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/debitnote",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "dte", "debitnote"]
+						},
+						"description": "Crea una Nota de Débito Electrónica (DTE tipo 06). Soporta contingencia automática."
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Comprobante de Retención",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.codigoGeneracion) {",
+									"        pm.environment.set('generation_code', jsonData.data.codigoGeneracion);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"06141101690011\",\n        \"nrc\": \"1937\",\n        \"name\": \"Super Selectos S.A. de C.V.\",\n        \"activity_code\": \"10005\",\n        \"activity_description\": \"Servicios profesionales\",\n        \"commercial_name\": \"Proveedor Retenido\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"20\",\n            \"complement\": \"Calle Retención #321\"\n        },\n        \"phone\": \"22229999\",\n        \"email\": \"proveedor@example.com\"\n    },\n    \"items\": [\n        {\n            \"type\": 1,\n            \"document_number\": \"DTE-00000001-000000000000001\",\n            \"description\": \"Retención IVA 1% por compra de bienes\",\n            \"retention_code\": \"22\",\n            \"iva_amount\": 13.00,\n            \"taxed_amount\": 100.00,\n            \"emission_date\": \"2026-03-15\",\n            \"dte_type\": \"03\"\n        }\n    ],\n    \"summary\": {\n        \"total_retention_amount\": 100.00,\n        \"total_retention_iva\": 1.00\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/retention",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "dte", "retention"]
+						},
+						"description": "Crea un Comprobante de Retención Electrónico (DTE tipo 07). No soporta contingencia."
+					},
+					"response": []
+				},
+				{
+					"name": "Crear FSE",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.codigoGeneracion) {",
+									"        pm.environment.set('generation_code', jsonData.data.codigoGeneracion);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"excluded_subject\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"06141101690011\",\n        \"name\": \"Super Selectos S.A. de C.V.\",\n        \"activity_code\": \"10005\",\n        \"activity_description\": \"Venta de productos agrícolas\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"20\",\n            \"complement\": \"Cantón Las Flores\"\n        },\n        \"phone\": \"77778888\",\n        \"email\": \"excluido@example.com\"\n    },\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Compra de granos básicos\",\n            \"quantity\": 10,\n            \"unit_measure\": 2,\n            \"unit_price\": 5.00,\n            \"discount\": 0.00,\n            \"purchase\": 50.00\n        }\n    ],\n    \"summary\": {\n        \"total_non_subject\": 0.00,\n        \"total_exempt\": 0.00,\n        \"total_taxed\": 0.00,\n        \"sub_total\": 50.00,\n        \"non_subject_discount\": 0.00,\n        \"exempt_discount\": 0.00,\n        \"discount_percentage\": 0.00,\n        \"total_discount\": 0.00,\n        \"total_operation\": 50.00,\n        \"total_non_taxed\": 0.00,\n        \"sub_total_sales\": 50.00,\n        \"total_to_pay\": 49.50,\n        \"operation_condition\": 1,\n        \"total_purchase\": 50.00,\n        \"iva_retention\": 0.00,\n        \"income_retention\": 0.50,\n        \"observations\": \"Compra directa a productor\",\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 49.50\n            }\n        ],\n        \"total_in_words\": \"CUARENTA Y NUEVE DOLARES CON CINCUENTA CENTAVOS\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/fse",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "dte", "fse"]
+						},
+						"description": "Crea una Factura de Sujeto Excluido Electrónica (DTE tipo 14). Soporta contingencia automática."
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Nota de Remisión",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.data && jsonData.data.codigoGeneracion) {",
+									"        pm.environment.set('generation_code', jsonData.data.codigoGeneracion);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"06141101690011\",\n        \"nrc\": \"1937\",\n        \"name\": \"Super Selectos S.A. de C.V.\",\n        \"activity_code\": \"10005\",\n        \"activity_description\": \"Distribución de mercancías\",\n        \"commercial_name\": \"Empresa Destino\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"20\",\n            \"complement\": \"Zona Industrial Norte\"\n        },\n        \"phone\": \"22226666\",\n        \"email\": \"destino@example.com\",\n        \"real_state\": \"01\"\n    },\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Mercancía en consignación\",\n            \"quantity\": 5,\n            \"unit_measure\": 59,\n            \"unit_price\": 20.00,\n            \"discount\": 0.00,\n            \"code\": \"MER-001\",\n            \"non_subject_sale\": 0.00,\n            \"exempt_sale\": 0.00,\n            \"taxed_sale\": 100.00,\n            \"tributes\": [\"20\"]\n        }\n    ],\n    \"summary\": {\n        \"non_subject_total\": 0.00,\n        \"exempt_total\": 0.00,\n        \"taxed_total\": 100.00,\n        \"subtotal_sales\": 100.00,\n        \"non_subject_discount\": 0.00,\n        \"exempt_discount\": 0.00,\n        \"taxed_discount\": 0.00,\n        \"total_discount\": 0.00,\n        \"tributes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 13.00\n            }\n        ],\n        \"subtotal\": 100.00,\n        \"total_amount\": 113.00,\n        \"amount_in_words\": \"CIENTO TRECE DOLARES EXACTOS\",\n        \"payments\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 113.00\n            }\n        ]\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/remissionnote",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "dte", "remissionnote"]
+						},
+						"description": "Crea una Nota de Remisión Electrónica (DTE tipo 04). Soporta contingencia automática."
+					},
+					"response": []
+				},
+				{
+					"name": "Consultas",
+					"item": [
+						{
+							"name": "Obtener Todos los DTEs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/{{api_version}}/dte",
+									"host": ["{{base_url}}"],
+									"path": ["api", "{{api_version}}", "dte"]
+								},
+								"description": "Obtiene todos los DTEs del emisor autenticado."
+							},
+							"response": []
+						},
+						{
+							"name": "Obtener DTE por Código de Generación",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/{{api_version}}/dte/{{generation_code}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "{{api_version}}", "dte", "{{generation_code}}"]
+								},
+								"description": "Obtiene un DTE específico por su código de generación."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Invalidación",
+					"item": [
+						{
+							"name": "Invalidar Documento",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"generation_code\": \"{{generation_code}}\",\n    \"reason\": {\n        \"type\": 1,\n        \"responsible_name\": \"Juan Pérez\",\n        \"responsible_doc_type\": \"36\",\n        \"responsible_num_doc\": \"06141101690011\",\n        \"requestor_name\": \"María López\",\n        \"requestor_doc_type\": \"36\",\n        \"requestor_num_doc\": \"06141101690011\",\n        \"reason_field\": \"Error en datos del receptor\"\n    },\n    \"replacement_generation_code\": null\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/{{api_version}}/dte/invalidation",
+									"host": ["{{base_url}}"],
+									"path": ["api", "{{api_version}}", "dte", "invalidation"]
+								},
+								"description": "Invalida/anula un DTE existente. Requiere motivo de anulación y datos de los responsables."
+							},
+							"response": []
+						}
+					]
+				}
+			],
+			"description": "Endpoints de Documentos Tributarios Electrónicos. Todos requieren autenticación Bearer token."
+		},
+		{
+			"name": "Metrics",
+			"item": [
+				{
+					"name": "Obtener Todas las Métricas",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/metrics",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "metrics"]
+						},
+						"description": "Obtiene las métricas de todos los endpoints para el emisor autenticado."
+					},
+					"response": []
+				},
+				{
+					"name": "Obtener Métricas por Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/metrics?endpoint=/api/v1/dte/invoices&method=POST",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "metrics"],
+							"query": [
+								{
+									"key": "endpoint",
+									"value": "/api/v1/dte/invoices",
+									"description": "Filtrar por endpoint específico"
+								},
+								{
+									"key": "method",
+									"value": "POST",
+									"description": "Filtrar por método HTTP"
+								}
+							]
+						},
+						"description": "Obtiene las métricas de un endpoint específico filtrado por ruta y método HTTP."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints de métricas del sistema. Requieren autenticación."
+		},
+		{
+			"name": "System",
+			"item": [
+				{
+					"name": "System Test",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/test",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "test"]
+						},
+						"description": "Ejecuta diagnósticos completos del sistema y retorna el resultado."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints de diagnóstico del sistema. Requieren autenticación."
+		},
+		{
+			"name": "Debug",
+			"item": [
+				{
+					"name": "Notify Test (Contingencia)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/debug/notify-test",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "debug", "notify-test"]
+						},
+						"description": "Envía un correo real al ADMIN_EMAIL usando la plantilla de Contingencia. Bypasea el cooldown de Redis. Solo disponible cuando DEBUG=true."
+					},
+					"response": []
+				},
+				{
+					"name": "Notify Test (Emisión)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/debug/notify-test?event=emission",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "debug", "notify-test"],
+							"query": [
+								{ "key": "event", "value": "emission" }
+							]
+						},
+						"description": "Envía un correo real al ADMIN_EMAIL usando la plantilla de Falla consistente de emisión."
+					},
+					"response": []
+				},
+				{
+					"name": "Notify Test (Job)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/debug/notify-test?event=job",
+							"host": ["{{base_url}}"],
+							"path": ["api", "{{api_version}}", "debug", "notify-test"],
+							"query": [
+								{ "key": "event", "value": "job" }
+							]
+						},
+						"description": "Envía un correo real al ADMIN_EMAIL usando la plantilla de Job de retransmisión con fallos."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints de pruebas internas. Solo se registran cuando DEBUG=true en .env. Requieren autenticación."
+		}
+	]
+}

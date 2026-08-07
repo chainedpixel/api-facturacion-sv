@@ -3,16 +3,16 @@ package strategy
 import (
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type TemporalValidationStrategy struct {
 	Document interfaces.DTEDocument
 }
 
-// Validate valida la fecha y hora de emisión del documento
+// Validate validates the emission date and time of the document
 func (s *TemporalValidationStrategy) Validate() *dte_errors.DTEError {
 	if s.Document == nil || s.Document.GetIdentification() == nil {
 		return nil
@@ -22,13 +22,11 @@ func (s *TemporalValidationStrategy) Validate() *dte_errors.DTEError {
 	emissionTime := s.Document.GetIdentification().GetEmissionTime()
 	now := utils.TimeNow()
 
-	// Validar fecha futura
 	if emissionDate.After(now) {
 		return dte_errors.NewDTEErrorSimple("InvalidDateTime",
 			emissionDate.Format("2006-01-02"))
 	}
 
-	// Validar hora futura en el mismo día
 	if emissionDate.Equal(now.Truncate(24*time.Hour)) &&
 		emissionTime.After(now) {
 		return dte_errors.NewDTEErrorSimple("InvalidEmissionTime",

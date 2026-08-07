@@ -1,8 +1,8 @@
 package strategy
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
 	"github.com/shopspring/decimal"
 )
 
@@ -28,13 +28,11 @@ func (s *RetentionTotalStrategy) Validate() *dte_errors.DTEError {
 	return nil
 }
 
-// validateTotalAmounts valida los totales de retención del documento
+// validateTotalAmounts validates the retention totals of the document
 func (s *RetentionTotalStrategy) validateTotalAmounts() *dte_errors.DTEError {
-	// 1. Obtener los totales de retención esperados del documento
 	expectedTotalSubjectRetention := s.Document.RetentionSummary.TotalSubjectRetention.GetValueAsDecimal()
 	actualIvaRetention := s.Document.RetentionSummary.TotalIVARetention.GetValueAsDecimal()
 
-	// 2. Validar que el total de retenciones concuerde con el total calculado por los items
 	actualTotalSubjectRetention, expectedIvaRetention := s.Document.GetTotalByItems()
 	if !s.compareTotalsWithTolerance(expectedTotalSubjectRetention, actualTotalSubjectRetention, 0.01) {
 		return dte_errors.NewDTEErrorSimple("InvalidTotalSubjectRetention",
@@ -42,7 +40,6 @@ func (s *RetentionTotalStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			expectedTotalSubjectRetention.InexactFloat64())
 	}
 
-	// 3. Validar que el total de IVA retenciones concuerde con el total calculado por los items
 	if !s.compareTotalsWithTolerance(expectedIvaRetention, actualIvaRetention, 0.01) {
 		return dte_errors.NewDTEErrorSimple("InvalidTotalIVARetention",
 			actualIvaRetention.InexactFloat64(),
@@ -52,7 +49,7 @@ func (s *RetentionTotalStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	return nil
 }
 
-// compareTotalsWithTolerance compara dos totales con una tolerancia especificada
+// compareTotalsWithTolerance compares two totals with a specified tolerance
 func (s *RetentionTotalStrategy) compareTotalsWithTolerance(expected, actual decimal.Decimal, tolerance float64) bool {
 	diff := expected.Sub(actual).Abs()
 	return diff.LessThanOrEqual(decimal.NewFromFloat(tolerance))

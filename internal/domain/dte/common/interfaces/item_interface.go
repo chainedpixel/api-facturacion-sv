@@ -1,36 +1,36 @@
 package interfaces
 
-// ItemGetter es una interfaz que define los métodos getter que debe implementar un item
+// ItemGetter is an interface that defines the getter methods that an item must implement
 type ItemGetter interface {
-	GetQuantity() float64   // GetQuantity retorna la cantidad del item
-	GetItemCode() string    // GetItemCode retorna el número del item
-	GetDescription() string // GetDescription retorna la descripción del item
-	GetType() int           // GetType retorna el tipo de item
-	GetUnitPrice() float64  // GetUnitPrice retorna el precio unitario del item
-	GetDiscount() float64   // GetDiscount retorna el descuento aplicado al item
-	GetTaxes() []string     // GetTaxes retorna los impuestos aplicados al item
-	GetRelatedDoc() *string // GetRelatedDoc retorna el documento relacionado al item
-	GetNumber() int         // GetNumber retorna el número del item
-	GetUnitMeasure() int    // GetUnitMeasure retorna la unidad de medida del item
+	GetQuantity() float64
+	GetItemCode() string
+	GetDescription() string
+	GetType() int
+	GetUnitPrice() float64
+	GetDiscount() float64
+	GetTaxes() []string
+	GetRelatedDoc() *string
+	GetNumber() int
+	GetUnitMeasure() int
 }
 
-// ItemSetter es una interfaz que define los métodos setter que debe implementar un item
+// ItemSetter is an interface that defines the setter methods that an item must implement
 type ItemSetter interface {
-	SetQuantity(quantity float64) error      // SetQuantity establece la cantidad del item
-	SetItemCode(itemCode string) error       // SetItemCode establece el número del item
-	SetDescription(description string) error // SetDescription establece la descripción del item
-	SetType(itemType int) error              // SetType establece el tipo de item
-	SetUnitPrice(unitPrice float64) error    // SetUnitPrice establece el precio unitario del item
-	SetForceUnitPrice(unitPrice float64)     // SetUnitPrice establece el precio unitario del item
-	SetDiscount(discount float64) error      // SetDiscount establece el descuento aplicado al item
-	SetTaxes(taxes []string) error           // SetTaxes establece los impuestos aplicados al item
-	SetRelatedDoc(relatedDoc *string) error  // SetRelatedDoc establece el documento relacionado al item
-	SetForceRelatedDoc(relatedDoc *string)   // SetRelatedDoc establece el documento relacionado al item
-	SetNumber(number int) error              // SetNumber establece el número del item
-	SetUnitMeasure(unitMeasure int) error    // SetUnitMeasure establece la unidad de medida del item
+	SetQuantity(quantity float64) error
+	SetItemCode(itemCode string) error
+	SetDescription(description string) error
+	SetType(itemType int) error
+	SetUnitPrice(unitPrice float64) error
+	SetForceUnitPrice(unitPrice float64)
+	SetDiscount(discount float64) error
+	SetTaxes(taxes []string) error
+	SetRelatedDoc(relatedDoc *string) error
+	SetForceRelatedDoc(relatedDoc *string)
+	SetNumber(number int) error
+	SetUnitMeasure(unitMeasure int) error
 }
 
-// Item es una interfaz que combina los getters y setters de Item
+// Item is an interface that combines the getters and setters of Item
 type Item interface {
 	ItemGetter
 	ItemSetter

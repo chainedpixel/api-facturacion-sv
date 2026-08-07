@@ -2,8 +2,8 @@ package ports
 
 import "time"
 
-// TimeProvider es una interfaz que define los métodos que debe implementar un proveedor de tiempo
+// TimeProvider is an interface that defines the methods that a time provider must implement
 type TimeProvider interface {
-	Now() time.Time        // Now retorna la fecha y hora actual
-	Sleep(d time.Duration) // Sleep pausa la ejecución por un tiempo determinado
+	Now() time.Time
+	Sleep(d time.Duration)
 }

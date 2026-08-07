@@ -1,32 +1,31 @@
 package fixtures
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// CreatePhysicalDocumentsRetentionRequest crea una solicitud de retención por defecto con documentos físicos
+// CreatePhysicalDocumentsRetentionRequest creates a default retention request with physical documents
 func CreatePhysicalDocumentsRetentionRequest() *structs.CreateRetentionRequest {
-	return createRequest(constants.PhysicalDocument) // 1 representa el tipo de documento físico
+	return createRequest(constants.PhysicalDocument)
 }
 
-// CreateElectronicDocumentsRetentionRequest crea una solicitud de retención por defecto con documentos electrónicos
+// CreateElectronicDocumentsRetentionRequest creates a default retention request with electronic documents
 func CreateElectronicDocumentsRetentionRequest() *structs.CreateRetentionRequest {
-	return createRequest(constants.ElectronicDocument) // 2 representa el tipo de documento electrónico
+	return createRequest(constants.ElectronicDocument)
 }
 
 func createRequest(genType int) *structs.CreateRetentionRequest {
-	// Crear valores por defecto para montos y fechas
 	taxedAmount1 := 115.25
 	ivaAmount1 := 15.00
 	emissionDate1 := "2025-03-20"
-	dteType1 := "03" // CCF
+	dteType1 := "03"
 	docNumber1 := "FF54E9DB-79A3-42CE-B432-EC522C97EFB9"
 
 	taxedAmount2 := 226.50
 	ivaAmount2 := 29.43
 	emissionDate2 := "2025-03-22"
-	dteType2 := "03" // CCF
+	dteType2 := "03"
 	docNumber2 := "AD54E9BB-79A3-42AE-B432-EC522C97EFB7"
 
 	if genType == constants.PhysicalDocument {
@@ -34,13 +33,12 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 		docNumber2 = "S221001348"
 	}
 
-	// Crear ítems electrónicos
 	items := []structs.RetentionItem{
 		{
 			DocumentType:   genType,
 			DocumentNumber: docNumber1,
 			Description:    "Compra de equipos informáticos",
-			RetentionCode:  "22", // IVA 1%
+			RetentionCode:  "22",
 			TaxedAmount:    &taxedAmount1,
 			IvaAmount:      &ivaAmount1,
 			EmissionDate:   &emissionDate1,
@@ -50,7 +48,7 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 			DocumentType:   genType,
 			DocumentNumber: docNumber2,
 			Description:    "Mantenimiento de servidores",
-			RetentionCode:  "C4", // IVA 13%
+			RetentionCode:  "C4",
 			TaxedAmount:    &taxedAmount2,
 			IvaAmount:      &ivaAmount2,
 			EmissionDate:   &emissionDate2,
@@ -58,14 +56,12 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 		},
 	}
 
-	// Crear resumen
 	summary := &structs.RetentionSummary{
 		TotalRetentionAmount: 341.75,
 		TotalRetentionIVA:    44.43,
 	}
 
-	// Crear receptor
-	docType := "36" // NIT
+	docType := "36"
 	docNumber := "06141804941035"
 	nrc := "123456"
 	name := "Empresa Servicios Generales, S.A. de C.V."
@@ -92,7 +88,6 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 		Email: &email,
 	}
 
-	// Crear extension opcional
 	observation := "Retención por servicios tecnológicos primer trimestre"
 	extension := &structs.ExtensionRequest{
 		Observation:      &observation,
@@ -110,36 +105,34 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 	}
 }
 
-// CreateMixedDocumentsRetentionRequest crea una solicitud de retención por defecto con documentos mixtos
+// CreateMixedDocumentsRetentionRequest creates a default retention request with mixed documents
 func CreateMixedDocumentsRetentionRequest() *structs.CreateRetentionRequest {
-	// Crear valores por defecto para montos y fechas para el ítem físico
 	taxedAmount1 := 450.00
 	ivaAmount1 := 58.50
 	emissionDate1 := "2025-03-15"
-	dteType1 := "03" // CCF
+	dteType1 := "03"
 
 	taxedAmount2 := 300.00
 	ivaAmount2 := 39.00
 	emissionDate2 := "2025-03-18"
-	dteType2 := "03" // CCF
+	dteType2 := "03"
 
-	// Crear ítems mixtos (físico y electrónico)
 	items := []structs.RetentionItem{
 		{
-			DocumentType:   1, // Físico
+			DocumentType:   1,
 			DocumentNumber: "S221001347",
 			Description:    "Consultoría financiera",
-			RetentionCode:  "C9", // Otros casos
+			RetentionCode:  "C9",
 			TaxedAmount:    &taxedAmount1,
 			IvaAmount:      &ivaAmount1,
 			EmissionDate:   &emissionDate1,
 			DTEType:        &dteType1,
 		},
 		{
-			DocumentType:   2, // Electrónico
+			DocumentType:   2,
 			DocumentNumber: "FF32E9DB-79C3-42CE-B432-EC522C97EFB2",
 			Description:    "Servicios de auditoría",
-			RetentionCode:  "C4", // IVA 13%
+			RetentionCode:  "C4",
 			TaxedAmount:    &taxedAmount2,
 			IvaAmount:      &ivaAmount2,
 			EmissionDate:   &emissionDate2,
@@ -147,8 +140,7 @@ func CreateMixedDocumentsRetentionRequest() *structs.CreateRetentionRequest {
 		},
 	}
 
-	// Crear receptor
-	docType := "36" // NIT
+	docType := "36"
 	docNumber := "06141804941035"
 	nrc := "123456"
 	name := "Empresa Servicios Generales, S.A. de C.V."
@@ -180,7 +172,6 @@ func CreateMixedDocumentsRetentionRequest() *structs.CreateRetentionRequest {
 		Email: &email,
 	}
 
-	// Crear apéndices opcionales
 	appendixes := []structs.AppendixRequest{
 		{
 			Field: "nota_interna",

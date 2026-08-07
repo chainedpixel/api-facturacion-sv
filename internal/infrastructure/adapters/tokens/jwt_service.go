@@ -3,14 +3,15 @@ package tokens
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/golang-jwt/jwt/v5"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type JWTService struct {
@@ -18,7 +19,7 @@ type JWTService struct {
 	cacheService ports.CacheManager
 }
 
-// NewJWTService crea una instancia de JWTService. Recibe una clave secreta y un cacheService.
+// NewJWTService creates an instance of JWTService. Receives a secret key and a cacheService.
 func NewJWTService(secretKey string, cache ports.CacheManager) *JWTService {
 	return &JWTService{
 		SecretKey:    secretKey,
@@ -26,7 +27,7 @@ func NewJWTService(secretKey string, cache ports.CacheManager) *JWTService {
 	}
 }
 
-// GenerateToken genera un token JWT con los claims proporcionados.
+// GenerateToken generates a JWT token with the provided claims.
 func (s *JWTService) GenerateToken(claims *models.AuthClaims, tokenLifetime time.Duration) (string, error) {
 	now := utils.TimeNow()
 	exp := now.Add(tokenLifetime)
@@ -101,7 +102,7 @@ func (s *JWTService) GenerateToken(claims *models.AuthClaims, tokenLifetime time
 	return signedToken, nil
 }
 
-// SaveTimestampsForContingency guarda los timestamps de un token en contingencia.
+// SaveTimestampsForContingency saves the timestamps of a contingency token.
 func (s *JWTService) SaveTimestampsForContingency(issuedAt, expiresAt time.Time, tokenLifetime time.Duration, claims *models.AuthClaims) error {
 	timestamps := TokenTimestamps{
 		IssuedAt:  issuedAt.Unix(),
@@ -137,7 +138,7 @@ func (s *JWTService) SaveTimestampsForContingency(issuedAt, expiresAt time.Time,
 	return nil
 }
 
-// ValidateToken válida un token JWT y retorna los claims si es válido.
+// ValidateToken validates a JWT token and returns the claims if it is valid.
 func (s *JWTService) ValidateToken(tokenString string) (*models.AuthClaims, error) {
 	key := "token:" + tokenString
 
@@ -201,7 +202,7 @@ func (s *JWTService) ValidateToken(tokenString string) (*models.AuthClaims, erro
 	return &authClaims, nil
 }
 
-// RevokeToken revoca un token JWT.
+// RevokeToken revokes a JWT token.
 func (s *JWTService) RevokeToken(token string) error {
 	err := s.cacheService.Delete(token)
 	if err != nil {
@@ -224,7 +225,7 @@ func (s *JWTService) RevokeToken(token string) error {
 	return nil
 }
 
-// GetSecretKey retorna la clave secreta para firmar los tokens.
+// GetSecretKey returns the secret key for signing tokens.
 func (s *JWTService) GetSecretKey() string {
 	return s.SecretKey
 }

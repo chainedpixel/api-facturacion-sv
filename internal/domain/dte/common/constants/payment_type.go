@@ -1,25 +1,24 @@
 package constants
 
 const (
-	BilletesMonedas = "01" // Billetes y monedas
-	TarjetaDebito   = "02" // Tarjeta de débito
-	TarjetaCredito  = "03" // Tarjeta de crédito
-	Cheque          = "04" // Cheque
-	TransBancaria   = "05" // Transferencia bancaria
-	TarjetaPrePago  = "06" // Tarjeta prepago
-	Vales           = "07" // Vale
-	CriptoMoneda    = "08" // Moneda virtual - Criptomoneda
-	PagosElect      = "09" // Pago electrónico
-	GiftCard        = "10" // Gift card
-	NotaAbono       = "11" // Nota de abono
-	OtraFormaPago   = "12" // Otra forma de pago
-	ContoPrepago    = "13" // Cuenta prepago
-	AplicaARete     = "14" // Aplicación de retención
-	NoAplica        = "99" // No aplica
+	BilletesMonedas = "01"
+	TarjetaDebito   = "02"
+	TarjetaCredito  = "03"
+	Cheque          = "04"
+	TransBancaria   = "05"
+	TarjetaPrePago  = "06"
+	Vales           = "07"
+	CriptoMoneda    = "08"
+	PagosElect      = "09"
+	GiftCard        = "10"
+	NotaAbono       = "11"
+	OtraFormaPago   = "12"
+	ContoPrepago    = "13"
+	AplicaARete     = "14"
+	NoAplica        = "99"
 )
 
 var (
-	// AllowedPaymentTypes contiene los tipos de pagos permitidos, usado para validaciones
 	AllowedPaymentTypes = []string{
 		BilletesMonedas,
 		TarjetaDebito,

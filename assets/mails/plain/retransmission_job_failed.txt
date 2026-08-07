@@ -1,0 +1,24 @@
+[ORDO-FACTUS] Job de retransmisión con fallos
+==================================================
+
+Job: {{.JobName}}
+Hora de ejecución: {{.Timestamp}}
+{{if .FailedDocuments}}
+Documentos rechazados por MH ({{len .FailedDocuments}}):
+{{range .FailedDocuments}}
+  Número de control : {{.ControlNumber}}
+  Código de error   : {{.ErrorCode}}
+  Descripción       : {{.Description}}
+  {{- if .Observations}}
+  Observaciones:
+  {{range .Observations}}  - {{.}}
+  {{end}}{{- end}}
+{{end}}{{- end}}
+{{- if .LastError}}
+Error de ejecución:
+{{.LastError}}
+{{end}}
+--------------------------------------------------
+Ordo Factus | Ambiente: {{.Environment}} | API v{{.APIVersion}}
+{{.AggregateID}}
+Correo automático del sistema. No responder.

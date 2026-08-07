@@ -1,0 +1,49 @@
+{{define "content"}}
+<div class="vf-summary">
+  <p class="vf-summary-title">Resumen del job</p>
+  <table class="vf-kv" cellpadding="0" cellspacing="0" border="0">
+    <tr><td class="k">Job</td><td class="v">{{.JobName}}</td></tr>
+    {{if .FailedDocuments}}
+    <tr><td class="k">Documentos rechazados</td><td class="v" style="color:#DC2626;">{{len .FailedDocuments}}</td></tr>
+    {{end}}
+    <tr><td class="k">Hora de ejecución</td><td class="v">{{.Timestamp}}</td></tr>
+  </table>
+</div>
+{{if .FailedDocuments}}
+<div class="vf-summary" style="margin-top:12px;">
+  <p class="vf-summary-title">Documentos rechazados por MH</p>
+  <table class="vf-kv" cellpadding="0" cellspacing="0" border="0">
+    {{range .FailedDocuments}}
+    <tr>
+      <td class="k" style="padding-bottom:10px;vertical-align:top;font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:11px;">{{.ControlNumber}}</td>
+      <td class="v" style="padding-bottom:10px;">
+        <strong style="color:#DC2626;">{{.ErrorCode}}</strong> &mdash; {{.Description}}
+        {{if .Observations}}
+        <ul style="margin:4px 0 0 0;padding-left:16px;color:#64748B;font-size:12px;">
+          {{range .Observations}}<li>{{.}}</li>{{end}}
+        </ul>
+        {{end}}
+      </td>
+    </tr>
+    {{end}}
+  </table>
+</div>
+{{end}}
+{{if .LastError}}
+<div class="vf-callout">
+  <span class="label">Error de ejecución</span>
+  {{.LastError}}
+</div>
+{{end}}
+<hr class="vf-divider">
+<p style="margin:0;color:#475569;font-size:13px;line-height:1.6;">
+  {{if .FailedDocuments}}
+  Los documentos rechazados han sido registrados. Revisa la configuración del emisor
+  y el detalle de cada rechazo antes de reintentar manualmente.
+  {{else}}
+  El job de retransmisión finalizó con un fallo de ejecución. Los documentos pendientes
+  seguirán en cola hasta el próximo run. Si el problema persiste, valida la conectividad
+  con el Ministerio de Hacienda y el estado del firmador.
+  {{end}}
+</p>
+{{end}}

@@ -1,6 +1,6 @@
 package invoice_models
 
-import "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
+import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
 
 type InvoiceData struct {
 	*models.InputDataCommon

@@ -17,7 +17,6 @@ func (te *TokenExtractor) ExtractToken(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		parts := strings.Split(authHeader, " ")
 
-		// Almacenar el token en el contexto
 		ctx := context.WithValue(r.Context(), "token", parts[1])
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

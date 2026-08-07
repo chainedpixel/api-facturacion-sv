@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
-	strategy2 "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/validator/strategy"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	strategy2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/validator/strategy"
 )
 
 type InvoiceRulesValidator struct {
@@ -12,20 +12,20 @@ type InvoiceRulesValidator struct {
 	strategies []interfaces.DTEValidationStrategy
 }
 
-// NewInvoiceRulesValidator Crea un validador de reglas para facturas electrónicas
+// NewInvoiceRulesValidator Creates a rules validator for electronic invoices
 func NewInvoiceRulesValidator(doc *invoice_models.ElectronicInvoice) *InvoiceRulesValidator {
 	validator := &InvoiceRulesValidator{
 		document: doc,
 		strategies: []interfaces.DTEValidationStrategy{
-			&strategy2.InvoiceItemsStrategy{Document: doc},  // 1. Validaciones de items
-			&strategy2.InvoiceTaxStrategy{Document: doc},    // 2. Validaciones de impuestos específicos
-			&strategy2.InvoiceTotalsStrategy{Document: doc}, // 3. Cálculos específicos
+			&strategy2.InvoiceItemsStrategy{Document: doc},
+			&strategy2.InvoiceTaxStrategy{Document: doc},
+			&strategy2.InvoiceTotalsStrategy{Document: doc},
 		},
 	}
 	return validator
 }
 
-// Validate Ejecuta las validaciones de la invoice electrónica.
+// Validate Executes the validations of the electronic invoice.
 func (v *InvoiceRulesValidator) Validate() *dte_errors.DTEError {
 	var validationErrors []*dte_errors.DTEError
 

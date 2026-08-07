@@ -3,9 +3,9 @@ package strategy
 import (
 	"regexp"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 const (
@@ -22,20 +22,18 @@ type BasicRulesStrategy struct {
 	Document interfaces.DTEDocument
 }
 
-// Validate Válida las reglas básicas de un documento DTE
+// Validate Validates the basic rules of a DTE document
 func (s *BasicRulesStrategy) Validate() *dte_errors.DTEError {
 	if s.Document == nil {
 		return dte_errors.NewDTEErrorSimple("RequiredFieldMissing", "Document", "nil")
 	}
 
-	// Validación de identificación primero
 	if s.Document.GetIdentification() == nil {
 		return dte_errors.NewDTEErrorSimple("RequiredFieldMissing", "Identification", "nil")
 	}
 
 	docType := s.Document.GetIdentification().GetDTEType()
 
-	// Validaciones subsecuentes que usan docType
 	if s.Document.GetIssuer() == nil {
 		return dte_errors.NewDTEErrorSimple("RequiredFieldMissing", "Issuer", docType)
 	}
@@ -44,7 +42,6 @@ func (s *BasicRulesStrategy) Validate() *dte_errors.DTEError {
 		return dte_errors.NewDTEErrorSimple("RequiredFieldMissing", "Items", docType)
 	}
 
-	// Protección contra NPE al acceder al receiver
 	if requiresReceiver(docType) {
 		receiver := s.Document.GetReceiver()
 		if receiver == nil {
@@ -60,7 +57,7 @@ func (s *BasicRulesStrategy) Validate() *dte_errors.DTEError {
 	return nil
 }
 
-// requiresReceiver Verifica si el tipo de documento requiere receptor
+// requiresReceiver Checks whether the document type requires a receiver
 func requiresReceiver(docType string) bool {
 	switch docType {
 	case constants.FacturaElectronica,

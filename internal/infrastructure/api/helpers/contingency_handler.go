@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/contingency"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type ContingencyHandler struct {
@@ -74,13 +74,11 @@ func (ch *ContingencyHandler) HandleContingency(ctx context.Context,
 }
 
 func (ch *ContingencyHandler) shouldHandleAsContingency(err error) bool {
-	// No es contingencia si es error de validación
 	var validationErr *dte_errors.ValidationError
 	if errors.As(err, &validationErr) {
 		return false
 	}
 
-	// No es contingencia si es error de hacienda rechazado
 	var haciendaErr *hacienda_error.HaciendaResponseError
 	if errors.As(err, &haciendaErr) {
 		if haciendaErr.Status == "RECHAZADO" {
@@ -88,13 +86,11 @@ func (ch *ContingencyHandler) shouldHandleAsContingency(err error) bool {
 		}
 	}
 
-	// No es contingencia si es error general de servicio
 	var generalErr *shared_error.ServiceError
 	if errors.As(err, &generalErr) {
 		return false
 	}
 
-	// No es contingencia si es error de negocio
 	var businessErr *dte_errors.DTEError
 	if errors.As(err, &businessErr) {
 		return false
@@ -136,30 +132,25 @@ func (ch *ContingencyHandler) storeForContingency(
 }
 
 func (ch *ContingencyHandler) classifyError(err error) ContingencyResult {
-	// Errores de Hacienda
 	var haciendaErr *hacienda_error.HaciendaResponseError
 	if errors.As(err, &haciendaErr) {
 		return ch.classifyHaciendaError(haciendaErr)
 	}
 
-	// Errores de red
 	var netErr *net.OpError
 	if errors.As(err, &netErr) && !containsAny(strings.ToLower(err.Error()), []string{"signer service", "redis"}) {
 		return ch.classifyNetworkError(netErr)
 	}
 
-	// Contexto cancelado o timeout
 	if isContextError(err) {
 		return ch.handleContextError(err)
 	}
 
-	// Errores HTTP genéricos
 	var httpErr *hacienda_error.HTTPResponseError
 	if errors.As(err, &httpErr) {
 		return ch.classifyHTTPError(httpErr)
 	}
 
-	// Error por defecto
 	return ch.defaultErrorClassification(err)
 }
 
@@ -341,7 +332,6 @@ func (ch *ContingencyHandler) classifyByErrorDescription(err *hacienda_error.Hac
 	}
 }
 
-// Funciones auxiliares
 func containsAny(s string, substrs []string) bool {
 	for _, substr := range substrs {
 		if strings.Contains(s, substr) {

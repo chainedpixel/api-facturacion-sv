@@ -1,9 +1,9 @@
 package invalidation
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 func MapInvalidatedDocumentResponse(doc *invalidation_models.InvalidatedDocument) *structs.DocumentResponse {

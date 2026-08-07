@@ -3,15 +3,15 @@ package invalidation
 import (
 	"context"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/dte_documents"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/validator"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/validator"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type invalidationService struct {
@@ -19,7 +19,7 @@ type invalidationService struct {
 	dteManager dte_documents.DTEManager
 }
 
-// NewInvalidationService crea una nueva instancia de InvalidationManager
+// NewInvalidationService creates a new instance of InvalidationManager
 func NewInvalidationService(dteManager dte_documents.DTEManager) InvalidationManager {
 	return &invalidationService{
 		validator:  validator.NewInvalidationRulesValidator(nil),
@@ -28,7 +28,6 @@ func NewInvalidationService(dteManager dte_documents.DTEManager) InvalidationMan
 }
 
 func (s *invalidationService) InvalidateDocument(ctx context.Context, branchID uint, originalCode string) error {
-	// 1. Validar el documento de invalidación
 	err := s.dteManager.UpdateDTE(ctx, branchID, dte.DTEDetails{
 		ID:     originalCode,
 		Status: constants.DocumentInvalid,
@@ -37,13 +36,11 @@ func (s *invalidationService) InvalidateDocument(ctx context.Context, branchID u
 		return shared_error.NewFormattedGeneralServiceError("InvalidationService", "InvalidateDocument", "FailedToInvalidatedDTE")
 	}
 
-	// 2. Obtener el DTE original
 	doc, err := s.dteManager.GetByGenerationCode(ctx, branchID, originalCode)
 	if err != nil {
 		return shared_error.NewFormattedGeneralServiceError("InvalidationService", "InvalidateDocument", "FailedToGetDTE")
 	}
 
-	// 3. Si es Nota de Crédito o Nota de Débito, se debe ajustar el saldo
 	if doc.Details.DTEType == constants.NotaCreditoElectronica || doc.Details.DTEType == constants.NotaDebitoElectronica {
 		err = s.handleControlBalance(ctx, branchID, originalCode, doc)
 		if err != nil {
@@ -55,7 +52,6 @@ func (s *invalidationService) InvalidateDocument(ctx context.Context, branchID u
 }
 
 func (s *invalidationService) Validate(ctx context.Context, branchID uint, document *invalidation_models.InvalidationDocument) error {
-	// 1. Validar el documento de invalidación
 	s.validator = validator.NewInvalidationRulesValidator(document)
 	if err := s.validator.Validate(); err != nil {
 		return err
@@ -65,7 +61,6 @@ func (s *invalidationService) Validate(ctx context.Context, branchID uint, docum
 }
 
 func (s *invalidationService) ValidateStatus(ctx context.Context, branchID uint, req structs.CreateInvalidationRequest) error {
-	// 1. Validar la existencia del DTE y que no esté invalidado o rechazado
 	if err := s.validateDTEStatus(ctx,
 		branchID,
 		req.GenerationCode,
@@ -74,7 +69,6 @@ func (s *invalidationService) ValidateStatus(ctx context.Context, branchID uint,
 		return err
 	}
 
-	// 2. Si la invalidacion es tipo 2, verificar que el DTE de reemplazo esté en estado correcto
 	if req.Reason.Type != 2 && req.ReplacementGenerationCode != nil {
 		if err := s.validateDTEStatus(ctx,
 			branchID,
@@ -89,10 +83,8 @@ func (s *invalidationService) ValidateStatus(ctx context.Context, branchID uint,
 }
 
 func (s *invalidationService) handleControlBalance(ctx context.Context, branchID uint, originalCode string, doc *dte.DTEDocument) error {
-	// 1. Extraer los documentos relacionados y los items del DTE
 	extractor := utils.ExtractRelatedDocAndItemsFromStringJSON(doc.Details.JSONData)
 
-	// 2. Crear un mapa para buscar documentos relacionados por número de documento
 	relatedDocsMap := make(map[string]struct {
 		GenerationType int
 		DocumentNumber string
@@ -104,7 +96,6 @@ func (s *invalidationService) handleControlBalance(ctx context.Context, branchID
 		}(rd)
 	}
 
-	// 3. Generar las transacciones de recuperación de saldo para cada item relacionado
 	for _, item := range extractor.Items {
 		relatedDoc, ok := relatedDocsMap[item.RelatedDoc]
 		if ok && relatedDoc.GenerationType == constants.ElectronicDocument {

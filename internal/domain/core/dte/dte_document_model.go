@@ -2,7 +2,7 @@ package dte
 
 import "time"
 
-// DTEDocument representa la relación entre un DTE y una sucursal
+// DTEDocument represents the relationship between a DTE and a branch office
 type DTEDocument struct {
 	ID         string    `json:"id,omitempty"`
 	BranchID   uint      `json:"branch_id"`

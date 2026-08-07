@@ -2,18 +2,17 @@ package fixtures
 
 import (
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/retention_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// RetentionBuilder - Builder especializado para Comprobante de Retención
-// que reutiliza el DTEBuilder base para la parte común
 type RetentionBuilder struct {
 	baseBuilder *DTEBuilder
 	document    *retention_models.RetentionModel
@@ -127,7 +126,6 @@ func (b *RetentionBuilder) AddReceiver() *RetentionBuilder {
 		return b
 	}
 
-	// Agregar campos obligatorios para retención
 	nrc := "987654"
 	commercialName := "CLIENT COMPANY INC."
 
@@ -151,7 +149,6 @@ func (b *RetentionBuilder) AddReceiverForCompany() *RetentionBuilder {
 		return b
 	}
 
-	// Establecer campos específicos para receptor empresa
 	name := "EMPRESA CLIENTE, S.A. DE C.V."
 	nrc := "123456-7"
 	nit := "0614-010190-101-1"
@@ -177,9 +174,7 @@ func (b *RetentionBuilder) AddPhysicalItems() *RetentionBuilder {
 		return b
 	}
 
-	// Crear 2 items físicos
 	for i := 1; i <= 2; i++ {
-		// Crear valores para items físicos
 		taxedAmount, err := financial.NewAmount(115.25 * float64(i))
 		if err != nil {
 			b.setError(err)
@@ -192,7 +187,7 @@ func (b *RetentionBuilder) AddPhysicalItems() *RetentionBuilder {
 			return b
 		}
 
-		emissionDate, err := temporal.NewEmissionDate(utils.TimeNow().AddDate(0, 0, -i*5)) // i 5 días atrás
+		emissionDate, err := temporal.NewEmissionDate(utils.TimeNow().AddDate(0, 0, -i*5))
 		if err != nil {
 			b.setError(err)
 			return b
@@ -245,7 +240,6 @@ func (b *RetentionBuilder) AddElectronicItems() *RetentionBuilder {
 		return b
 	}
 
-	// Los números de items deben seguir la secuencia si ya hay items
 	startIdx := len(b.document.RetentionItems) + 1
 
 	for i := 0; i < 2; i++ {
@@ -257,7 +251,6 @@ func (b *RetentionBuilder) AddElectronicItems() *RetentionBuilder {
 			return b
 		}
 
-		// Para documentos electrónicos, el número debe ser un UUID
 		docNumber, err := document.NewDocumentNumber(fmt.Sprintf("FF54E9DB-79C3-42CE-B432-EC522C97EFB%d", i), constants.ElectronicDocument)
 		if err != nil {
 			b.setError(err)
@@ -270,20 +263,18 @@ func (b *RetentionBuilder) AddElectronicItems() *RetentionBuilder {
 			return b
 		}
 
-		emissionDate, err := temporal.NewEmissionDate(utils.TimeNow().AddDate(0, 0, -i*15)) // i*15 días atrás
+		emissionDate, err := temporal.NewEmissionDate(utils.TimeNow().AddDate(0, 0, -i*15))
 		if err != nil {
 			b.setError(err)
 			return b
 		}
 
-		// Para items electrónicos, se requiere un código de retención diferente
 		retentionCode, err := document.NewRetentionCode(constants.RetentionThirteenPercent)
 		if err != nil {
 			b.setError(err)
 			return b
 		}
 
-		// Cuando es un documento electrónico, los valores pueden ser 0
 		zeroAmount, err := financial.NewAmount(0.0)
 		if err != nil {
 			b.setError(err)
@@ -313,11 +304,9 @@ func (b *RetentionBuilder) AddRetentionSummary() *RetentionBuilder {
 		return b
 	}
 
-	// Calcular totales basados en los items físicos
 	var totalSubjectRetention, totalIVARetention float64
 
 	for _, item := range b.document.RetentionItems {
-		// Solo sumar los items físicos
 		if item.DocumentType.GetValue() == constants.PhysicalDocument {
 			totalSubjectRetention += item.RetentionAmount.GetValue()
 			totalIVARetention += item.RetentionIVA.GetValue()
@@ -348,8 +337,7 @@ func (b *RetentionBuilder) AddInvalidRetentionSummary() *RetentionBuilder {
 		return b
 	}
 
-	// Crear un resumen con valores incorrectos
-	incorrectTotal, err := financial.NewAmount(999.99) // Valor inconsistente con los items
+	incorrectTotal, err := financial.NewAmount(999.99)
 	if err != nil {
 		b.setError(err)
 		return b
@@ -480,8 +468,6 @@ func BuildAsInputRetentionData(retention *retention_models.RetentionModel) *rete
 		RetentionSummary: retention.RetentionSummary,
 	}
 }
-
-// Métodos de ayuda para construir retenciones completas
 
 func BuildValidRetention() (*retention_models.RetentionModel, error) {
 	builder := NewRetentionBuilder()

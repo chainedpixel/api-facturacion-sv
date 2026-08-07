@@ -2,16 +2,16 @@ package logs
 
 import (
 	"fmt"
-	errPackage "github.com/MarlonG1/api-facturacion-sv/pkg/error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/sirupsen/logrus"
 )
 
-var Logger *logrus.Logger
+var Logger = logrus.New()
 var logsLevel = map[string]logrus.Level{
 	"debug": logrus.DebugLevel,
 	"info":  logrus.InfoLevel,
@@ -26,11 +26,11 @@ type CustomFormatter struct {
 
 func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	levelColors := map[logrus.Level]string{
-		logrus.DebugLevel: "\033[37m", // Tonalidad gris para debug
-		logrus.InfoLevel:  "\033[32m", // Tonalidad verde para info
-		logrus.WarnLevel:  "\033[33m", // Tonalidad amarilla para warning
-		logrus.ErrorLevel: "\033[31m", // Tonalidad roja para error
-		logrus.FatalLevel: "\033[35m", // Tonalidad morada para fatal
+		logrus.DebugLevel: "\033[37m",
+		logrus.InfoLevel:  "\033[32m",
+		logrus.WarnLevel:  "\033[33m",
+		logrus.ErrorLevel: "\033[31m",
+		logrus.FatalLevel: "\033[35m",
 	}
 
 	timestamp := entry.Time.Format("2006-01-02 15:04:05")
@@ -68,14 +68,19 @@ func InitLogger(logLevel, logPath string) error {
 	Logger.SetFormatter(formatter)
 	Logger.SetLevel(determineLogLevel(logLevel))
 	Logger.SetOutput(os.Stdout)
-	logDir := utils.FindProjectRoot()
 
-	// Asegurarse de que el directorio de logs exista
-	err := os.MkdirAll(logDir, 0755)
-	if err != nil {
-		return errPackage.ErrLogDirectoryNotFound
+	if logPath == "" {
+		return nil
 	}
-	logFilePath := filepath.Join(logDir+logPath, "dte_microservice.log")
+
+	logDir := utils.FindProjectRoot()
+	fullLogDir := filepath.Join(logDir, logPath)
+
+	if err := os.MkdirAll(fullLogDir, 0755); err != nil {
+		return nil
+	}
+
+	logFilePath := filepath.Join(fullLogDir, "dte_microservice.log")
 
 	logFile, err := os.OpenFile(
 		logFilePath,
@@ -83,11 +88,10 @@ func InitLogger(logLevel, logPath string) error {
 		0666,
 	)
 	if err != nil {
-		return errPackage.ErrFailedToCreateLogFiles
+		return nil
 	}
 
-	mw := io.MultiWriter(os.Stdout, logFile)
-	Logger.SetOutput(mw)
+	Logger.SetOutput(io.MultiWriter(os.Stdout, logFile))
 
 	return nil
 }

@@ -1,12 +1,12 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// PaymentType es una estructura que representa un tipo de pago de un DTE, contiene Code, Amount, Reference, Term y Period
+// PaymentType is a structure that represents a payment type of a DTE, contains Code, Amount, Reference, Term and Period
 type PaymentType struct {
 	Code      financial.PaymentType  `json:"code"`
 	Amount    financial.Amount       `json:"amount"`

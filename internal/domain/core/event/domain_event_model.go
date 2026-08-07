@@ -1,6 +1,6 @@
 package event
 
-// DomainEvent representa un evento de dominio
+// DomainEvent represents a domain event
 type DomainEvent struct {
 	ID         uint   `json:"id,omitempty"`
 	UserID     uint   `json:"user_id"`

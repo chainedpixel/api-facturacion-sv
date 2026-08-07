@@ -11,17 +11,17 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
-	"github.com/MarlonG1/api-facturacion-sv/tests/mocks"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/tests/mocks"
 )
 
 func TestInvoiceServiceCreate(t *testing.T) {
@@ -105,7 +105,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Configurar todas las ventas como exentas
 				for i := range invoice.InvoiceItems {
 					amount := invoice.InvoiceItems[i].TaxedSale.GetValue()
 					taxedZero := financial.NewValidatedAmount(0.0)
@@ -114,10 +113,9 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					invoice.InvoiceItems[i].TaxedSale = *taxedZero
 					invoice.InvoiceItems[i].ExemptSale = *exemptAmount
 					invoice.InvoiceItems[i].IVAItem = *taxedZero
-					invoice.InvoiceItems[i].Taxes = nil // Sin impuestos para ventas exentas
+					invoice.InvoiceItems[i].Taxes = nil
 				}
 
-				// Actualizar los totales en el resumen
 				totalExempt := 0.0
 				for _, item := range invoice.InvoiceItems {
 					totalExempt += item.ExemptSale.GetValue()
@@ -130,12 +128,11 @@ func TestInvoiceServiceCreate(t *testing.T) {
 				invoice.InvoiceSummary.Summary.SetSubTotal(totalExempt)
 				invoice.InvoiceSummary.Summary.SetTotalOperation(totalExempt)
 				invoice.InvoiceSummary.Summary.SetTotalToPay(totalExempt)
-				invoice.InvoiceSummary.Summary.SetTotalTaxes(nil) // Sin impuestos
+				invoice.InvoiceSummary.Summary.SetTotalTaxes(nil)
 
-				// Actualizar los pagos
 				payments := invoice.InvoiceSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
-					if i == 0 { // Ajustar el primer pago
+					if i == 0 {
 						payment.SetAmount(totalExempt)
 					}
 				}
@@ -161,24 +158,21 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer retenciones válidas
 				taxedAmount := invoice.InvoiceSummary.Summary.GetTotalTaxed()
-				ivaRetention := financial.NewValidatedAmount(math.Round(taxedAmount * 0.01))    // 1%
-				incomeRetention := financial.NewValidatedAmount(math.Round(taxedAmount * 0.05)) // 5%
+				ivaRetention := financial.NewValidatedAmount(math.Round(taxedAmount * 0.01))
+				incomeRetention := financial.NewValidatedAmount(math.Round(taxedAmount * 0.05))
 
 				invoice.InvoiceSummary.IVARetention = *ivaRetention
 				invoice.InvoiceSummary.IncomeRetention = *incomeRetention
 
-				// Actualizar el total a pagar para incluir las retenciones
 				totalOperation := invoice.InvoiceSummary.Summary.GetTotalOperation()
 				newTotalToPay := totalOperation - ivaRetention.GetValue() - incomeRetention.GetValue()
 				newTotalToPay = decimal.NewFromFloat(newTotalToPay).Round(2).InexactFloat64()
 				invoice.InvoiceSummary.Summary.SetTotalToPay(newTotalToPay)
 
-				// Actualizar los pagos
 				payments := invoice.InvoiceSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
-					if i == 0 { // Ajustar el primer pago
+					if i == 0 {
 						payment.SetAmount(newTotalToPay)
 					}
 				}
@@ -204,7 +198,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir documentos relacionados válidos
 				relatedDoc1 := models.RelatedDocument{}
 				relatedDoc1.SetGenerationType(constants.ElectronicDocument)
 				relatedDoc1.SetDocumentNumber("001BEDAD-93F3-4F49-85D9-1E3618425F6B")
@@ -220,7 +213,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 				invoiceData := fixtures.BuildAsInvoiceData(invoice)
 				invoiceData.RelatedDocs = []models.RelatedDocument{relatedDoc1, relatedDoc2}
 
-				// Establecer referencia a documentos relacionados en los ítems
 				for i := range invoiceData.Items {
 					docRef := "001BEDAD-93F3-4F49-85D9-1E3618425F6B"
 					invoiceData.Items[i].SetRelatedDoc(&docRef)
@@ -275,7 +267,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con ventas exentas y gravadas a la vez
 				exemptAmount, _ := financial.NewAmount(100.0)
 				invoice.InvoiceItems[0].ExemptSale = *exemptAmount
 
@@ -293,7 +284,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con ventas no sujetas y gravadas a la vez
 				nonSubjectAmount, _ := financial.NewAmount(100.0)
 				invoice.InvoiceItems[0].NonSubjectSale = *nonSubjectAmount
 
@@ -311,7 +301,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con montos no gravados y ventas gravadas a la vez
 				nonTaxedAmount, _ := financial.NewAmount(100.0)
 				invoice.InvoiceItems[0].NonTaxed = *nonTaxedAmount
 
@@ -329,8 +318,7 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Valor de IVA incorrecto
-				incorrectIva, _ := financial.NewAmount(50.0) // Clearly wrong value
+				incorrectIva, _ := financial.NewAmount(50.0)
 				invoice.InvoiceItems[0].IVAItem = *incorrectIva
 
 				return fixtures.BuildAsInvoiceData(invoice), nil
@@ -347,9 +335,8 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer un descuento que excede el subtotal
 				subtotal := invoice.InvoiceSummary.Summary.GetSubTotal()
-				invoice.InvoiceSummary.TaxedDiscount = *financial.NewValidatedAmount(subtotal * 2) // Discount greater than subtotal
+				invoice.InvoiceSummary.TaxedDiscount = *financial.NewValidatedAmount(subtotal * 2)
 
 				return fixtures.BuildAsInvoiceData(invoice), nil
 			},
@@ -365,11 +352,10 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Cambiar subtotal a un valor incorrecto
 				incorrectSubtotal := invoice.InvoiceSummary.Summary.GetSubtotalSales() -
 					invoice.InvoiceSummary.TaxedDiscount.GetValue() -
 					invoice.InvoiceSummary.Summary.GetExemptDiscount() -
-					invoice.InvoiceSummary.Summary.GetNonSubjectDiscount() + 50.0 // Incorrect value
+					invoice.InvoiceSummary.Summary.GetNonSubjectDiscount() + 50.0
 
 				invoice.InvoiceSummary.Summary.SetSubTotal(incorrectSubtotal)
 
@@ -387,8 +373,7 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer un total a pagar con más de 2 decimales
-				amount := 100.123 // 3 decimal places
+				amount := 100.123
 				invoice.InvoiceSummary.Summary.SetTotalToPay(amount)
 
 				return fixtures.BuildAsInvoiceData(invoice), nil
@@ -405,7 +390,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir más de 50 documentos relacionados
 				relatedDocs := make([]models.RelatedDocument, 51)
 				for i := 0; i < 51; i++ {
 					doc := models.RelatedDocument{}
@@ -419,7 +403,6 @@ func TestInvoiceServiceCreate(t *testing.T) {
 				invoiceData := fixtures.BuildAsInvoiceData(invoice)
 				invoiceData.RelatedDocs = relatedDocs
 
-				// Añadir referencias a documentos relacionados en los ítems
 				for i := range invoiceData.Items {
 					docRef := "DTE-01-C0020000-000000000000001"
 					invoiceData.Items[i].SetRelatedDoc(&docRef)
@@ -439,7 +422,7 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				invoice.InvoiceSummary.Summary.SetTotalToPay(1500.0) // Incorrect value
+				invoice.InvoiceSummary.Summary.SetTotalToPay(1500.0)
 
 				return fixtures.BuildAsInvoiceData(invoice), nil
 			},
@@ -486,7 +469,7 @@ func TestInvoiceServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 					gomock.Any(),
-				).Return("DTE-01-F001000001-00A0000012345", nil) // Formato inválido
+				).Return("DTE-01-F001000001-00A0000012345", nil)
 			},
 			wantErr:   true,
 			errorCode: "InvalidPattern",
@@ -639,12 +622,11 @@ func TestInvoiceServiceCreateWithMixedItemTypes(t *testing.T) {
 
 	service := invoice.NewInvoiceService(mockSeqNumberManager)
 
-	// Crear una factura con tipos de ítems mixtos
 	builder := fixtures.NewInvoiceBuilder()
 	builder.AddIdentification().
 		AddIssuer().
 		AddReceiver().
-		AddItems(). // Aqui se añade tipos de producto y servicio en el metodo AddItems
+		AddItems().
 		AddSummary()
 
 	invoiceModel, err := builder.Build()
@@ -692,7 +674,6 @@ func TestInvoiceServiceCreateWithElectronicPayment(t *testing.T) {
 
 	service := invoice.NewInvoiceService(mockSeqNumberManager)
 
-	// Crear una factura con pago electrónico
 	builder := fixtures.NewInvoiceBuilder()
 	builder.AddIdentification().
 		AddIssuer().

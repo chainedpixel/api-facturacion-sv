@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/validator/strategy"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/validator/strategy"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type CCFRulesValidator struct {
@@ -12,21 +12,21 @@ type CCFRulesValidator struct {
 	strategies []interfaces.DTEValidationStrategy
 }
 
-// NewCCFRulesValidator Crea un validador de reglas para CCF
+// NewCCFRulesValidator Creates a rules validator for CCF
 func NewCCFRulesValidator(doc *ccf_models.CreditFiscalDocument) *CCFRulesValidator {
 	validator := &CCFRulesValidator{
 		document: doc,
 		strategies: []interfaces.DTEValidationStrategy{
-			&strategy.CCFItemStrategy{Document: doc},       // Validaciones de items
-			&strategy.CCFTaxStrategy{Document: doc},        // Validaciones de impuestos específicos
-			&strategy.CCFReceiverStrategy{Document: doc},   // Validaciones de receptor
-			&strategy.CCFRelatedDocStrategy{Document: doc}, // Validaciones de documentos relacionados
+			&strategy.CCFItemStrategy{Document: doc},
+			&strategy.CCFTaxStrategy{Document: doc},
+			&strategy.CCFReceiverStrategy{Document: doc},
+			&strategy.CCFRelatedDocStrategy{Document: doc},
 		},
 	}
 	return validator
 }
 
-// Validate Ejecuta las validaciones de comprobante de crédito fiscal.
+// Validate Executes the fiscal credit voucher validations.
 func (v *CCFRulesValidator) Validate() *dte_errors.DTEError {
 	var validationErrors []*dte_errors.DTEError
 

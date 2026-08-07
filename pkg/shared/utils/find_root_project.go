@@ -12,13 +12,11 @@ func FindProjectRoot() string {
 		return ""
 	}
 
-	// Busca hacia arriba hasta encontrar el directorio raíz del proyecto
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir
 		}
 
-		// Si llegamos a la raíz del sistema de archivos, detenemos la búsqueda
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
@@ -26,7 +24,6 @@ func FindProjectRoot() string {
 		dir = parent
 	}
 
-	// Si no se encuentra, regresa el directorio de trabajo actual
 	currentDir, _ := os.Getwd()
 	return currentDir
 }

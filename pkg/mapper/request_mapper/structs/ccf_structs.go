@@ -13,7 +13,7 @@ type CreateCreditFiscalRequest struct {
 	Appendixes     []AppendixRequest      `json:"appendixes,omitempty"`
 }
 
-// CreditItemRequest estructura para mapear un item de Comprobante de Crédito Fiscal
+// CreditItemRequest structure for mapping an item of Comprobante de Crédito Fiscal
 type CreditItemRequest struct {
 	ItemRequest
 	NonSubjectSale float64 `json:"non_subject_sale"`
@@ -23,7 +23,7 @@ type CreditItemRequest struct {
 	NonTaxed       float64 `json:"non_taxed"`
 }
 
-// CreditSummaryRequest estructura para mapear el resumen de un Comprobante de Crédito Fiscal
+// CreditSummaryRequest structure for mapping the summary of a Comprobante de Crédito Fiscal
 type CreditSummaryRequest struct {
 	SummaryRequest
 	TaxedDiscount   float64 `json:"taxed_discount"`

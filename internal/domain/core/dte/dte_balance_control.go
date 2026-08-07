@@ -1,8 +1,9 @@
 package dte
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
 )
 
 type BalanceControl struct {

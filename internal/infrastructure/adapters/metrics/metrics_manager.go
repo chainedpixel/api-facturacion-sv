@@ -3,10 +3,11 @@ package metrics
 import (
 	"encoding/json"
 	"fmt"
-	metricsPort "github.com/MarlonG1/api-facturacion-sv/internal/domain/metrics"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/metrics/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+
+	metricsPort "github.com/chainedpixel/ordo-factus/internal/domain/metrics"
+	"github.com/chainedpixel/ordo-factus/internal/domain/metrics/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type MetricManager struct {
@@ -39,13 +40,11 @@ func (m *MetricManager) GetEndpointMetrics(systemNIT, method, endpoint string) (
 	durationsKey := fmt.Sprintf("metrics:%s:%s:%s:durations", systemNIT, method, endpoint)
 	countersKey := fmt.Sprintf("metrics:%s:%s:%s:counters", systemNIT, method, endpoint)
 
-	// Obtener histórico de duraciones
 	results, err := m.cache.LRange(durationsKey, 0, 19)
 	if err != nil {
 		return nil, err
 	}
 
-	// Obtener contadores globales
 	var counters models.EndpointCounters
 	countersData, err := m.cache.Get(countersKey)
 	if err == nil {
@@ -61,9 +60,8 @@ func (m *MetricManager) GetEndpointMetrics(systemNIT, method, endpoint string) (
 		ErrorCount:    counters.ErrorCount,
 	}
 
-	// Procesar histórico de duraciones
 	var totalDuration int64
-	minDuration := int64(^uint64(0) >> 1) // Max int64
+	minDuration := int64(^uint64(0) >> 1)
 	maxDuration := int64(0)
 
 	for _, result := range results {
@@ -83,7 +81,6 @@ func (m *MetricManager) GetEndpointMetrics(systemNIT, method, endpoint string) (
 		}
 	}
 
-	// Calcular promedio del histórico reciente
 	if len(metrics.LastDurations) > 0 {
 		metrics.CurrentAverage = totalDuration / int64(len(metrics.LastDurations))
 		metrics.MinDuration = minDuration
@@ -94,7 +91,6 @@ func (m *MetricManager) GetEndpointMetrics(systemNIT, method, endpoint string) (
 }
 
 func (m *MetricManager) GetAllMetricsEndpoint(systemNIT string) (map[string]*models.EndpointMetrics, error) {
-	// Lista de endpoints conocidos del sistema
 	allMetrics := make(map[string]*models.EndpointMetrics)
 
 	for _, ep := range m.endpoints {

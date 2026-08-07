@@ -4,63 +4,73 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/test_endpoint"
-	"gorm.io/gorm"
 	"net/http"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	commonModels "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	identificationVO "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/location"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/test_endpoint/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/database/db_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/test_endpoint"
+	"gorm.io/gorm"
+
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	commonModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	identificationVO "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/location"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/test_endpoint/models"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type testService struct {
-	db *gorm.DB
+	db         *gorm.DB
+	authRepo   auth.AuthRepositoryPort
+	httpClient *http.Client
 }
 
-func NewTestService(db *gorm.DB) test_endpoint.TestManager {
+func NewTestService(db *gorm.DB, authRepo auth.AuthRepositoryPort) test_endpoint.TestManager {
 	return &testService{
-		db: db,
+		db:       db,
+		authRepo: authRepo,
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
 	}
 }
 
-func (s *testService) RunSystemTest() (*models.TestResult, error) {
+func (s *testService) RunSystemTest(ctx context.Context) (*models.TestResult, error) {
 	startTime := utils.TimeNow()
 	tests := make([]models.ComponentTest, 0)
 
-	// Test 1: Base de datos
+	claims := ctx.Value("claims").(*authModels.AuthClaims)
+
 	dbTest := s.testDatabase()
 	tests = append(tests, dbTest)
 	if !dbTest.Success {
 		return s.buildResult(tests, startTime), nil
 	}
 
-	// Test 2: Mapeo y validación de DTE
 	mappingTest := s.testDTEMapping()
 	tests = append(tests, mappingTest)
 	if !mappingTest.Success {
 		return s.buildResult(tests, startTime), nil
 	}
 
-	// Test 3: Generación de números de control
 	seqTest := s.testSequenceGeneration()
 	tests = append(tests, seqTest)
 
-	// Test 4: Transmisión a Hacienda
+	signerTest := s.testSignerService(ctx, claims.NIT)
+	tests = append(tests, signerTest)
+
 	testDTE := getTestDTE()
 	haciendaTest := s.testHaciendaTransmission(testDTE)
 	tests = append(tests, haciendaTest)
@@ -101,7 +111,6 @@ func (s *testService) testDTEMapping() models.ComponentTest {
 		Name: "dte_mapping",
 	}
 
-	// DTE de prueba predefinido
 	testDTE := getTestDTE()
 
 	mh := response_mapper.ToMHInvoice(testDTE)
@@ -122,7 +131,6 @@ func (s *testService) testSequenceGeneration() models.ComponentTest {
 		Name: "sequence_generation",
 	}
 
-	// Intenta generar un número de secuencia de prueba
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		return tx.Model(&db_models.ControlNumberSequence{}).
 			Where("branch_id = ? AND dte_type = ?", 0, "01").
@@ -173,7 +181,6 @@ func (s *testService) testHaciendaTransmission(testDTE *invoice_models.Electroni
 		return test
 	}
 
-	// Preparar request a Hacienda
 	jsonData, err := json.Marshal(mhDTE)
 	if err != nil {
 		logs.Error("Failed to marshal test DTE", map[string]interface{}{
@@ -213,9 +220,6 @@ func (s *testService) testHaciendaTransmission(testDTE *invoice_models.Electroni
 	}
 	defer resp.Body.Close()
 
-	// Se considera exitosa la prueba si:
-	// 1. Recibimos una respuesta (no hubo error de conexión)
-	// 2. El código de estado está entre 400-499 (error esperado al ser DTE de prueba)
 	test.Success = resp.StatusCode >= 400 && resp.StatusCode < 500
 
 	logs.Info("Hacienda transmission test completed", map[string]interface{}{
@@ -227,7 +231,97 @@ func (s *testService) testHaciendaTransmission(testDTE *invoice_models.Electroni
 	return test
 }
 
-// getTestDTE genera un DTE con el mínimo requerido para pruebas
+func (s *testService) testSignerService(ctx context.Context, nit string) models.ComponentTest {
+	start := utils.TimeNow()
+	test := models.ComponentTest{
+		Name: "signer_service",
+	}
+
+	client, err := s.authRepo.GetByNIT(ctx, nit)
+	if err != nil {
+		logs.Error("Failed to get client by NIT for signer test", map[string]interface{}{
+			"error": err.Error(),
+			"nit":   nit,
+		})
+		test.Success = false
+		test.Duration = time.Since(start).Milliseconds()
+		return test
+	}
+
+	testDTE := getTestDTE()
+	mhDTE := response_mapper.ToMHInvoice(testDTE)
+	if mhDTE == nil {
+		logs.Error("Failed to map test DTE for signer test")
+		test.Success = false
+		test.Duration = time.Since(start).Milliseconds()
+		return test
+	}
+
+	jsonData, err := json.Marshal(mhDTE)
+	if err != nil {
+		logs.Error("Failed to marshal test DTE for signer", map[string]interface{}{
+			"error": err.Error(),
+		})
+		test.Success = false
+		test.Duration = time.Since(start).Milliseconds()
+		return test
+	}
+
+	signRequest := map[string]interface{}{
+		"nit":         nit,
+		"activo":      true,
+		"passwordPri": client.PasswordPri,
+		"dteJson":     json.RawMessage(jsonData),
+	}
+
+	reqBody, err := json.Marshal(signRequest)
+	if err != nil {
+		logs.Error("Failed to marshal sign request", map[string]interface{}{
+			"error": err.Error(),
+		})
+		test.Success = false
+		test.Duration = time.Since(start).Milliseconds()
+		return test
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx,
+		"POST",
+		config.Signer.Path,
+		bytes.NewBuffer(reqBody))
+	if err != nil {
+		logs.Error("Failed to create signer request", map[string]interface{}{
+			"error": err.Error(),
+		})
+		test.Success = false
+		test.Duration = time.Since(start).Milliseconds()
+		return test
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		logs.Error("Failed to call signer service", map[string]interface{}{
+			"error": err.Error(),
+		})
+		test.Success = false
+		test.Duration = time.Since(start).Milliseconds()
+		return test
+	}
+	defer resp.Body.Close()
+
+	test.Success = resp.StatusCode == http.StatusOK
+
+	logs.Info("Signer service test completed", map[string]interface{}{
+		"statusCode": resp.StatusCode,
+		"success":    test.Success,
+	})
+
+	test.Duration = time.Since(start).Milliseconds()
+	return test
+}
+
+// getTestDTE generates a DTE with the minimum required fields for testing
 func getTestDTE() *invoice_models.ElectronicInvoice {
 	identification, err := common.MapCommonRequestIdentification(1, 1, constants.FacturaElectronica)
 	if err != nil {

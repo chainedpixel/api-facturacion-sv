@@ -3,27 +3,24 @@ package mappers
 import (
 	"testing"
 
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMapToCCFData(t *testing.T) {
 	test.TestMain(t)
 
-	// Emisor por defecto para todas las pruebas
 	issuer := fixtures.CreateDefaultIssuer()
 
-	// Definir casos de prueba
 	tests := []struct {
 		name      string
 		req       func() *structs.CreateCreditFiscalRequest
 		wantErr   bool
 		errorCode string
 	}{
-		// ------ VALIDACIONES BÁSICAS ------
 		{
 			name: "Valid CCF request",
 			req: func() *structs.CreateCreditFiscalRequest {
@@ -93,7 +90,7 @@ func TestMapToCCFData(t *testing.T) {
 			name: "CCF with DocumentType not nil",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
-				docType := "36" // NIT
+				docType := "36"
 				req.Receiver.DocumentType = &docType
 				return req
 			},
@@ -112,7 +109,6 @@ func TestMapToCCFData(t *testing.T) {
 			errorCode: "InvalidField",
 		},
 
-		// ------ VALIDACIONES DE RECEPTOR ------
 		{
 			name: "CCF without receiver name",
 			req: func() *structs.CreateCreditFiscalRequest {
@@ -177,7 +173,7 @@ func TestMapToCCFData(t *testing.T) {
 			name: "CCF with invalid NIT format",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
-				invalidNIT := "1234" // Formato inválido
+				invalidNIT := "1234"
 				req.Receiver.NIT = &invalidNIT
 				return req
 			},
@@ -188,7 +184,7 @@ func TestMapToCCFData(t *testing.T) {
 			name: "CCF with invalid NRC format",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
-				invalidNRC := "ABC123" // Formato inválido
+				invalidNRC := "ABC123"
 				req.Receiver.NRC = &invalidNRC
 				return req
 			},
@@ -210,7 +206,7 @@ func TestMapToCCFData(t *testing.T) {
 			name: "CCF with invalid phone",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
-				invalidPhone := "123" // Demasiado corto
+				invalidPhone := "123"
 				req.Receiver.Phone = &invalidPhone
 				return req
 			},
@@ -218,14 +214,13 @@ func TestMapToCCFData(t *testing.T) {
 			errorCode: "InvalidPhone",
 		},
 
-		// ------ VALIDACIONES DE DIRECCIÓN ------
 		{
 			name: "CCF with invalid municipality",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.Receiver.Address = &structs.AddressRequest{
 					Department:   "06",
-					Municipality: "99", // Inválido
+					Municipality: "99",
 					Complement:   "Dirección de prueba",
 				}
 				return req
@@ -248,13 +243,12 @@ func TestMapToCCFData(t *testing.T) {
 			errorCode: "ErrorMapping",
 		},
 
-		// ------ VALIDACIONES DE ITEMS ------
 		{
 			name: "CCF with invalid item type",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Type = 99 // Tipo inválido
+				item.Type = 99
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -266,7 +260,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Quantity = -5 // Cantidad negativa
+				item.Quantity = -5
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -278,7 +272,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.UnitMeasure = 0 // Inválido (debe ser 1-99)
+				item.UnitMeasure = 0
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -286,13 +280,12 @@ func TestMapToCCFData(t *testing.T) {
 			errorCode: "InvalidNumberRange",
 		},
 
-		// ------ VALIDACIONES DE CAMPOS FINANCIEROS ------
 		{
 			name: "CCF with negative amount",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.UnitPrice = -10.0 // Precio negativo
+				item.UnitPrice = -10.0
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -304,7 +297,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Discount = -5.0 // Descuento negativo
+				item.Discount = -5.0
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -316,7 +309,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Discount = 150.0 // Más de 100%
+				item.Discount = 150.0
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -327,14 +320,13 @@ func TestMapToCCFData(t *testing.T) {
 			name: "CCF with invalid payment condition",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
-				req.Summary.OperationCondition = 99 // Condición inválida
+				req.Summary.OperationCondition = 99
 				return req
 			},
 			wantErr:   true,
 			errorCode: "InvalidNumberRange",
 		},
 
-		// ------ VALIDACIONES DE CAMPOS OPCIONALES ------
 		{
 			name: "CCF with all valid optional fields",
 			req: func() *structs.CreateCreditFiscalRequest {
@@ -347,7 +339,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "", // Requerido pero vacío
+					DeliveryName:     "",
 					DeliveryDocument: "123456",
 					ReceiverName:     "Ana López",
 					ReceiverDocument: "98765432-1",
@@ -362,7 +354,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "", // Requerido pero vacío
+					NIT:  "",
 					Name: "Empresa Tercero",
 				}
 				return req
@@ -376,7 +368,7 @@ func TestMapToCCFData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.Appendixes = []structs.AppendixRequest{
 					{
-						Field: "", // Requerido pero vacío
+						Field: "",
 						Label: "Etiqueta",
 						Value: "Valor",
 					},
@@ -393,7 +385,7 @@ func TestMapToCCFData(t *testing.T) {
 				req.Appendixes = []structs.AppendixRequest{
 					{
 						Field: "campo",
-						Label: "ab", // Demasiado corto (mínimo 3)
+						Label: "ab",
 						Value: "Valor",
 					},
 				}
@@ -408,7 +400,7 @@ func TestMapToCCFData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.Payments = []structs.PaymentRequest{
 					{
-						Code:   "77", // Código inválido
+						Code:   "77",
 						Amount: 100.0,
 					},
 				}
@@ -425,7 +417,7 @@ func TestMapToCCFData(t *testing.T) {
 				detail := "Detalle del documento adicional"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 99, // Inválido (debe ser 1-4)
+						DocumentCode: 99,
 						Description:  &description,
 						Detail:       &detail,
 					},
@@ -443,10 +435,10 @@ func TestMapToCCFData(t *testing.T) {
 				detail := "Detalle médico"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 3, // Documento médico
+						DocumentCode: 3,
 						Description:  &description,
 						Detail:       &detail,
-						Doctor:       nil, // Requerido pero nulo
+						Doctor:       nil,
 					},
 				}
 				return req
@@ -455,7 +447,6 @@ func TestMapToCCFData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 
-		// ------ CASOS VÁLIDOS PARA RECEPTOR ------
 		{
 			name: "CCF with valid NIT",
 			req: func() *structs.CreateCreditFiscalRequest {
@@ -497,7 +488,6 @@ func TestMapToCCFData(t *testing.T) {
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA DIRECCIÓN ------
 		{
 			name: "CCF with valid address",
 			req: func() *structs.CreateCreditFiscalRequest {
@@ -512,13 +502,12 @@ func TestMapToCCFData(t *testing.T) {
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA ITEMS ------
 		{
 			name: "CCF with valid item type (product)",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Type = 1 // Producto (válido)
+				item.Type = 1
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -529,7 +518,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Type = 2 // Servicio (válido)
+				item.Type = 2
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -540,7 +529,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Type = 3 // Ambos (válido)
+				item.Type = 3
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -551,20 +540,19 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.UnitMeasure = 59 // Unidades (válido)
+				item.UnitMeasure = 59
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA CAMPOS FINANCIEROS ------
 		{
 			name: "CCF with valid amount",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.UnitPrice = 100.50 // Precio válido
+				item.UnitPrice = 100.50
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -575,7 +563,7 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				item := fixtures.CreateDefaultCreditItem(0)
-				item.Discount = 10.5 // Descuento válido
+				item.Discount = 10.5
 				req.Items = []structs.CreditItemRequest{item}
 				return req
 			},
@@ -585,13 +573,12 @@ func TestMapToCCFData(t *testing.T) {
 			name: "CCF with valid payment condition (credit)",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
-				req.Summary.OperationCondition = 2 // Crédito (válido)
+				req.Summary.OperationCondition = 2
 				return req
 			},
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA CAMPOS OPCIONALES ------
 		{
 			name: "CCF with valid extension",
 			req: func() *structs.CreateCreditFiscalRequest {
@@ -644,7 +631,7 @@ func TestMapToCCFData(t *testing.T) {
 				reference := "REF-123"
 				req.Payments = []structs.PaymentRequest{
 					{
-						Code:      "01", // Efectivo (válido)
+						Code:      "01",
 						Amount:    100.0,
 						Reference: &reference,
 					},
@@ -659,7 +646,7 @@ func TestMapToCCFData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "01", // Factura (válido)
+						DocumentType:   "01",
 						GenerationType: 1,
 						DocumentNumber: "000123456",
 						EmissionDate:   "2023-01-15",
@@ -671,7 +658,6 @@ func TestMapToCCFData(t *testing.T) {
 		},
 	}
 
-	// Ejecutar casos de prueba
 	mapper := request_mapper.NewCCFMapper()
 
 	for _, tt := range tests {
@@ -697,7 +683,6 @@ func TestMapToCCFData(t *testing.T) {
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.CreditSummary)
 
-			// Verificar campos opcionales si están presentes
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
 			}

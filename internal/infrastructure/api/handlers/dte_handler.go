@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/application/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/helpers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/application/dte"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type DTEHandler struct {
@@ -31,15 +31,10 @@ func NewDTEHandler(
 	}
 }
 
-// NOTA IMPORTANTE:
-// Ahora la creacion de un DTE se maneja en el GenericCreatorDTEHandler y sus rutas en el router
-
-// GetByGenerationCode maneja la solicitud HTTP para obtener un DTE por su código de generación
+// GetByGenerationCode handles the HTTP request to retrieve a DTE by its generation code
 func (h *DTEHandler) GetByGenerationCode(w http.ResponseWriter, r *http.Request) {
-	// 1. Obtener el código de generación
 	generationCode := helpers.GetRequestVar(r, "id")
 
-	// 2. Obtener DTE ejecutando el caso de uso
 	dte, err := h.dteConsultUseCase.GetByGenerationCode(r.Context(), generationCode)
 	if err != nil {
 		h.respWriter.HandleError(w, err)
@@ -49,9 +44,8 @@ func (h *DTEHandler) GetByGenerationCode(w http.ResponseWriter, r *http.Request)
 	h.respWriter.Success(w, http.StatusOK, dte, nil)
 }
 
-// GetAll maneja la solicitud HTTP para obtener todos los DTEs
+// GetAll handles the HTTP request to retrieve all DTEs
 func (h *DTEHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	// 1. Obtener todos los DTEs ejecutando el caso de uso
 	dtes, err := h.dteConsultUseCase.GetAllDTEs(r.Context(), r)
 	if err != nil {
 		h.respWriter.HandleError(w, err)
@@ -61,9 +55,8 @@ func (h *DTEHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	h.respWriter.Success(w, http.StatusOK, dtes, nil)
 }
 
-// InvalidateDocument maneja la solicitud HTTP para invalidar un DTE
+// InvalidateDocument handles the HTTP request to invalidate a DTE
 func (h *DTEHandler) InvalidateDocument(w http.ResponseWriter, r *http.Request) {
-	// 1. Decodificar la solicitud de invalidación de documento a un DTO de solicitud
 	var req structs.CreateInvalidationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logs.Error("Failed to decode request body", map[string]interface{}{"error": err.Error()})
@@ -71,7 +64,6 @@ func (h *DTEHandler) InvalidateDocument(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 2. Ejecutar el caso de uso de invalidación de documento
 	invalidation, err := h.invalidationUseCase.InvalidateDocument(r.Context(), req)
 	if err != nil {
 		h.respWriter.HandleError(w, err)

@@ -1,6 +1,6 @@
 package dte
 
-// DTEDetails representa los detalles de un documento tributario electrónico
+// DTEDetails represents the details of an electronic tax document
 type DTEDetails struct {
 	ID             string  `json:"id,omitempty"`
 	DTEType        string  `json:"dte_type"`

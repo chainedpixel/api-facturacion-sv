@@ -16,10 +16,13 @@
 x-app-environment: &app-environment
   # Configuración de la aplicación
   APP_NAME: DTE-Microservice
+  API_VERSION: 3.0.0
+
   APP_LANG: es
+  APP_LANG_PATH: /assets/i18n/
   DEBUG: true
   FORCE_CONTINGENCY: false
-  RUN_MIGRATION: false
+  RUN_MIGRATION: true
   SERVER_PORT: 7319
   ADMIN_EMAIL: example@example.com
   MH_AMBIENT_CODE: "00"
@@ -27,7 +30,7 @@ x-app-environment: &app-environment
   JWT_SECRET: MPdTT2KZZVmKc8ghy6gpfb3d35ERIJ6G2Gq4TESz4kDiLdZUsdP6VP0NJv1IZ5WX
 
   LOG_LEVEL: debug
-  LOG_PATH: /pkg/shared/logs/
+  LOG_PATH: /assets/logs/
   LOG_FILE_LOGGING: true
 
   # Configuración de bases de datos - SERVICIOS EXTERNOS
@@ -57,8 +60,15 @@ x-app-environment: &app-environment
   MH_CONTINGENCY_URL: https://apitest.dtes.mh.gob.sv/fesv/contingencia
   MH_NULLIFY_URL: https://apitest.dtes.mh.gob.sv/fesv/anulardte
 
+  SMTP_HOST:
+  SMTP_PORT: 587
+  SMTP_USERNAME:
+  SMTP_PASSWORD:
+  SMTP_FROM:
+  SMTP_TLS: true
+  NOTIFY_COOLDOWN_MINUTES: 15
+
 services:
-  # Aplicación compilada que usa servicios externos
   dte-app:
     build:
       context: ../
@@ -69,8 +79,7 @@ services:
       - "7319:7319"
     environment:
       <<: *app-environment
-    # Opcional: usar network host para mejor conectividad
-    # network_mode: host
+      network_mode: host
 
     # O usar extra_hosts para mapear dominios
     extra_hosts:

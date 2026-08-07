@@ -3,15 +3,15 @@ package invoice
 import (
 	"context"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	buisnessValidator "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/validator"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/dte_documents"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/validator"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	buisnessValidator "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type invoiceService struct {
@@ -19,7 +19,7 @@ type invoiceService struct {
 	seqNumberManager dte_documents.SequentialNumberManager
 }
 
-// NewInvoiceService Crea un nuevo servicio de facturas electrónicas.
+// NewInvoiceService Creates a new electronic invoice service.
 func NewInvoiceService(seqNumberManager dte_documents.SequentialNumberManager) ports.DTEService {
 	return &invoiceService{
 		validator:        validator.NewInvoiceRulesValidator(nil),
@@ -27,7 +27,7 @@ func NewInvoiceService(seqNumberManager dte_documents.SequentialNumberManager) p
 	}
 }
 
-// Create Crea una nueva invoice electrónica con base en los datos proporcionados.
+// Create Creates a new electronic invoice based on the provided data.
 func (s *invoiceService) Create(ctx context.Context, input interface{}, branchID uint) (interface{}, error) {
 	data := input.(*invoice_models.InvoiceData)
 	baseDoc := createBaseDocument(data)
@@ -53,7 +53,7 @@ func (s *invoiceService) Create(ctx context.Context, input interface{}, branchID
 	return invoice, nil
 }
 
-// Validate Valida una invoice electrónica con base en las reglas de negocio.
+// Validate Validates an electronic invoice based on business rules.
 func (s *invoiceService) validate(invoice *invoice_models.ElectronicInvoice) error {
 	s.validator = validator.NewInvoiceRulesValidator(invoice)
 	err := s.validator.Validate()
@@ -68,7 +68,7 @@ func (s *invoiceService) validate(invoice *invoice_models.ElectronicInvoice) err
 	return nil
 }
 
-// createBaseDocument Crea un documento base para la invoice electrónica.
+// createBaseDocument Creates a base document for the electronic invoice.
 func createBaseDocument(data *invoice_models.InvoiceData) *models.DTEDocument {
 	var extInterface interfaces.Extension
 	var appendixes []interfaces.Appendix
@@ -128,7 +128,7 @@ func createBaseDocument(data *invoice_models.InvoiceData) *models.DTEDocument {
 	}
 }
 
-// generateControlNumber Genera un número de control único para la invoice.
+// generateControlNumber Generates a unique control number for the invoice.
 func (s *invoiceService) generateControlNumber(ctx context.Context, invoice *invoice_models.ElectronicInvoice, branchID uint) error {
 	establishmentCode := invoice.Issuer.GetEstablishmentCode()
 	posCode := invoice.Issuer.GetPOSCode()
@@ -156,7 +156,7 @@ func (s *invoiceService) generateControlNumber(ctx context.Context, invoice *inv
 	return nil
 }
 
-// generateCodeAndIdentifiers Genera el código UUID y número de control de la invoice.
+// generateCodeAndIdentifiers Generates the UUID code and control number for the invoice.
 func (s *invoiceService) generateCodeAndIdentifiers(ctx context.Context, invoice *invoice_models.ElectronicInvoice, branchID uint) error {
 	if err := s.generateControlNumber(ctx, invoice, branchID); err != nil {
 		return err

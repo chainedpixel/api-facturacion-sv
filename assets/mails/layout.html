@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>{{.Subject}}</title>
+<style>
+  body { margin:0; padding:0; background:#F1F5F9; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; color:#0F172A; -webkit-font-smoothing:antialiased; }
+  table { border-collapse:collapse; }
+  a { color:#2563EB; text-decoration:none; }
+  .vf-wrap { width:100%; background:#F1F5F9; padding:32px 12px; }
+  .vf-card { width:600px; max-width:100%; margin:0 auto; background:#FFFFFF; border-radius:14px; overflow:hidden; box-shadow:0 4px 20px rgba(15,23,42,0.08); border:1px solid #E2E8F0; }
+  .vf-header { background:linear-gradient(135deg,#1E3A8A 0%,#2563EB 100%); padding:24px 28px; color:#FFFFFF; }
+  .vf-brand { font-size:18px; font-weight:600; letter-spacing:0.2px; }
+  .vf-brand .dot { color:#93C5FD; padding:0 6px; }
+  .vf-badge { display:inline-block; background:rgba(255,255,255,0.18); color:#FFFFFF; font-size:11px; font-weight:600; letter-spacing:0.6px; text-transform:uppercase; padding:6px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.25); }
+  .vf-body { padding:28px; }
+  .vf-title-row { display:flex; align-items:center; gap:12px; margin:0 0 6px 0; }
+  .vf-title { font-size:22px; font-weight:700; color:#0F172A; margin:0; line-height:1.3; }
+  .vf-subtitle { color:#475569; font-size:14px; margin:0 0 20px 0; }
+  .vf-summary { background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:18px 20px; margin-top:18px; }
+  .vf-summary-title { font-size:12px; font-weight:700; color:#1E3A8A; text-transform:uppercase; letter-spacing:0.8px; margin:0 0 12px 0; }
+  .vf-kv { width:100%; font-size:14px; }
+  .vf-kv td { padding:9px 0; border-bottom:1px solid #EEF2F7; vertical-align:top; }
+  .vf-kv tr:last-child td { border-bottom:none; }
+  .vf-kv .k { color:#64748B; font-weight:500; width:42%; padding-right:14px; }
+  .vf-kv .v { color:#0F172A; font-weight:600; word-break:break-word; }
+  .vf-callout { margin:20px 0 4px 0; padding:14px 16px; background:#EFF6FF; border-left:4px solid #2563EB; border-radius:6px; color:#0F172A; font-size:14px; line-height:1.55; }
+  .vf-callout .label { display:block; font-size:11px; font-weight:700; color:#1E3A8A; text-transform:uppercase; letter-spacing:0.6px; margin-bottom:4px; }
+  .vf-divider { border:none; border-top:1px solid #E2E8F0; margin:24px 0 16px 0; }
+  .vf-footer { padding:20px 28px 26px 28px; color:#64748B; font-size:12px; line-height:1.55; background:#F8FAFC; border-top:1px solid #E2E8F0; }
+  .vf-footer .row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+  .vf-footer .meta { color:#94A3B8; }
+  .vf-footer .ver { font-weight:600; color:#1E3A8A; }
+  .vf-footer .note { display:block; margin-top:10px; color:#94A3B8; font-style:italic; }
+  @media (max-width:600px) {
+    .vf-card { border-radius:10px; }
+    .vf-header, .vf-body, .vf-footer { padding-left:20px; padding-right:20px; }
+    .vf-title { font-size:20px; }
+  }
+  @media (prefers-color-scheme: dark) {
+    body, .vf-wrap { background:#0F172A; color:#E2E8F0; }
+    .vf-card { background:#111C32; border-color:#1E293B; }
+    .vf-title, .vf-kv .v { color:#E2E8F0; }
+    .vf-subtitle, .vf-kv .k { color:#94A3B8; }
+    .vf-summary { background:#0F1A2E; border-color:#1E293B; }
+    .vf-callout { background:#0B1A33; color:#E2E8F0; }
+    .vf-footer { background:#0B1428; border-top-color:#1E293B; color:#94A3B8; }
+  }
+</style>
+</head>
+<body>
+<table role="presentation" class="vf-wrap" cellpadding="0" cellspacing="0" border="0">
+<tr><td align="center">
+  <table role="presentation" class="vf-card" cellpadding="0" cellspacing="0" border="0">
+    <tr><td class="vf-header">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td class="vf-brand">Ordo<span class="dot">·</span>Factus</td>
+          <td align="right"><span class="vf-badge">{{.Badge}}</span></td>
+        </tr>
+      </table>
+    </td></tr>
+
+    <tr><td class="vf-body">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td valign="middle" style="padding-right:12px;">{{.Icon}}</td>
+          <td valign="middle"><h1 class="vf-title">{{.Title}}</h1></td>
+        </tr>
+      </table>
+      <p class="vf-subtitle">{{.Intro}}</p>
+      {{template "content" .}}
+    </td></tr>
+
+    <tr><td class="vf-footer">
+      <div class="row">
+        <span><strong>Ordo Factus</strong> &middot; ambiente <strong>{{.Environment}}</strong> &middot; </span>
+        <span class="ver">API v{{.APIVersion}}</span>
+      </div>
+      <div class="row">
+        <span class="meta">Generado: {{.Timestamp}}</span>
+        <span class="meta">{{.AggregateID}}</span>
+      </div>
+      <span class="note">Correo automático del sistema. No responder a esta dirección.</span>
+    </td></tr>
+  </table>
+</td></tr>
+</table>
+</body>
+</html>

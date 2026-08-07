@@ -1,12 +1,12 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/validator"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator"
 )
 
-// DTEDocument es una estructura que representa un documento DTE, contiene Identification, Issuer, Receiver, Items, Summary, Extension y Appendix
+// DTEDocument is a struct that represents a DTE document, containing Identification, Issuer, Receiver, Items, Summary, Extension and Appendix
 type DTEDocument struct {
 	Identification   interfaces.Identification    `json:"identification"`
 	Issuer           interfaces.Issuer            `json:"issuer"`
@@ -116,12 +116,12 @@ func (d *DTEDocument) SetThirdPartySale(thirdPartySale interfaces.ThirdPartySale
 	return nil
 }
 
-// Validate Válida un documento DTE contra las reglas de validación
+// Validate Validates a DTE document against the validation rules
 func (d *DTEDocument) Validate() error {
 	return validator.ValidateDTEDocument(d)
 }
 
-// ValidateDTERules Válida las reglas de negocio de un documento DTE y retorna un error si no cumple con las reglas
+// ValidateDTERules Validates the business rules of a DTE document and returns an error if they are not met
 func (d *DTEDocument) ValidateDTERules() *dte_errors.DTEError {
 	rulesValidator := validator.NewDTERulesValidator(d)
 	return rulesValidator.Validate()
