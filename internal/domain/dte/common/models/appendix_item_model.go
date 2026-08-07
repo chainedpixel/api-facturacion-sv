@@ -1,10 +1,10 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
 )
 
-// Appendix es una estructura que representa un anexo, contiene Field, Label y Value de un DTE
+// Appendix is a structure that represents an appendix, contains Field, Label and Value of a DTE
 type Appendix struct {
 	Field document.AppendixField `json:"field"`
 	Label document.AppendixLabel `json:"label"`

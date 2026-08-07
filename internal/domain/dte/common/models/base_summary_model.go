@@ -1,13 +1,13 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
 )
 
-// Summary es una estructura que representa un resumen de un DTE, contiene TotalNonSubject, TotalExempt, TotalTaxed, SubTotal, NonSubjectDiscount,
-// ExemptDiscount, DiscountPercentage, TotalDiscount, TotalTaxes, SubTotalOperation, TotalOperation, TotalNonTaxed, PaymentTypes, OperationCondition y ElectronicPayment
+// Summary is a structure that represents a summary of a DTE, contains TotalNonSubject, TotalExempt, TotalTaxed, SubTotal, NonSubjectDiscount,
+// ExemptDiscount, DiscountPercentage, TotalDiscount, TotalTaxes, SubTotalOperation, TotalOperation, TotalNonTaxed, PaymentTypes, OperationCondition and ElectronicPayment
 type Summary struct {
 	TotalNonSubject    financial.Amount           `json:"totalNonSubject"`
 	TotalExempt        financial.Amount           `json:"totalExempt"`

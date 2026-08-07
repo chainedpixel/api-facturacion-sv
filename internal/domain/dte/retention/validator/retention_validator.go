@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/retention_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/validator/strategy"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/validator/strategy"
 )
 
 type RetentionRulesValidator struct {
@@ -12,19 +12,19 @@ type RetentionRulesValidator struct {
 	strategies []interfaces.DTEValidationStrategy
 }
 
-// NewRetentionRulesValidator Crea un validador de reglas para facturas electrónicas
+// NewRetentionRulesValidator Creates a rules validator for electronic invoices
 func NewRetentionRulesValidator(doc *retention_models.RetentionModel) *RetentionRulesValidator {
 	validator := &RetentionRulesValidator{
 		document: doc,
 		strategies: []interfaces.DTEValidationStrategy{
-			&strategy.RetentionItemStrategy{Document: doc},  // 1. Validaciones de items
-			&strategy.RetentionTotalStrategy{Document: doc}, // 2. Validaciones de totales
+			&strategy.RetentionItemStrategy{Document: doc},
+			&strategy.RetentionTotalStrategy{Document: doc},
 		},
 	}
 	return validator
 }
 
-// Validate Ejecuta las validaciones de la invoice electrónica.
+// Validate Executes the validations of the electronic invoice.
 func (v *RetentionRulesValidator) Validate() *dte_errors.DTEError {
 	var validationErrors []*dte_errors.DTEError
 

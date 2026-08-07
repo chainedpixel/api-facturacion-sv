@@ -1,30 +1,5 @@
 package structs
 
-/*
-	Para tipo documento 1 (Fisico) solicito:
-		- Tipo de documento
-		- Numero de documento (Numero correlativo tradicional)
-		- Descripcion
-		- Monto gravado
-		- Fecha de Emision
-		- Tipo de DTE
-		- Codigo de retencion de MH
-		- Toda la seccion de "receptor" es obligatoria
-
-	Para tipo documento 2 (Electronico) solicito:
-		- Descripcion
-		- Tipo de documento
-		- Numero de documento (Codigo de generacion UUID)
-		- Codigo de retencion de MH (Sigo considerarlo si interpretarlo automaticamente...)
-		- Toda la sección del "receptor" queda excluida
-
-
-	NOTAS:
-		- Los campos Extension y Appendixes son opcionales en ambos casos
-		- Los campos "taxed_amount", "emission_date" los calculare automaticamente si el tipo documento es electronico, los tomo de la DB
- 		  de los DTE previamente emitidos
-*/
-
 type RetentionItem struct {
 	DocumentType   int      `json:"type"`
 	DocumentNumber string   `json:"document_number"`

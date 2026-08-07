@@ -1,18 +1,18 @@
 package interfaces
 
-// ThirdPartySaleGetter es una interfaz que define los métodos getter que deben ser implementados por un objeto de tipo ThirdPartySale
+// ThirdPartySaleGetter is an interface that defines the getter methods that must be implemented by a ThirdPartySale object
 type ThirdPartySaleGetter interface {
-	GetNIT() string  // GetNIT retorna el NIT del tercero
-	GetName() string // GetName retorna el nombre del tercero
+	GetNIT() string
+	GetName() string
 }
 
-// ThirdPartySaleSetter es una interfaz que define los métodos setter que deben ser implementados por un objeto de tipo ThirdPartySale
+// ThirdPartySaleSetter is an interface that defines the setter methods that must be implemented by a ThirdPartySale object
 type ThirdPartySaleSetter interface {
-	SetNIT(nit string) error   // SetNIT establece el NIT del tercero
-	SetName(name string) error // SetName establece el nombre del tercero
+	SetNIT(nit string) error
+	SetName(name string) error
 }
 
-// ThirdPartySale es una interfaz que combina los getters y setters de ThirdPartySale
+// ThirdPartySale is an interface that combines the getters and setters of ThirdPartySale
 type ThirdPartySale interface {
 	ThirdPartySaleGetter
 	ThirdPartySaleSetter

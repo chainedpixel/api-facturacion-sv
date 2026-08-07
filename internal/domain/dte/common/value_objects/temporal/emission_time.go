@@ -3,8 +3,8 @@ package temporal
 import (
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type EmissionTime struct {
@@ -23,7 +23,7 @@ func NewValidatedEmissionTime(value time.Time) *EmissionTime {
 	return &EmissionTime{Value: value}
 }
 
-// IsValid válido si la fecha no es cero
+// IsValid validates that the time value is not zero
 func (et *EmissionTime) IsValid() bool { return !et.Value.IsZero() }
 
 func (et *EmissionTime) Equals(other interfaces.ValueObject[time.Time]) bool {

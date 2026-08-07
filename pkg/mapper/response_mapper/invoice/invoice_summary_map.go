@@ -1,13 +1,13 @@
 package invoice
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapInvoiceResponseSummary mapea un resumen de invoice a un modelo de resumen de invoice -> Origen: Response
+// MapInvoiceResponseSummary maps an invoice summary to an invoice summary model -> Source: Response
 func MapInvoiceResponseSummary(summary invoice_models.InvoiceSummary) *structs.InvoiceSummary {
 	result := MapInvoiceSummary(summary)
 	result.DescuGravada = summary.TaxedDiscount.GetValue()
@@ -39,7 +39,6 @@ func MapInvoiceSummary(summary interfaces.Summary) *structs.InvoiceSummary {
 		Tributos:            common.MapTaxes(summary.GetTotalTaxes()),
 	}
 
-	// Mapear pagos
 	if len(summary.GetPaymentTypes()) > 0 {
 		result.Pagos = common.MapCommonResponsePayments(summary.GetPaymentTypes())
 	}

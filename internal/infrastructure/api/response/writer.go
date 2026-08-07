@@ -8,29 +8,29 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/i18n"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type errorType string
 
 const (
-	errorValidation errorType = "VALIDATION" // error de validación de datos (Nivel de creacion en ValueObjects)
-	errorBusiness   errorType = "BUSINESS"   // error de negocio (Nivel de creacion en procesos y concordancia de datos)
-	errorSystem     errorType = "SYSTEM"     // error de sistema (Nivel de creacion en infraestructura y servicios)
+	errorValidation errorType = "VALIDATION"
+	errorBusiness   errorType = "BUSINESS"
+	errorSystem     errorType = "SYSTEM"
 )
 
 type ResponseWriter struct{}
 
-// NewResponseWriter crea una nueva instancia de ResponseWriter
+// NewResponseWriter creates a new instance of ResponseWriter
 func NewResponseWriter() *ResponseWriter {
 	return &ResponseWriter{}
 }
 
-// Success envía una respuesta exitosa con el código de estado y los datos proporcionados.
+// Success sends a successful response with the provided status code and data.
 func (w *ResponseWriter) Success(rw http.ResponseWriter, status int, data interface{}, options *SuccessOptions) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(status)
@@ -55,7 +55,7 @@ func (w *ResponseWriter) Success(rw http.ResponseWriter, status int, data interf
 	})
 }
 
-// Error envía una respuesta de error con el código de estado y el mensaje proporcionado.
+// Error sends an error response with the provided status code and message.
 func (w *ResponseWriter) Error(rw http.ResponseWriter, status int, message string, details []string) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(status)
@@ -68,7 +68,7 @@ func (w *ResponseWriter) Error(rw http.ResponseWriter, status int, message strin
 	})
 }
 
-// HandleError maneja los diferentes tipos de errores y envía una respuesta de error con el código de estado y el mensaje correspondiente.
+// HandleError handles the different error types and sends an error response with the corresponding status code and message.
 func (w *ResponseWriter) HandleError(rw http.ResponseWriter, err error) {
 	rw.Header().Set("Content-Type", "application/json")
 
@@ -87,13 +87,13 @@ func (w *ResponseWriter) HandleError(rw http.ResponseWriter, err error) {
 	}
 }
 
-// GenerateQRLink Genera un link para consultar la invoice en la página de la Hacienda
+// GenerateQRLink Generates a link to look up the invoice on the Hacienda website
 func GenerateQRLink(ambiente, codGeneracion string, fechaEmision time.Time) string {
 	return fmt.Sprintf("https://admin.factura.gob.sv/consultaPublica?ambiente=%s&codGen=%s&fechaEmi=%s",
 		ambiente, codGeneracion, fechaEmision.Format("2006-01-02"))
 }
 
-// handleValidationError maneja los errores de validación y envía una respuesta de error con el código de estado y el mensaje correspondiente.
+// handleValidationError handles validation errors and sends an error response with the corresponding status code and message.
 func (w *ResponseWriter) handleValidationError(rw http.ResponseWriter, err error) {
 	var dteErr *dte_errors.DTEError
 	if errors.As(err, &dteErr) {
@@ -116,14 +116,14 @@ func (w *ResponseWriter) handleValidationError(rw http.ResponseWriter, err error
 			Success: false,
 			Error: &APIError{
 				Message: validationErr.Error(),
-				Details: []string{i18n.Translate("service_errors.NoDetailsAvailable")},
+				Details: []string{config.Translate("service_errors.NoDetailsAvailable")},
 				Code:    strings.ToUpper(validationErr.GetType()),
 			},
 		})
 	}
 }
 
-// handleBusinessError maneja los errores de negocio y envía una respuesta de error con el código de estado y el mensaje correspondiente.
+// handleBusinessError handles business errors and sends an error response with the corresponding status code and message.
 func (w *ResponseWriter) handleBusinessError(rw http.ResponseWriter, err error) {
 	var haciendaErr *hacienda_error.HaciendaResponseError
 	if errors.As(err, &haciendaErr) {
@@ -166,7 +166,7 @@ func (w *ResponseWriter) handleBusinessError(rw http.ResponseWriter, err error) 
 	var httpErr *hacienda_error.HTTPResponseError
 	if errors.As(err, &httpErr) {
 		rw.WriteHeader(httpErr.StatusCode)
-		detail := i18n.Translate("service_errors.ContingencyActiveTransmission")
+		detail := config.Translate("service_errors.ContingencyActiveTransmission")
 		json.NewEncoder(rw).Encode(APIResponse{
 			Success: false,
 			Error: &APIError{
@@ -189,10 +189,10 @@ func (w *ResponseWriter) handleBusinessError(rw http.ResponseWriter, err error) 
 	})
 }
 
-// handleSystemError maneja los errores de sistema y envía una respuesta de error con el código de estado y el mensaje correspondiente.
+// handleSystemError handles system errors and sends an error response with the corresponding status code and message.
 func (w *ResponseWriter) handleSystemError(rw http.ResponseWriter, err error) {
 	rw.WriteHeader(http.StatusInternalServerError)
-	message := i18n.Translate("validation_errors.ServerError")
+	message := config.Translate("validation_errors.ServerError")
 	json.NewEncoder(rw).Encode(APIResponse{
 		Success: false,
 		Error: &APIError{
@@ -202,7 +202,7 @@ func (w *ResponseWriter) handleSystemError(rw http.ResponseWriter, err error) {
 	})
 }
 
-// deriveErrorCode deriva el código de error de acuerdo al estado y mensaje proporcionado.
+// deriveErrorCode derives the error code according to the provided status and message.
 func deriveErrorCode(status int) string {
 	switch status {
 	case http.StatusBadRequest:
@@ -224,7 +224,7 @@ func deriveErrorCode(status int) string {
 	}
 }
 
-// getErrorType obtiene el tipo de error de acuerdo al tipo de error proporcionado.
+// getErrorType retrieves the error type according to the provided error type.
 func getErrorType(err error) errorType {
 	switch err.(type) {
 	case *dte_errors.DTEError, *dte_errors.ValidationError:

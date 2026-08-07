@@ -4,26 +4,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMapToInvalidationData(t *testing.T) {
 	test.TestMain(t)
 
-	// Emisor por defecto para todas las pruebas
 	issuer := fixtures.CreateDefaultIssuer()
 
-	// Crear documentos base para pruebas
 	invoiceDTE := createInvoiceDTE()
 	ccfDTE := createCCFDTE()
 
-	// Definir casos de prueba
 	tests := []struct {
 		name      string
 		req       func() *structs.CreateInvalidationRequest
@@ -31,7 +28,6 @@ func TestMapToInvalidationData(t *testing.T) {
 		wantErr   bool
 		errorCode string
 	}{
-		// ------ VALIDACIONES BÁSICAS ------
 		{
 			name: "Valid invalidation request for invoice with replacement",
 			req: func() *structs.CreateInvalidationRequest {
@@ -67,7 +63,6 @@ func TestMapToInvalidationData(t *testing.T) {
 			errorCode: "ErrorMapping",
 		},
 
-		// ------ VALIDACIONES DE TIPOS DE INVALIDACIÓN ------
 		{
 			name: "Invalidation with invalid type",
 			req: func() *structs.CreateInvalidationRequest {
@@ -99,8 +94,8 @@ func TestMapToInvalidationData(t *testing.T) {
 			name: "Valid type 2 invalidation (annulment)",
 			req: func() *structs.CreateInvalidationRequest {
 				req := fixtures.CreateDefaultInvalidationRequest()
-				req.Reason.Type = 2                 // Anulación
-				req.ReplacementGenerationCode = nil // Sin código de reemplazo
+				req.Reason.Type = 2
+				req.ReplacementGenerationCode = nil
 				return req
 			},
 			baseDTE: invoiceDTE,
@@ -110,7 +105,7 @@ func TestMapToInvalidationData(t *testing.T) {
 			name: "Valid type 3 invalidation (definitive)",
 			req: func() *structs.CreateInvalidationRequest {
 				req := fixtures.CreateDefaultInvalidationRequest()
-				req.Reason.Type = 3 // Invalidación definitiva
+				req.Reason.Type = 3
 				reason := "Documento con errores graves no recuperables"
 				req.Reason.Reason = &reason
 				return req
@@ -119,7 +114,6 @@ func TestMapToInvalidationData(t *testing.T) {
 			wantErr: false,
 		},
 
-		// ------ VALIDACIONES DE DOCUMENTOS RESPONSABLES ------
 		{
 			name: "Invalidation without responsible name",
 			req: func() *structs.CreateInvalidationRequest {
@@ -157,7 +151,7 @@ func TestMapToInvalidationData(t *testing.T) {
 			name: "Invalidation with invalid responsible document type",
 			req: func() *structs.CreateInvalidationRequest {
 				req := fixtures.CreateDefaultInvalidationRequest()
-				req.Reason.ResponsibleDocType = "99" // Tipo inválido
+				req.Reason.ResponsibleDocType = "99"
 				return req
 			},
 			baseDTE:   invoiceDTE,
@@ -165,10 +159,6 @@ func TestMapToInvalidationData(t *testing.T) {
 			errorCode: "InvalidDocumentForReceiver",
 		},
 
-		// Nota, la validación que si el número de documento es un formato correcto para DUI o NIT se hace a nivel de dominio,
-		// por lo tanto no se valida en el mapper
-
-		// ------ VALIDACIONES DE DOCUMENTOS SOLICITANTES ------
 		{
 			name: "Invalidation without requestor name",
 			req: func() *structs.CreateInvalidationRequest {
@@ -206,7 +196,7 @@ func TestMapToInvalidationData(t *testing.T) {
 			name: "Invalidation with invalid requestor document type",
 			req: func() *structs.CreateInvalidationRequest {
 				req := fixtures.CreateDefaultInvalidationRequest()
-				req.Reason.RequestorDocType = "99" // Tipo inválido
+				req.Reason.RequestorDocType = "99"
 				return req
 			},
 			baseDTE:   invoiceDTE,
@@ -214,15 +204,11 @@ func TestMapToInvalidationData(t *testing.T) {
 			errorCode: "InvalidDocumentForReceiver",
 		},
 
-		// Nota, la validación que si el número de documento es un formato correcto para DUI o NIT se hace a nivel de dominio,
-		// por lo tanto no se valida en el mapper
-
-		// ------ VALIDACIONES DE RAZÓN DE INVALIDACIÓN ------
 		{
 			name: "Type 3 invalidation with empty reason",
 			req: func() *structs.CreateInvalidationRequest {
 				req := fixtures.CreateDefaultInvalidationRequest()
-				req.Reason.Type = 3 // Invalidación definitiva
+				req.Reason.Type = 3
 				emptyReason := ""
 				req.Reason.Reason = &emptyReason
 				return req
@@ -235,8 +221,8 @@ func TestMapToInvalidationData(t *testing.T) {
 			name: "Type 3 invalidation with reason too short",
 			req: func() *structs.CreateInvalidationRequest {
 				req := fixtures.CreateDefaultInvalidationRequest()
-				req.Reason.Type = 3   // Invalidación definitiva
-				shortReason := "abcd" // Menos de 5 caracteres
+				req.Reason.Type = 3
+				shortReason := "abcd"
 				req.Reason.Reason = &shortReason
 				return req
 			},
@@ -248,8 +234,8 @@ func TestMapToInvalidationData(t *testing.T) {
 			name: "Type 3 invalidation with reason too long",
 			req: func() *structs.CreateInvalidationRequest {
 				req := fixtures.CreateDefaultInvalidationRequest()
-				req.Reason.Type = 3                          // Invalidación definitiva
-				tooLongReason := createStringWithLength(251) // Más de 250 caracteres
+				req.Reason.Type = 3
+				tooLongReason := createStringWithLength(251)
 				req.Reason.Reason = &tooLongReason
 				return req
 			},
@@ -259,18 +245,15 @@ func TestMapToInvalidationData(t *testing.T) {
 		},
 	}
 
-	// Ejecutar casos de prueba
 	mapper := request_mapper.NewInvalidationMapper()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := tt.req()
 
-			// Validar primero la solicitud
 			if req != nil {
 				validationErr := mapper.ValidateInvalidationReRequest(req)
 				if validationErr != nil {
-					// Si hay error de validación y esperamos error, verificamos y retornamos
 					if tt.wantErr {
 						assert.Error(t, validationErr)
 						if tt.errorCode != "" {
@@ -278,12 +261,10 @@ func TestMapToInvalidationData(t *testing.T) {
 						}
 						return
 					}
-					// Si hay error pero no esperamos error, fallamos la prueba
 					t.Fatalf("Unexpected validation error: %v", validationErr)
 				}
 			}
 
-			// Proceder con el mapeo
 			emissionDate := time.Now()
 			got, err := mapper.MapToInvalidationData(req, issuer, tt.baseDTE, emissionDate)
 
@@ -298,23 +279,19 @@ func TestMapToInvalidationData(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 
-			// Verificar correspondencia con el documento base
 			if tt.baseDTE != nil {
 				assert.Equal(t, tt.baseDTE.DTEType, got.Document.Type.GetValue())
 				assert.Equal(t, tt.baseDTE.ID, got.Document.GenerationCode.GetValue())
 				assert.Equal(t, tt.baseDTE.ControlNumber, got.Document.ControlNumber.GetValue())
 			}
 
-			// Verificar campos requeridos
 			assert.NotNil(t, got.Identification)
 			assert.NotNil(t, got.Reason)
 			assert.NotNil(t, got.Issuer)
 			assert.NotNil(t, got.Document)
 
-			// Verificar tipo de invalidación
 			assert.Equal(t, req.Reason.Type, int(got.Reason.Type.GetValue()))
 
-			// Verificar código de reemplazo si aplica
 			if req.ReplacementGenerationCode != nil {
 				assert.NotNil(t, got.Document.ReplacementCode)
 				assert.Equal(t, *req.ReplacementGenerationCode, got.Document.ReplacementCode.GetValue())
@@ -322,7 +299,6 @@ func TestMapToInvalidationData(t *testing.T) {
 				assert.Nil(t, got.Document.ReplacementCode)
 			}
 
-			// Verificar razón para tipo 3
 			if req.Reason.Type == 3 {
 				assert.NotNil(t, got.Reason.Reason)
 				assert.Equal(t, *req.Reason.Reason, got.Reason.Reason.GetValue())
@@ -331,11 +307,11 @@ func TestMapToInvalidationData(t *testing.T) {
 	}
 }
 
-// Funciones auxiliares para crear DTEs de prueba
+// Helper functions to create test DTEs
 func createInvoiceDTE() *dte.DTEDetails {
 	return &dte.DTEDetails{
 		ID:             "FF54E9DB-79C3-42CE-B432-EC522C97EFB9",
-		DTEType:        "01", // Factura Electrónica
+		DTEType:        "01",
 		ControlNumber:  "DTE-01-00000000-000000000000001",
 		ReceptionStamp: utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
 		JSONData: `{
@@ -356,7 +332,7 @@ func createInvoiceDTE() *dte.DTEDetails {
 func createCCFDTE() *dte.DTEDetails {
 	return &dte.DTEDetails{
 		ID:             "AD54E9BB-79A3-42AE-B432-EC522C97EFB7",
-		DTEType:        "03", // CCF Electrónico
+		DTEType:        "03",
 		ControlNumber:  "DTE-03-00000000-000000000000001",
 		ReceptionStamp: utils.ToStringPointer("2025BBFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
 		JSONData: `{
@@ -374,7 +350,7 @@ func createCCFDTE() *dte.DTEDetails {
 	}
 }
 
-// Función auxiliar para crear una cadena de cierta longitud
+// Helper function to create a string of a given length
 func createStringWithLength(length int) string {
 	s := ""
 	for i := 0; i < length; i++ {

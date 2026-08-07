@@ -3,8 +3,8 @@ package document
 import (
 	"fmt"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type TransmissionType struct {
@@ -23,7 +23,7 @@ func NewValidatedTransmissionType(value int) *TransmissionType {
 	return &TransmissionType{Value: value}
 }
 
-// IsValid valida que el valor de TransmissionType sea 1 o 2 (1: Normal, 2: Contingencia)
+// IsValid validates that the TransmissionType value is 1 or 2 (1: Normal, 2: Contingency)
 func (tt *TransmissionType) IsValid() bool {
 	return tt.Value == 1 || tt.Value == 2
 }

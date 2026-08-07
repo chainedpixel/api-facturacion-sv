@@ -2,23 +2,23 @@ package interfaces
 
 import "time"
 
-// RelatedDocumentGetter es una interfaz que define los métodos getter que deben ser implementados por los documentos relacionados
+// RelatedDocumentGetter is an interface that defines the getter methods that must be implemented by related documents
 type RelatedDocumentGetter interface {
-	GetDocumentType() string    // GetDocumentType retorna el tipo de documento relacionado
-	GetGenerationType() int     // GetGenerationType retorna el tipo de generación del documento relacionado
-	GetDocumentNumber() string  // GetDocumentNumber retorna el número de documento relacionado
-	GetEmissionDate() time.Time // GetEmissionDate retorna la fecha de emisión del documento relacionado
+	GetDocumentType() string
+	GetGenerationType() int
+	GetDocumentNumber() string
+	GetEmissionDate() time.Time
 }
 
-// RelatedDocumentSetter es una interfaz que define los métodos setter que deben ser implementados por los documentos relacionados
+// RelatedDocumentSetter is an interface that defines the setter methods that must be implemented by related documents
 type RelatedDocumentSetter interface {
-	SetDocumentType(documentType string) error     // SetDocumentType establece el tipo de documento relacionado
-	SetGenerationType(generationType int) error    // SetGenerationType establece el tipo de generación del documento relacionado
-	SetDocumentNumber(documentNumber string) error // SetDocumentNumber establece el número de documento relacionado
-	SetEmissionDate(emissionDate time.Time) error  // SetEmissionDate establece la fecha de emisión del documento relacionado
+	SetDocumentType(documentType string) error
+	SetGenerationType(generationType int) error
+	SetDocumentNumber(documentNumber string) error
+	SetEmissionDate(emissionDate time.Time) error
 }
 
-// RelatedDocument es una interfaz que combina los getters y setters de RelatedDocument
+// RelatedDocument is an interface that combines the getters and setters of RelatedDocument
 type RelatedDocument interface {
 	RelatedDocumentGetter
 	RelatedDocumentSetter

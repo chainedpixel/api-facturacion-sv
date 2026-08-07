@@ -3,27 +3,24 @@ package mappers
 import (
 	"testing"
 
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMapToCreditNoteData(t *testing.T) {
 	test.TestMain(t)
 
-	// Emisor por defecto para todas las pruebas
 	issuer := fixtures.CreateDefaultIssuer()
 
-	// Definir casos de prueba
 	tests := []struct {
 		name      string
 		req       func() *structs.CreateCreditNoteRequest
 		wantErr   bool
 		errorCode string
 	}{
-		// ------ VALIDACIONES BÁSICAS ------
 		{
 			name: "Valid CreditNote request",
 			req: func() *structs.CreateCreditNoteRequest {
@@ -90,7 +87,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 
-		// ------ VALIDACIONES DE RECEPTOR ------
 		{
 			name: "CreditNote without receiver name",
 			req: func() *structs.CreateCreditNoteRequest {
@@ -175,7 +171,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			name: "CreditNote with invalid NIT format",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
-				invalidNIT := "123456" // Formato inválido
+				invalidNIT := "123456"
 				req.Receiver.NIT = &invalidNIT
 				return req
 			},
@@ -186,7 +182,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			name: "CreditNote with invalid NRC format",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
-				invalidNRC := "ABC123" // Formato inválido
+				invalidNRC := "ABC123"
 				req.Receiver.NRC = &invalidNRC
 				return req
 			},
@@ -208,7 +204,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			name: "CreditNote with invalid phone",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
-				invalidPhone := "123" // Demasiado corto
+				invalidPhone := "123"
 				req.Receiver.Phone = &invalidPhone
 				return req
 			},
@@ -216,14 +212,13 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "InvalidPhone",
 		},
 
-		// ------ VALIDACIONES DE DIRECCIÓN ------
 		{
 			name: "CreditNote with invalid municipality",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.Receiver.Address = &structs.AddressRequest{
 					Department:   "06",
-					Municipality: "99", // Inválido
+					Municipality: "99",
 					Complement:   "Dirección de prueba",
 				}
 				return req
@@ -246,13 +241,12 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "ErrorMapping",
 		},
 
-		// ------ VALIDACIONES DE ITEMS ------
 		{
 			name: "CreditNote with invalid item type",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Type = 99 // Tipo inválido
+				item.Type = 99
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -264,7 +258,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Quantity = -5 // Cantidad negativa
+				item.Quantity = -5
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -276,7 +270,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.UnitMeasure = 0 // Inválido (debe ser 1-99)
+				item.UnitMeasure = 0
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -284,14 +278,13 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "InvalidNumberRange",
 		},
 
-		// ------ VALIDACIONES DE DOCUMENTOS RELACIONADOS ------
 		{
 			name: "CreditNote with invalid related document type",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "99", // Tipo inválido
+						DocumentType:   "99",
 						GenerationType: 1,
 						DocumentNumber: "12345678",
 						EmissionDate:   "2023-01-15",
@@ -308,8 +301,8 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "03", // CCF (válido)
-						GenerationType: 99,   // Tipo inválido
+						DocumentType:   "03",
+						GenerationType: 99,
 						DocumentNumber: "12345678",
 						EmissionDate:   "2023-01-15",
 					},
@@ -325,9 +318,9 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "03", // CCF (válido)
+						DocumentType:   "03",
 						GenerationType: 1,
-						DocumentNumber: "", // Vacío (inválido)
+						DocumentNumber: "",
 						EmissionDate:   "2023-01-15",
 					},
 				}
@@ -342,10 +335,10 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "03", // CCF (válido)
+						DocumentType:   "03",
 						GenerationType: 2,
 						DocumentNumber: "0408DCE7-8E96-47AA-92B2-B0F0C8FBDAF3",
-						EmissionDate:   "15/01/2023", // Formato incorrecto
+						EmissionDate:   "15/01/2023",
 					},
 				}
 				return req
@@ -359,10 +352,10 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "03", // CCF (válido)
+						DocumentType:   "03",
 						GenerationType: 1,
 						DocumentNumber: "12345678",
-						EmissionDate:   "2099-01-15", // Fecha futura
+						EmissionDate:   "2099-01-15",
 					},
 				}
 				return req
@@ -371,13 +364,12 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "InvalidDateTime",
 		},
 
-		// ------ VALIDACIONES DE CAMPOS FINANCIEROS ------
 		{
 			name: "CreditNote with negative amount",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.UnitPrice = -10.0 // Precio negativo
+				item.UnitPrice = -10.0
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -389,7 +381,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Discount = -5.0 // Descuento negativo
+				item.Discount = -5.0
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -401,7 +393,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Discount = 150.0 // Más de 100%
+				item.Discount = 150.0
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -412,14 +404,13 @@ func TestMapToCreditNoteData(t *testing.T) {
 			name: "CreditNote with invalid payment condition",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
-				req.Summary.OperationCondition = 99 // Condición inválida
+				req.Summary.OperationCondition = 99
 				return req
 			},
 			wantErr:   true,
 			errorCode: "InvalidNumberRange",
 		},
 
-		// ------ VALIDACIONES DE CAMPOS OPCIONALES ------
 		{
 			name: "CreditNote with all valid optional fields",
 			req: func() *structs.CreateCreditNoteRequest {
@@ -432,7 +423,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "", // Requerido pero vacío
+					DeliveryName:     "",
 					DeliveryDocument: "123456",
 					ReceiverName:     "Ana López",
 					ReceiverDocument: "98765432-1",
@@ -447,7 +438,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "", // Requerido pero vacío
+					NIT:  "",
 					Name: "Empresa Tercero",
 				}
 				return req
@@ -461,7 +452,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.Appendixes = []structs.AppendixRequest{
 					{
-						Field: "", // Requerido pero vacío
+						Field: "",
 						Label: "Etiqueta",
 						Value: "Valor",
 					},
@@ -478,7 +469,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req.Appendixes = []structs.AppendixRequest{
 					{
 						Field: "campo",
-						Label: "ab", // Demasiado corto (mínimo 3)
+						Label: "ab",
 						Value: "Valor",
 					},
 				}
@@ -493,7 +484,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.Payments = []structs.PaymentRequest{
 					{
-						Code:   "77", // Código inválido
+						Code:   "77",
 						Amount: 100.0,
 					},
 				}
@@ -510,7 +501,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				detail := "Detalle del documento adicional"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 99, // Inválido (debe ser 1-4)
+						DocumentCode: 99,
 						Description:  &description,
 						Detail:       &detail,
 					},
@@ -528,10 +519,10 @@ func TestMapToCreditNoteData(t *testing.T) {
 				detail := "Detalle médico"
 				req.OtherDocs = []structs.OtherDocRequest{
 					{
-						DocumentCode: 3, // Documento médico
+						DocumentCode: 3,
 						Description:  &description,
 						Detail:       &detail,
-						Doctor:       nil, // Requerido pero nulo
+						Doctor:       nil,
 					},
 				}
 				return req
@@ -540,7 +531,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 
-		// ------ CASOS VÁLIDOS PARA RECEPTOR ------
 		{
 			name: "CreditNote with valid NIT",
 			req: func() *structs.CreateCreditNoteRequest {
@@ -582,7 +572,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA DIRECCIÓN ------
 		{
 			name: "CreditNote with valid address",
 			req: func() *structs.CreateCreditNoteRequest {
@@ -597,13 +586,12 @@ func TestMapToCreditNoteData(t *testing.T) {
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA ITEMS ------
 		{
 			name: "CreditNote with valid item type (product)",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Type = 1 // Producto (válido)
+				item.Type = 1
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -614,7 +602,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Type = 2 // Servicio (válido)
+				item.Type = 2
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -625,21 +613,20 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.UnitMeasure = 59 // Unidades (válido)
+				item.UnitMeasure = 59
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA DOCUMENTOS RELACIONADOS ------
 		{
 			name: "CreditNote with valid related document (CCF)",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "03", // CCF (válido)
+						DocumentType:   "03",
 						GenerationType: 1,
 						DocumentNumber: "12345678",
 						EmissionDate:   "2023-01-15",
@@ -655,7 +642,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "07", // Comprobante de Retención (válido)
+						DocumentType:   "07",
 						GenerationType: 1,
 						DocumentNumber: "12345678",
 						EmissionDate:   "2023-01-15",
@@ -671,13 +658,13 @@ func TestMapToCreditNoteData(t *testing.T) {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.RelatedDocs = []structs.RelatedDocRequest{
 					{
-						DocumentType:   "03", // CCF (válido)
+						DocumentType:   "03",
 						GenerationType: 1,
 						DocumentNumber: "12345678",
 						EmissionDate:   "2023-01-15",
 					},
 					{
-						DocumentType:   "07", // Comprobante de Retención (válido)
+						DocumentType:   "07",
 						GenerationType: 1,
 						DocumentNumber: "87654321",
 						EmissionDate:   "2023-01-16",
@@ -688,13 +675,12 @@ func TestMapToCreditNoteData(t *testing.T) {
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA CAMPOS FINANCIEROS ------
 		{
 			name: "CreditNote with valid amount",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.UnitPrice = 100.50 // Precio válido
+				item.UnitPrice = 100.50
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -705,7 +691,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Discount = 10.5 // Descuento válido
+				item.Discount = 10.5
 				req.Items = []structs.CreditNoteItemRequest{item}
 				return req
 			},
@@ -715,13 +701,12 @@ func TestMapToCreditNoteData(t *testing.T) {
 			name: "CreditNote with valid payment condition",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
-				req.Summary.OperationCondition = 1 // Contado (válido)
+				req.Summary.OperationCondition = 1
 				return req
 			},
 			wantErr: false,
 		},
 
-		// ------ CASOS VÁLIDOS PARA CAMPOS OPCIONALES ------
 		{
 			name: "CreditNote with valid extension",
 			req: func() *structs.CreateCreditNoteRequest {
@@ -774,7 +759,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				reference := "REF-123"
 				req.Payments = []structs.PaymentRequest{
 					{
-						Code:      "01", // Efectivo (válido)
+						Code:      "01",
 						Amount:    100.0,
 						Reference: &reference,
 					},
@@ -785,7 +770,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 		},
 	}
 
-	// Ejecutar casos de prueba
 	mapper := request_mapper.NewCreditNoteMapper()
 
 	for _, tt := range tests {
@@ -813,7 +797,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 			assert.NotNil(t, got.RelatedDocs)
 			assert.Len(t, got.RelatedDocs, len(req.RelatedDocs))
 
-			// Verificar campos opcionales si están presentes
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
 			}

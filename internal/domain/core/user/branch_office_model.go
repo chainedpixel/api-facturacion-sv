@@ -2,9 +2,10 @@ package user
 
 import (
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
 )
 
 type BranchOffice struct {

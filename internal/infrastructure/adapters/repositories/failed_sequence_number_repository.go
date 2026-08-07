@@ -3,10 +3,11 @@ package repositories
 import (
 	"context"
 	"encoding/json"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/database/db_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"gorm.io/gorm"
 )
 
@@ -14,12 +15,12 @@ type FailedSequenceNumberRepository struct {
 	db *gorm.DB
 }
 
-// NewFailedSequenceNumberRepository crea una nueva instancia de FailedSequenceNumberRepository
+// NewFailedSequenceNumberRepository creates a new instance of FailedSequenceNumberRepository
 func NewFailedSequenceNumberRepository(db *gorm.DB) ports.FailedSequenceNumberRepositoryPort {
 	return &FailedSequenceNumberRepository{db: db}
 }
 
-// RegisterFailedSequence registra un número de secuencia fallido con detalles
+// RegisterFailedSequence registers a failed sequence number with its details
 func (r *FailedSequenceNumberRepository) RegisterFailedSequence(
 	ctx context.Context,
 	branchID uint,
@@ -31,7 +32,6 @@ func (r *FailedSequenceNumberRepository) RegisterFailedSequence(
 	originalRequestData interface{},
 	mhResponse string,
 ) error {
-	// Convertir los datos de la solicitud original a JSON
 	requestDataJSON, err := json.Marshal(originalRequestData)
 	if err != nil {
 		logs.Error("Failed to marshal original request data", map[string]interface{}{
@@ -40,7 +40,6 @@ func (r *FailedSequenceNumberRepository) RegisterFailedSequence(
 		return err
 	}
 
-	// Crear la entrada de FailedSequenceNumber
 	failedSeq := &db_models.FailedSequenceNumber{
 		BranchID:            branchID,
 		DTEType:             dteType,
@@ -75,7 +74,7 @@ func (r *FailedSequenceNumberRepository) RegisterFailedSequence(
 	return nil
 }
 
-// GetFailedSequences obtiene una lista de números de secuencia fallidos para una sucursal y tipo de DTE específicos
+// GetFailedSequences retrieves a list of failed sequence numbers for a specific branch and DTE type
 func (r *FailedSequenceNumberRepository) GetFailedSequences(
 	ctx context.Context,
 	branchID uint,
@@ -102,7 +101,7 @@ func (r *FailedSequenceNumberRepository) GetFailedSequences(
 	return failedSequences, nil
 }
 
-// GetFailedSequencesByYear obtiene una lista de números de secuencia fallidos para una sucursal, tipo de DTE y año específicos
+// GetFailedSequencesByYear retrieves a list of failed sequence numbers for a specific branch, DTE type, and year
 func (r *FailedSequenceNumberRepository) GetFailedSequencesByYear(
 	ctx context.Context,
 	branchID uint,

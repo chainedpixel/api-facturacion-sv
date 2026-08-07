@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type AuthMiddleware struct {
@@ -15,7 +15,7 @@ type AuthMiddleware struct {
 	respWriter   *response.ResponseWriter
 }
 
-// NewAuthMiddleware crea una nueva instancia de AuthMiddleware. Recibe un servicio de tokens.
+// NewAuthMiddleware creates a new instance of AuthMiddleware. Receives a token service.
 func NewAuthMiddleware(tokenService ports.TokenManager) *AuthMiddleware {
 	return &AuthMiddleware{
 		tokenService: tokenService,
@@ -23,7 +23,7 @@ func NewAuthMiddleware(tokenService ports.TokenManager) *AuthMiddleware {
 	}
 }
 
-// Handle es un middleware que valida el token de autorización.
+// Handle is a middleware that validates the authorization token.
 func (m *AuthMiddleware) Handle(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

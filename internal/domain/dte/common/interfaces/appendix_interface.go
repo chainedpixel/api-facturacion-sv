@@ -1,20 +1,20 @@
 package interfaces
 
-// AppendixGetter es una interfaz que define los métodos getter que debe implementar un apéndice
+// AppendixGetter is an interface that defines the getter methods that an appendix must implement
 type AppendixGetter interface {
-	GetField() string // GetField obtiene el campo del apéndice
-	GetLabel() string // GetLabel obtiene la etiqueta del apéndice
-	GetValue() string // GetValue obtiene el valor del apéndice
+	GetField() string
+	GetLabel() string
+	GetValue() string
 }
 
-// AppendixSetter es una interfaz que define los métodos setter que debe implementar un apéndice
+// AppendixSetter is an interface that defines the setter methods that an appendix must implement
 type AppendixSetter interface {
-	SetField(field string) error // SetField establece el campo del apéndice
-	SetLabel(label string) error // SetLabel establece la etiqueta del apéndice
-	SetValue(value string) error // SetValue establece el valor del apéndice
+	SetField(field string) error
+	SetLabel(label string) error
+	SetValue(value string) error
 }
 
-// Appendix es una interfaz que combina los getters y setters de Appendix
+// Appendix is an interface that combines the getters and setters of Appendix
 type Appendix interface {
 	AppendixGetter
 	AppendixSetter

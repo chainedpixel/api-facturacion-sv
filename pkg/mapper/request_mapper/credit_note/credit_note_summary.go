@@ -1,14 +1,14 @@
 package credit_note
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// MapCreditNoteRequestSummary mapea un resumen de Nota de Crédito a un modelo de resumen de Nota de Crédito -> Origen: Request
+// MapCreditNoteRequestSummary maps a Credit Note summary to a Credit Note summary model -> Source: Request
 func MapCreditNoteRequestSummary(summary *structs.CreditNoteSummaryRequest) (*credit_note_models.CreditNoteSummary, error) {
 	if summary.TotalInWords == nil {
 		inLetters := utils.InLetters(summary.TotalOperation)

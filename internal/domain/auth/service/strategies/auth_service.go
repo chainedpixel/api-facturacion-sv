@@ -3,18 +3,19 @@ package strategies
 import (
 	"context"
 	"errors"
-	errPackage "github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/error"
-	"gorm.io/gorm"
 	"strings"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	errPackage "github.com/chainedpixel/ordo-factus/internal/infrastructure/error"
+	"gorm.io/gorm"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type AuthService struct {
@@ -39,14 +40,12 @@ func NewAuthService(
 	}
 }
 
-// Login maneja el proceso de autenticación
+// Login handles the authentication process
 func (s *AuthService) Login(ctx context.Context, credentials *models.AuthCredentials) (string, error) {
-	// 0. Verificar existencia de credenciales
 	if !credentialsExists(credentials) {
 		return "", shared_error.NewFormattedGeneralServiceError("AuthService", "Login", "MissingCredentials")
 	}
 
-	// 1. Obtener tipo de autenticación
 	authType, err := s.authRepo.GetAuthTypeByApiKey(ctx, credentials.APIKey)
 	if err != nil {
 		if errors.Is(err, errPackage.ErrUserNotFound) {
@@ -56,7 +55,6 @@ func (s *AuthService) Login(ctx context.Context, credentials *models.AuthCredent
 		return "", err
 	}
 
-	// 2. Obtener la estrategia apropiada
 	strategy, exists := s.strategies[authType]
 	if !exists {
 		logs.Error("Auth strategy not found", map[string]interface{}{
@@ -65,30 +63,25 @@ func (s *AuthService) Login(ctx context.Context, credentials *models.AuthCredent
 		return "", shared_error.NewFormattedGeneralServiceError("AuthService", "Login", "ServerError", authType)
 	}
 
-	// 3. Validar formato de credenciales
 	if err = strategy.ValidateCredentials(credentials); err != nil {
 		return "", err
 	}
 
-	// 4. Autenticar usando la estrategia
 	claims, err := strategy.Authenticate(ctx, credentials)
 	if err != nil {
 		return "", err
 	}
 
-	// 5. Obtener duración de vida del token
 	tokenLifetime, err := strategy.GetTokenLifetime(credentials)
 	if err != nil {
 		return "", err
 	}
 
-	// 5. Generar token JWT
 	token, err := s.tokenService.GenerateToken(claims, tokenLifetime)
 	if err != nil {
 		return "", err
 	}
 
-	//6. Guardar credenciales en cache
 	if err = s.cacheService.SetCredentials(token, credentials.MHCredentials, tokenLifetime); err != nil {
 		return "", err
 	}
@@ -98,7 +91,6 @@ func (s *AuthService) Login(ctx context.Context, credentials *models.AuthCredent
 
 func (s *AuthService) GetHaciendaCredentials(ctx context.Context, nit, token string) (*models.HaciendaCredentials, error) {
 
-	// 1. Obtener tipo de autenticación
 	authType, err := s.authRepo.GetAuthTypeByNIT(ctx, nit)
 	if err != nil {
 		logs.Info("Error getting auth type", map[string]interface{}{"error": err.Error()})
@@ -106,7 +98,6 @@ func (s *AuthService) GetHaciendaCredentials(ctx context.Context, nit, token str
 	}
 	logs.Info("Auth type retrieved", map[string]interface{}{"authType": authType})
 
-	// 2. Obtener la estrategia apropiada
 	strategy, exists := s.strategies[authType]
 	if !exists {
 		logs.Info("Unsupported authentication type", map[string]interface{}{"authType": authType})
@@ -117,27 +108,27 @@ func (s *AuthService) GetHaciendaCredentials(ctx context.Context, nit, token str
 	return strategy.GetHaciendaCredentials(token)
 }
 
-// GetIssuer retorna el emisor por su id de sucursal
+// GetIssuer returns the issuer by its branch ID
 func (s *AuthService) GetIssuer(ctx context.Context, branchID uint) (*dte.IssuerDTE, error) {
 	return s.authRepo.GetIssuerInfoByBranchID(ctx, branchID)
 }
 
-// ValidateToken valida un token existente
+// ValidateToken validates an existing token
 func (s *AuthService) ValidateToken(token string) (*models.AuthClaims, error) {
 	return s.tokenService.ValidateToken(token)
 }
 
-// RevokeToken revoca un token
+// RevokeToken revokes a token
 func (s *AuthService) RevokeToken(token string) error {
 	return s.tokenService.RevokeToken(token)
 }
 
-// credentialsExists verifica que las credenciales tengan todos los campos requeridos
+// credentialsExists verifies that the credentials have all required fields
 func credentialsExists(credentials *models.AuthCredentials) bool {
 	return credentials.APIKey != "" && credentials.APISecret != "" && credentials.MHCredentials != nil && credentials.MHCredentials.Username != "" && credentials.MHCredentials.Password != ""
 }
 
-// Create crea un usuario con sus sucursales
+// Create creates a user with their branch offices
 func (s *AuthService) Create(ctx context.Context, user *user.User) error {
 	err := s.authRepo.Create(ctx, user)
 	if err != nil {
@@ -195,8 +186,8 @@ func handleGormError(operation string, err error) error {
 func isDuplicatedEntryErr(err error) bool {
 	errMsg := strings.ToLower(err.Error())
 	return errors.Is(err, gorm.ErrInvalidData) ||
-		strings.Contains(errMsg, "duplicate entry") || // MySQL
-		strings.Contains(errMsg, "unique constraint") || // PostgreSQL
-		strings.Contains(errMsg, "violates unique") || // PostgreSQL
-		strings.Contains(errMsg, "unique key constraint") // SQL Server
+		strings.Contains(errMsg, "duplicate entry") ||
+		strings.Contains(errMsg, "unique constraint") ||
+		strings.Contains(errMsg, "violates unique") ||
+		strings.Contains(errMsg, "unique key constraint")
 }

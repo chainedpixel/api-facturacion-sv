@@ -1,53 +1,36 @@
 package contingency
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/contingency"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
-	haciendaPorts "github.com/MarlonG1/api-facturacion-sv/internal/application/ports"
-	authModels "github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/contingency/models"
-	authPorts "github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/google/uuid"
+
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/config/drivers"
+	haciendaPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
+	authPorts "github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// ContingencyEventService maneja la preparación y envío de eventos de contingencia
+// ContingencyEventService orchestrates preparation and transmission of contingency events.
 type ContingencyEventService struct {
 	authManager  auth.AuthManager
-	haciendaAuth haciendaPorts.HaciendaAuthManager
-	cache        authPorts.CacheManager
-	tokenService authPorts.TokenManager
-	signer       haciendaPorts.SignerManager
 	repo         contingency.ContingencyRepositoryPort
 	timeProvider authPorts.TimeProvider
-	httpClient   *http.Client
+	tokenSvc     *contingencyTokenService
+	httpSvc      *contingencyHTTPService
 	connection   *drivers.DbConnection
 }
 
-// HaciendaContingencyRequest estructura para la petición de contingencia a Hacienda
-type HaciendaContingencyRequest struct {
-	NIT      string `json:"nit"`
-	Document string `json:"documento"`
-}
-
-// NewContingencyEventService constructor para ContingencyEventService
+// NewContingencyEventService creates a new ContingencyEventService with its dependencies.
 func NewContingencyEventService(
 	authManager auth.AuthManager,
 	haciendaAuth haciendaPorts.HaciendaAuthManager,
@@ -60,26 +43,20 @@ func NewContingencyEventService(
 ) *ContingencyEventService {
 	return &ContingencyEventService{
 		authManager:  authManager,
-		haciendaAuth: haciendaAuth,
-		cache:        cache,
-		tokenService: tokenService,
-		signer:       signer,
 		repo:         repo,
 		timeProvider: timeProvider,
 		connection:   connection,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-			Transport: &http.Transport{
-				MaxIdleConns:       100,
-				IdleConnTimeout:    90 * time.Second,
-				DisableCompression: true,
-			},
-		},
+		tokenSvc:     newContingencyTokenService(cache, tokenService, authManager),
+		httpSvc:      newContingencyHTTPService(haciendaAuth, signer, cache),
 	}
 }
 
-// PrepareAndSendContingencyEvent prepara y envía un evento de contingencia
+// PrepareAndSendContingencyEvent builds a contingency event from the given documents and sends it to Hacienda.
 func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Context, docs []dte.ContingencyDocument) error {
+	if len(docs) == 0 {
+		return shared_error.NewGeneralServiceError("ContingencyEventService", "PrepareAndSendContingencyEvent", "no documents provided for contingency event", nil)
+	}
+
 	sqlDb, err := s.connection.Db.DB()
 	if err != nil {
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "PrepareAndSendContingencyEvent", "failed to get sql db", err)
@@ -91,7 +68,7 @@ func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Con
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "PrepareAndSendContingencyEvent", "failed to get issuer info", err)
 	}
 
-	reason, err := s.prepareContingencyReason(docs[0])
+	reason, err := s.prepareContingencyReason(ctx, docs[0])
 	if err != nil {
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "PrepareAndSendContingencyEvent", "failed to prepare contingency reason", err)
 	}
@@ -120,10 +97,9 @@ func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Con
 		Reason:     reason,
 	}
 
-	return s.sendContingencyEvent(ctx, event, docs[0].BranchID)
+	return s.sendContingencyEvent(ctx, event, docs[0].BranchID, docs)
 }
 
-// prepareDTEDetails prepara los detalles de los documentos para el evento de contingencia
 func (s *ContingencyEventService) prepareDTEDetails(docs []dte.ContingencyDocument) []models.DTEDetail {
 	details := make([]models.DTEDetail, len(docs))
 	for i, doc := range docs {
@@ -136,13 +112,16 @@ func (s *ContingencyEventService) prepareDTEDetails(docs []dte.ContingencyDocume
 	return details
 }
 
-// prepareContingencyReason prepara la razón de contingencia
-func (s *ContingencyEventService) prepareContingencyReason(doc dte.ContingencyDocument) (models.ContingencyReason, error) {
+func (s *ContingencyEventService) prepareContingencyReason(ctx context.Context, doc dte.ContingencyDocument) (models.ContingencyReason, error) {
 	now := s.timeProvider.Now()
 
-	startTime, err := s.repo.GetFirstContingencyTimestamp(context.Background(), doc.BranchID)
+	startTime, err := s.repo.GetFirstContingencyTimestamp(ctx, doc.BranchID)
 	if err != nil {
 		return models.ContingencyReason{}, shared_error.NewGeneralServiceError("ContingencyEventService", "prepareContingencyReason", "failed to get first contingency timestamp", err)
+	}
+
+	if startTime == nil {
+		return models.ContingencyReason{}, shared_error.NewGeneralServiceError("ContingencyEventService", "prepareContingencyReason", "no pending contingency documents found for branch", nil)
 	}
 
 	return models.ContingencyReason{
@@ -155,130 +134,28 @@ func (s *ContingencyEventService) prepareContingencyReason(doc dte.ContingencyDo
 	}, nil
 }
 
-// sendContingencyEvent envía el evento de contingencia a Hacienda
-func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint) error {
-	// Obtener el client y generar token del sistema
+func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, docs []dte.ContingencyDocument) error {
 	client, err := s.authManager.GetByNIT(ctx, event.Issuer.NIT)
 	if err != nil {
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to get client", err)
 	}
-	token, err := s.generateMatchingToken(client, branchID)
+
+	token, err := s.tokenSvc.GenerateTokenForUser(client, branchID)
 	if err != nil {
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to generate matching token", err)
 	}
 
-	// Obtener credenciales
-	encryptedCreds, err := s.cache.GetCredentials(token)
+	isDuplicate, err := s.httpSvc.SignAndSend(ctx, event, client.NIT, token)
 	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to get hacienda credentials", err)
+		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to sign and send contingency event", err)
 	}
 
-	// Obtener token de Hacienda
-	haciendaToken, err := s.haciendaAuth.GetOrCreateHaciendaTokenWithCreds(
-		ctx,
-		token,
-		*encryptedCreds,
-	)
-
-	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to get hacienda token", err)
-	}
-
-	jsonData, err := json.Marshal(event)
-	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to marshal contingency event", err)
-	}
-
-	signedDoc, err := s.signer.SignDTE(ctx, jsonData, client.NIT)
-	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to sign contingency event", err)
-	}
-
-	reqBody := &HaciendaContingencyRequest{
-		NIT:      client.NIT,
-		Document: signedDoc,
-	}
-
-	jsonData, err = json.Marshal(reqBody)
-	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to marshal contingency request", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", config.MHPaths.ContingencyURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to create request", err)
-	}
-
-	req.Header.Set("Authorization", haciendaToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	logs.Info("Sending contingency event request", map[string]interface{}{
-		"url":          config.MHPaths.ContingencyURL,
-		"method":       "POST",
-		"content-type": req.Header.Get("Content-Type"),
-	})
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to send request", err)
-	}
-	defer resp.Body.Close()
-
-	// Manejo de respuesta
-	var responseBody map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
-		if err == io.EOF {
-			logs.Warn("Contingency event response is empty")
-			responseBody = nil
-		} else {
-			return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to decode response body", err)
+	if isDuplicate {
+		return &contingency.ContingencyEventExistsError{
+			Message:   "contingency event already exists in Hacienda",
+			Documents: docs,
 		}
 	}
 
-	logs.Info("Contingency event response", map[string]interface{}{
-		"statusCode": resp.StatusCode,
-		"body":       responseBody,
-	})
-
-	if resp.StatusCode != http.StatusOK || strings.Contains(responseBody["mensaje"].(string), "no superadas") {
-		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to send contingency event", nil)
-	}
-
 	return nil
-}
-
-// generateMatchingToken genera un token para el cliente
-func (s *ContingencyEventService) generateMatchingToken(client *user.User, branchID uint) (string, error) {
-	key := fmt.Sprintf("token:timestamps:%d", client.ID)
-	var timestamps struct {
-		IssuedAt  int64 `json:"IssuedAt"`
-		ExpiresAt int64 `json:"ExpiresAt"`
-	}
-
-	jsonTimestamps, err := s.cache.Get(key)
-	if err != nil {
-		return "", err
-	}
-
-	if err = json.Unmarshal([]byte(jsonTimestamps), &timestamps); err != nil {
-		return "", err
-	}
-
-	claims := &authModels.AuthClaims{
-		ClientID: client.ID,
-		AuthType: client.AuthType,
-		BranchID: branchID,
-		NIT:      client.NIT,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":        claims.ClientID,
-		"branch_sub": claims.BranchID,
-		"auth_type":  claims.AuthType,
-		"nit":        claims.NIT,
-		"exp":        timestamps.ExpiresAt,
-		"iat":        timestamps.IssuedAt,
-	})
-
-	return token.SignedString([]byte(s.tokenService.GetSecretKey()))
 }

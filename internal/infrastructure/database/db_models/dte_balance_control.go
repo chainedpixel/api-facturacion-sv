@@ -2,9 +2,9 @@ package db_models
 
 import "time"
 
-// DTEBalanceControl representa el control de saldo de un DTE (Documento Tributario Electrónico).
-// Se utiliza para almacenar el saldo de un DTE en la base de datos y recuperarlo para su procesamiento de una manera más eficiente
-// lo que permite además llevar un control más efectivo de los saldos de los DTEs cuando se realizan ajustes como notas de crédito o débito.
+// DTEBalanceControl represents the balance control for a DTE (Documento Tributario Electrónico).
+// It is used to store the balance of a DTE in the database and retrieve it for processing in a more efficient manner,
+// which also allows for more effective tracking of DTE balances when adjustments such as credit or debit notes are made.
 type DTEBalanceControl struct {
 	ID                            uint      `gorm:"primaryKey;autoIncrement:true;not null;index:idx_dte_balance_control"`
 	BranchID                      uint      `gorm:"column:branch_id;type:uint;not null;index:idx_dte_branch"`

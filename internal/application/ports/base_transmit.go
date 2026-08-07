@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
 )
 
 type BaseTransmitter interface {
@@ -13,5 +13,5 @@ type BaseTransmitter interface {
 }
 
 type SignerManager interface {
-	SignDTE(ctx context.Context, dte json.RawMessage, nit string) (string, error) // SignDTE firma un DTE
+	SignDTE(ctx context.Context, dte json.RawMessage, nit string) (string, error)
 }

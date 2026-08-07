@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/validator/strategy"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type DTERulesValidator struct {
@@ -12,43 +12,42 @@ type DTERulesValidator struct {
 	strategies []interfaces.DTEValidationStrategy
 }
 
-// NewDTERulesValidator Crea un validador de reglas de DTE
+// NewDTERulesValidator Creates a DTE rules validator
 func NewDTERulesValidator(doc interfaces.DTEDocument) *DTERulesValidator {
 	validator := &DTERulesValidator{
 		document: doc,
 		strategies: []interfaces.DTEValidationStrategy{
-			&strategy.BasicRulesStrategy{Document: doc},         // 1. Validaciones básicas
-			&strategy.TemporalValidationStrategy{Document: doc}, // 2. Validaciones temporales
-			&strategy.ContingencyStrategy{Document: doc},        // 3. Validaciones de contingencia
-			&strategy.ModelTypeStrategy{Document: doc},          // 4. Validaciones de tipo de modelo
-			&strategy.TaxCalculationStrategy{Document: doc},     // 5. Validaciones de cálculo de impuestos
-			&strategy.PaymentTotalStrategy{Document: doc},       // 6. Validaciones de total de pagos
-			&strategy.ItemValidationStrategy{Document: doc},     // 7. Validaciones de items
-			&strategy.ExtensionStrategy{Document: doc},          // 8. Validaciones de extensión
-			&strategy.DocumentTypeStrategy{Document: doc},       // 9. Validaciones de tipo de documento
-			&strategy.RelatedDocsStrategy{Document: doc},        // 10. Validaciones de documentos relacionados
-			&strategy.ThirdPartyStrategy{Document: doc},         // 11. Validaciones de venta a terceros
-			&strategy.OtherDocumentsStrategy{Document: doc},     // 12. Validaciones de otros documentos
+			&strategy.BasicRulesStrategy{Document: doc},
+			&strategy.TemporalValidationStrategy{Document: doc},
+			&strategy.ContingencyStrategy{Document: doc},
+			&strategy.ModelTypeStrategy{Document: doc},
+			&strategy.TaxCalculationStrategy{Document: doc},
+			&strategy.PaymentTotalStrategy{Document: doc},
+			&strategy.ItemValidationStrategy{Document: doc},
+			&strategy.ExtensionStrategy{Document: doc},
+			&strategy.DocumentTypeStrategy{Document: doc},
+			&strategy.RelatedDocsStrategy{Document: doc},
+			&strategy.ThirdPartyStrategy{Document: doc},
+			&strategy.OtherDocumentsStrategy{Document: doc},
 		},
 	}
 	return validator
 }
 
-// Validate Válida las reglas de un documento DTE según las estrategias definidas
+// Validate Validates the rules of a DTE document according to the defined strategies
 func (v *DTERulesValidator) Validate() *dte_errors.DTEError {
 	var validationErrors []*dte_errors.DTEError
 
 	for i, strategyValidator := range v.strategies {
-		logs.Info("Starting validation for strategy", map[string]interface{}{"strategy": i + 1})
+		logs.Debug("Starting validation for strategy", map[string]interface{}{"strategy": i + 1})
 		if err := strategyValidator.Validate(); err != nil {
 			logs.Error("Failed to validate strategy", map[string]interface{}{"strategy": i + 1, "error": err.Error()})
 			validationErrors = append(validationErrors, err)
 		}
-		logs.Info("Finished validation for strategy", map[string]interface{}{"strategy": i + 1})
+		logs.Debug("Finished validation for strategy", map[string]interface{}{"strategy": i + 1})
 	}
 
 	if len(validationErrors) > 0 {
-		// Crear un DTEError compuesto
 		return dte_errors.NewDTEErrorComposite(validationErrors)
 	}
 

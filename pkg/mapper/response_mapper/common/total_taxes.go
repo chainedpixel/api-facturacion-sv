@@ -1,13 +1,14 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
-	"github.com/shopspring/decimal"
 	"math"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/shopspring/decimal"
 )
 
-// MapTaxes mapea los impuestos de una invoice
+// MapTaxes maps the taxes of an invoice
 func MapTaxes(taxes []interfaces.Tax) []structs.DTETax {
 	result := make([]structs.DTETax, 0)
 

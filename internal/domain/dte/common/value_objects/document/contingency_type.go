@@ -3,8 +3,8 @@ package document
 import (
 	"fmt"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type ContingencyType struct {
@@ -23,7 +23,7 @@ func NewValidatedContingencyType(value int) *ContingencyType {
 	return &ContingencyType{Value: value}
 }
 
-// IsValid valida que el valor de ContingencyType sea 1 a 5
+// IsValid validates that the ContingencyType value is between 1 and 5
 func (ct *ContingencyType) IsValid() bool {
 	return ct.Value >= 1 && ct.Value <= 5
 }

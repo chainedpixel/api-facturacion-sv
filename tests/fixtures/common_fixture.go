@@ -1,17 +1,17 @@
 package fixtures
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// CreateDefaultAddress crea una dirección predeterminada válida
+// CreateDefaultAddress creates a valid default address
 func CreateDefaultAddress() *structs.AddressRequest {
 	return &structs.AddressRequest{
 		Department:   "06",
@@ -20,7 +20,7 @@ func CreateDefaultAddress() *structs.AddressRequest {
 	}
 }
 
-// CreateDefaultAppendix crea un apéndice predeterminado válido
+// CreateDefaultAppendix creates a valid default appendix
 func CreateDefaultAppendix() structs.AppendixRequest {
 	return structs.AppendixRequest{
 		Field: "nota_interna",
@@ -29,7 +29,7 @@ func CreateDefaultAppendix() structs.AppendixRequest {
 	}
 }
 
-// CreateDefaultExtension crea una extensión predeterminada válida
+// CreateDefaultExtension creates a valid default extension
 func CreateDefaultExtension() *structs.ExtensionRequest {
 	observation := "Observación de prueba"
 	vehiculePlate := "P123-456"
@@ -44,9 +44,9 @@ func CreateDefaultExtension() *structs.ExtensionRequest {
 	}
 }
 
-// CreateDefaultReceiver crea un receptor predeterminado válido
+// CreateDefaultReceiver creates a valid default receiver
 func CreateDefaultReceiver() *structs.ReceiverRequest {
-	docType := "36" // NIT
+	docType := "36"
 	docNumber := "06141804941035"
 	name := "Empresa Servicios Generales, S.A. de C.V."
 	nrc := "123456"
@@ -70,7 +70,7 @@ func CreateDefaultReceiver() *structs.ReceiverRequest {
 	}
 }
 
-// CreateDefaultReceiverWithoutDocsFields crea un receptor predeterminado válido sin campos de tipo documento y numero documento
+// CreateDefaultReceiverWithoutDocsFields creates a valid default receiver without document type and document number fields
 func CreateDefaultReceiverWithoutDocsFields() *structs.ReceiverRequest {
 	name := "Empresa Servicios Generales, S.A. de C.V."
 	nrc := "123456"
@@ -94,7 +94,7 @@ func CreateDefaultReceiverWithoutDocsFields() *structs.ReceiverRequest {
 	}
 }
 
-// CreateDefaultPayment crea un pago predeterminado válido
+// CreateDefaultPayment creates a valid default payment
 func CreateDefaultPayment() structs.PaymentRequest {
 	reference := "REF-123"
 
@@ -105,7 +105,7 @@ func CreateDefaultPayment() structs.PaymentRequest {
 	}
 }
 
-// CreateDefaultThirdPartySale crea una venta a terceros predeterminada válida
+// CreateDefaultThirdPartySale creates a valid default third-party sale
 func CreateDefaultThirdPartySale() *structs.ThirdPartySaleRequest {
 	return &structs.ThirdPartySaleRequest{
 		NIT:  "06141804941035",
@@ -113,17 +113,17 @@ func CreateDefaultThirdPartySale() *structs.ThirdPartySaleRequest {
 	}
 }
 
-// CreateDefaultRelatedDocument crea un documento relacionado predeterminado válido
+// CreateDefaultRelatedDocument creates a valid default related document
 func CreateDefaultRelatedDocument() structs.RelatedDocRequest {
 	return structs.RelatedDocRequest{
-		DocumentType:   "03", // CCF
-		GenerationType: 1,    // Normal
+		DocumentType:   "03",
+		GenerationType: 1,
 		DocumentNumber: "S221001346",
 		EmissionDate:   "2025-03-22",
 	}
 }
 
-// CreateDefaultIssuer crea un emisor por defecto para uso en pruebas
+// CreateDefaultIssuer creates a default issuer for use in tests
 func CreateDefaultIssuer() *dte.IssuerDTE {
 	return &dte.IssuerDTE{
 		NIT:                  "11111111111111",
@@ -147,7 +147,7 @@ func CreateDefaultIssuer() *dte.IssuerDTE {
 	}
 }
 
-// CreateCustomIssuer crea un emisor personalizado para uso en pruebas
+// CreateCustomIssuer creates a custom issuer for use in tests
 func CreateCustomIssuer(nit, nrc, businessName string) *dte.IssuerDTE {
 	issuer := CreateDefaultIssuer()
 	issuer.NIT = nit
@@ -156,7 +156,7 @@ func CreateCustomIssuer(nit, nrc, businessName string) *dte.IssuerDTE {
 	return issuer
 }
 
-// CreateDefaultOtherDocument crea un documento adicional predeterminado válido
+// CreateDefaultOtherDocument creates a valid default additional document
 func CreateDefaultOtherDocument() structs.OtherDocRequest {
 	description := "Documento adicional"
 	detail := "Detalle del documento adicional"
@@ -168,7 +168,7 @@ func CreateDefaultOtherDocument() structs.OtherDocRequest {
 	}
 }
 
-// CreateIdentification crea una identificación con tipo y versión específicos
+// CreateIdentification creates an identification with a specific type and version
 func CreateIdentification(dteType string, version int) (*models.Identification, error) {
 	now := utils.TimeNow()
 
@@ -191,12 +191,12 @@ func CreateIdentification(dteType string, version int) (*models.Identification, 
 		return nil, err
 	}
 
-	modelType, err := document.NewModelType(1) // Modelo normal
+	modelType, err := document.NewModelType(1)
 	if err != nil {
 		return nil, err
 	}
 
-	operationType, err := document.NewOperationType(1) // Transmisión normal
+	operationType, err := document.NewOperationType(1)
 	if err != nil {
 		return nil, err
 	}
@@ -213,27 +213,27 @@ func CreateIdentification(dteType string, version int) (*models.Identification, 
 	}, nil
 }
 
-// CreateIdentificationWithInvalidVersion crea una identificación con versión inválida
+// CreateIdentificationWithInvalidVersion creates an identification with an invalid version
 func CreateIdentificationWithInvalidVersion(dteType string) (*models.Identification, error) {
 	id, err := CreateIdentification(dteType, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	invalidVersion := document.NewValidatedVersion(99) // Versión inválida
+	invalidVersion := document.NewValidatedVersion(99)
 	id.Version = *invalidVersion
 
 	return id, nil
 }
 
-// CreateIdentificationWithInvalidDTEType crea una identificación con tipo DTE inválido
+// CreateIdentificationWithInvalidDTEType creates an identification with an invalid DTE type
 func CreateIdentificationWithInvalidDTEType() (*models.Identification, error) {
 	id, err := CreateIdentification("01", 1)
 	if err != nil {
 		return nil, err
 	}
 
-	invalidType := document.NewValidatedDTEType("99") // Tipo DTE inválido
+	invalidType := document.NewValidatedDTEType("99")
 	id.DTEType = *invalidType
 
 	return id, nil

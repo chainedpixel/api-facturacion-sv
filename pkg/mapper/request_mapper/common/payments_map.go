@@ -1,14 +1,14 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
-// MapCommonRequestPaymentsType mapea un arreglo de pagos a un modelo de pagos -> Origen: Request
+// MapCommonRequestPaymentsType maps an array of payments to a payments model -> Source: Request
 func MapCommonRequestPaymentsType(payments []structs.PaymentRequest) ([]interfaces.PaymentType, error) {
 	result := make([]interfaces.PaymentType, len(payments))
 

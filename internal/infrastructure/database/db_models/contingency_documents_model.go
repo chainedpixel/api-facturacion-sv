@@ -2,14 +2,14 @@ package db_models
 
 import "time"
 
-// ContingencyDocument representa un documento de contingencia en la base de datos
-// Se utiliza para almacenar documentos que no pudieron ser enviados a Hacienda y se deben enviar de manera diferida
-// La aplicación se encarga de reintentar el envío de estos documentos de manera automática.
-// El campo Type indica el tipo de documento de contingencia, para más información sobre los tipos contingencia
+// ContingencyDocument represents a contingency document in the database.
+// It is used to store documents that could not be sent to Hacienda and must be sent on a deferred basis.
+// The application automatically retries sending these documents.
+// The Type field indicates the type of contingency document. For more information about contingency types
 //
-// ver: https://factura.gob.sv/informacion-tecnica-y-funcional/
-// en la sección de "Documentos de Sistema de Transmisión DTE", documento: "2. Catálogos- Sistema de Transmisión"
-// página 5 del documento PDF y revisar /internal/domain/dte/common/constants/contingency_document_types.go
+// see: https://factura.gob.sv/informacion-tecnica-y-funcional/
+// in the section "Documentos de Sistema de Transmisión DTE", document: "2. Catálogos- Sistema de Transmisión"
+// page 5 of the PDF document and review /internal/domain/dte/common/constants/contingency_document_types.go
 type ContingencyDocument struct {
 	ID              string    `gorm:"column:id;type:varchar(36);primaryKey;not null"`
 	DocumentID      string    `gorm:"column:document_id;type:varchar(36);not null;index"`
@@ -22,10 +22,6 @@ type ContingencyDocument struct {
 	CreatedAt       time.Time `gorm:"column:created_at;type:timestamp;default:CURRENT_TIMESTAMP;index:idx_contingency_date"`
 	UpdatedAt       time.Time `gorm:"column:updated_at;type:timestamp;default:CURRENT_TIMESTAMP"`
 
-	// Índice compuesto
-	// `gorm:"index:idx_branch_date,priority:1,2"` - Este índice sería para BranchID y CreatedAt
-
-	// Relaciones
 	Document *DTEDetails   `gorm:"foreignKey:DocumentID;references:ID"`
 	Branch   *BranchOffice `gorm:"foreignKey:BranchID;references:ID"`
 }

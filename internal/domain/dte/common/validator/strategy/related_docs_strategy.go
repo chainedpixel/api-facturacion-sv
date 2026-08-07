@@ -3,25 +3,23 @@ package strategy
 import (
 	"regexp"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type RelatedDocsStrategy struct {
 	Document interfaces.DTEDocument
 }
 
-// Validate valida la estrategia de documentos relacionados del DTE
+// Validate validates the related documents strategy of the DTE
 func (s *RelatedDocsStrategy) Validate() *dte_errors.DTEError {
-	// Si no hay documentos relacionados, es válido
 	if s.Document.GetRelatedDocuments() == nil || len(s.Document.GetRelatedDocuments()) == 0 {
 		return nil
 	}
 
-	// No debe exceder el máximo de documentos relacionados
 	if len(s.Document.GetRelatedDocuments()) > 50 {
 		return dte_errors.NewDTEErrorSimple("ExceededRelatedDocsLimit",
 			len(s.Document.GetRelatedDocuments()))
@@ -39,7 +37,6 @@ func (s *RelatedDocsStrategy) Validate() *dte_errors.DTEError {
 		}
 	}
 
-	// Validar cada documento relacionado
 	for _, doc := range s.Document.GetRelatedDocuments() {
 		if err := s.validateRelatedDoc(doc); err != nil {
 			return err
@@ -49,16 +46,14 @@ func (s *RelatedDocsStrategy) Validate() *dte_errors.DTEError {
 	return nil
 }
 
-// validateRelatedDoc valida un documento relacionado
+// validateRelatedDoc validates a related document
 func (s *RelatedDocsStrategy) validateRelatedDoc(doc interfaces.RelatedDocument) *dte_errors.DTEError {
 
-	// Validar que la fecha no sea futura
 	if doc.GetEmissionDate().After(utils.TimeNow()) {
 		return dte_errors.NewDTEErrorSimple("InvalidRelatedDocDate",
 			doc.GetEmissionDate().Format("2006-01-02"))
 	}
 
-	// Validar formato de número de documento
 	err := validateElectronicDocNumber(doc.GetDocumentNumber(), doc.GetGenerationType())
 	if err != nil {
 		return err
@@ -67,7 +62,7 @@ func (s *RelatedDocsStrategy) validateRelatedDoc(doc interfaces.RelatedDocument)
 	return nil
 }
 
-// validateElectronicDocNumber valida el número de documento electrónico
+// validateElectronicDocNumber validates the electronic document number
 func validateElectronicDocNumber(number string, generationType int) *dte_errors.DTEError {
 
 	if generationType == constants.TransmisionContingencia {
@@ -83,7 +78,7 @@ func validateElectronicDocNumber(number string, generationType int) *dte_errors.
 	return nil
 }
 
-// isValidUUID valida que el número de documento relacionado sea un UUID válido
+// isValidUUID validates that the related document number is a valid UUID
 func isValidUUID(uuid string) bool {
 	var uuidRegex = regexp.MustCompile(`^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$`)
 	return uuidRegex.MatchString(uuid)

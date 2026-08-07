@@ -3,13 +3,12 @@ package constants
 import "github.com/shopspring/decimal"
 
 const (
-	RetentionOnePercent      = "22" // Retención del 1% sobre el monto total
-	RetentionThirteenPercent = "C4" // Retención del 13% sobre el monto total
-	OtherRetentions          = "C9" // Otras retenciones (cualquier otro código de retención no especificado)
+	RetentionOnePercent      = "22"
+	RetentionThirteenPercent = "C4"
+	OtherRetentions          = "C9"
 )
 
 var (
-	// AllowedRetentionCodes contiene los códigos de retención permitidos, usado para validaciones
 	AllowedRetentionCodes = map[string]bool{
 		RetentionOnePercent:      true,
 		RetentionThirteenPercent: true,

@@ -3,53 +3,47 @@ package strategy
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type CCFTaxStrategy struct {
 	Document *ccf_models.CreditFiscalDocument
 }
 
-// Validate - Valida los campos específicos de CCF
+// Validate - Validates the CCF-specific fields
 func (s *CCFTaxStrategy) Validate() *dte_errors.DTEError {
 	if s.Document == nil {
 		return nil
 	}
 
-	// 1. Validar totales base
 	if err := s.validateBaseTotals(); err != nil {
 		logs.Error("Error validating base totals")
 		return err
 	}
 
-	// 2. Validar IVA
 	if err := s.validateIVA(); err != nil {
 		logs.Error("Error validating IVA")
 		return err
 	}
 
-	// 3. Validar percepción
 	if err := s.validatePerception(); err != nil {
 		logs.Error("Error validating perception")
 		return err
 	}
 
-	// 4. Validar montos monetarios
 	if err := s.validateMonetaryAmounts(); err != nil {
 		logs.Error("Error validating monetary amounts")
 		return err
 	}
 
-	// 5. Validar montos totales
 	if err := s.validateTotalAmounts(); err != nil {
 		logs.Error("Error validating total amounts")
 		return err
 	}
 
-	// 6. Validar monto no gravado
 	if err := s.validateNonTaxedAmount(); err != nil {
 		logs.Error("Error validating non-taxed amount")
 		return err
@@ -61,13 +55,11 @@ func (s *CCFTaxStrategy) Validate() *dte_errors.DTEError {
 func (s *CCFTaxStrategy) validateNonTaxedAmount() *dte_errors.DTEError {
 	totalNonTaxed := s.Document.CreditSummary.TotalNonTaxed.GetValue()
 
-	// Calcular suma de non_taxed de items
 	var sumItemsNonTaxed float64
 	for _, item := range s.Document.CreditItems {
 		sumItemsNonTaxed += item.NonTaxed.GetValue()
 	}
 
-	// Si el total_non_taxed del summary > 0 pero la suma de non_taxed de items es 0
 	if totalNonTaxed > 0 && sumItemsNonTaxed == 0 {
 		logs.Error("Invalid non-taxed amount", map[string]interface{}{
 			"summaryTotal": totalNonTaxed,
@@ -76,7 +68,6 @@ func (s *CCFTaxStrategy) validateNonTaxedAmount() *dte_errors.DTEError {
 		return dte_errors.NewDTEErrorSimple("InvalidNonTaxedAmount")
 	}
 
-	// Validar que coincidan
 	if totalNonTaxed != sumItemsNonTaxed {
 		logs.Error("Non-taxed amount mismatch", map[string]interface{}{
 			"summaryTotal": totalNonTaxed,
@@ -90,7 +81,6 @@ func (s *CCFTaxStrategy) validateNonTaxedAmount() *dte_errors.DTEError {
 }
 
 func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
-	// 1. Calcular totales desde items
 	var totalTaxed, totalNonSubject, totalExempt decimal.Decimal
 
 	for _, item := range s.Document.CreditItems {
@@ -99,13 +89,10 @@ func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 		totalExempt = totalExempt.Add(decimal.NewFromFloat(item.ExemptSale.GetValue()))
 	}
 
-	// 2. Validar que los totales coincidan con el resumen
 	summaryTaxed := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue())
 	summaryNonSubject := decimal.NewFromFloat(s.Document.CreditSummary.TotalNonSubject.GetValue())
 	summaryExempt := decimal.NewFromFloat(s.Document.CreditSummary.TotalExempt.GetValue())
 
-	// Verificar total gravado
-	// Usar una pequeña tolerancia para comparaciones con decimales
 	diff := totalTaxed.Sub(summaryTaxed).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		logs.Error("Invalid taxed total", map[string]interface{}{
@@ -117,41 +104,49 @@ func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 			totalTaxed.InexactFloat64())
 	}
 
-	//Verificar que los descuentos no sobrepasen el subtotal
-	if decimal.NewFromFloat(s.Document.CreditSummary.SubTotal.GetValue()).LessThan(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue())) {
+	taxedDiscount := decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue())
+	exemptDiscount := decimal.NewFromFloat(s.Document.CreditSummary.ExemptDiscount.GetValue())
+	nonSubjectDiscount := decimal.NewFromFloat(s.Document.CreditSummary.NonSubjectDiscount.GetValue())
+
+	if taxedDiscount.GreaterThan(totalTaxed) {
 		logs.Error("Invalid taxed discount", map[string]interface{}{
-			"taxedDiscount": s.Document.CreditSummary.TaxedDiscount.GetValue(),
-			"subTotal":      s.Document.CreditSummary.SubTotal.GetValue(),
+			"taxedDiscount": taxedDiscount,
+			"totalTaxed":    totalTaxed,
 		})
-		return dte_errors.NewDTEErrorSimple("DiscountExceedsSubtotal",
+		return dte_errors.NewDTEErrorSimple("DiscountExceedsBase",
 			"TaxedDiscount",
-			s.Document.CreditSummary.TaxedDiscount.GetValue(),
-			s.Document.CreditSummary.SubTotal.GetValue())
+			taxedDiscount.InexactFloat64(),
+			totalTaxed.InexactFloat64())
 	}
 
-	if decimal.NewFromFloat(s.Document.CreditSummary.SubTotal.GetValue()).LessThan(decimal.NewFromFloat(s.Document.CreditSummary.ExemptDiscount.GetValue())) {
+	if exemptDiscount.GreaterThan(totalExempt) {
 		logs.Error("Invalid exempt discount", map[string]interface{}{
-			"exemptDiscount": s.Document.CreditSummary.ExemptDiscount.GetValue(),
-			"subTotal":       s.Document.CreditSummary.SubTotal.GetValue(),
+			"exemptDiscount": exemptDiscount,
+			"totalExempt":    totalExempt,
 		})
-		return dte_errors.NewDTEErrorSimple("DiscountExceedsSubtotal",
+		return dte_errors.NewDTEErrorSimple("DiscountExceedsBase",
 			"ExemptDiscount",
-			s.Document.CreditSummary.ExemptDiscount.GetValue(),
-			s.Document.CreditSummary.SubTotal.GetValue())
+			exemptDiscount.InexactFloat64(),
+			totalExempt.InexactFloat64())
 	}
 
-	if decimal.NewFromFloat(s.Document.CreditSummary.SubTotal.GetValue()).LessThan(decimal.NewFromFloat(s.Document.CreditSummary.NonSubjectDiscount.GetValue())) {
+	if nonSubjectDiscount.GreaterThan(totalNonSubject) {
 		logs.Error("Invalid non subject discount", map[string]interface{}{
-			"nonSubjectDiscount": s.Document.CreditSummary.NonSubjectDiscount.GetValue(),
-			"subTotal":           s.Document.CreditSummary.SubTotal.GetValue(),
+			"nonSubjectDiscount": nonSubjectDiscount,
+			"totalNonSubject":    totalNonSubject,
 		})
-		return dte_errors.NewDTEErrorSimple("DiscountExceedsSubtotal",
+		return dte_errors.NewDTEErrorSimple("DiscountExceedsBase",
 			"NonSubjectDiscount",
-			s.Document.CreditSummary.NonSubjectDiscount.GetValue(),
-			s.Document.CreditSummary.SubTotal.GetValue())
+			nonSubjectDiscount.InexactFloat64(),
+			totalNonSubject.InexactFloat64())
 	}
 
-	// Verificar total no sujeto
+	var itemsDiscountSum decimal.Decimal
+	for _, item := range s.Document.CreditItems {
+		itemDiscount := decimal.NewFromFloat(item.GetDiscount()).Mul(decimal.NewFromFloat(item.GetQuantity()).Mul(decimal.NewFromFloat(item.GetUnitPrice())))
+		itemsDiscountSum = itemsDiscountSum.Add(itemDiscount.Div(decimal.NewFromInt(100)))
+	}
+
 	if !totalNonSubject.Equal(summaryNonSubject) {
 		logs.Error("Invalid non-subject total", map[string]interface{}{
 			"calculated": totalNonSubject,
@@ -162,7 +157,6 @@ func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 			summaryNonSubject.InexactFloat64())
 	}
 
-	// Verificar total exento
 	if !totalExempt.Equal(summaryExempt) {
 		logs.Error("Invalid exempt total", map[string]interface{}{
 			"calculated": totalExempt,
@@ -173,11 +167,9 @@ func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 			summaryExempt.InexactFloat64())
 	}
 
-	// 3. Validar que subtotal de ventas sea la suma de todos los tipos
 	expectedSubTotalSales := totalTaxed.Add(totalNonSubject).Add(totalExempt)
 	actualSubTotalSales := decimal.NewFromFloat(s.Document.CreditSummary.SubTotalSales.GetValue())
 
-	// Usar una pequeña tolerancia para comparaciones con decimales
 	diff = expectedSubTotalSales.Sub(actualSubTotalSales).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		logs.Error("Invalid subtotal sales", map[string]interface{}{
@@ -195,7 +187,6 @@ func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 	baseTaxed := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue())
 
-	// Si no hay monto gravado, no se requieren impuestos
 	if !baseTaxed.GreaterThan(decimal.Zero) {
 
 		if len(s.Document.CreditSummary.TotalTaxes) > 0 {
@@ -206,19 +197,20 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 		return nil
 	}
 
-	// Verificar que tenga al menos un impuesto válido
 	if len(s.Document.CreditSummary.TotalTaxes) == 0 {
 		logs.Error("No taxes present with non-zero taxed amount")
 		return dte_errors.NewDTEErrorSimple("MissingTaxes")
 	}
 
-	// Validar el cálculo de cada impuesto
+	taxedDiscount := decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue())
+	baseTaxedAfterDiscount := baseTaxed.Sub(taxedDiscount)
+
 	for _, tax := range s.Document.CreditSummary.TotalTaxes {
 		var expectedTax decimal.Decimal
 
 		switch tax.GetCode() {
 		case constants.TaxIVA:
-			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxIvaAmount))
+			expectedTax = baseTaxedAfterDiscount.Mul(decimal.NewFromFloat(constants.TaxIvaAmount))
 		case constants.TaxIVAExport:
 			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxIVAExportAmount))
 		case constants.TaxTourism:
@@ -234,7 +226,6 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 		}
 
 		actualTax := decimal.NewFromFloat(tax.GetValue())
-		// Usar una pequeña tolerancia para comparaciones con decimales
 		diff := expectedTax.Sub(actualTax).Abs()
 		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 			logs.Error("Invalid tax calculation", map[string]interface{}{
@@ -242,9 +233,11 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 				"expected": expectedTax,
 				"actual":   actualTax,
 			})
+
 			return dte_errors.NewDTEErrorSimple("InvalidTaxCalculation",
-				expectedTax.InexactFloat64(),
-				actualTax.InexactFloat64())
+				tax.GetCode(),
+				actualTax.InexactFloat64(),
+				expectedTax.InexactFloat64())
 		}
 	}
 
@@ -258,7 +251,6 @@ func (s *CCFTaxStrategy) validatePerception() *dte_errors.DTEError {
 		expectedPerception := baseTaxed.Mul(decimal.NewFromFloat(0.01))
 		actualPerception := decimal.NewFromFloat(s.Document.CreditSummary.IVAPerception.GetValue())
 
-		// Usar una pequeña tolerancia para comparaciones con decimales
 		diff := expectedPerception.Sub(actualPerception).Abs()
 		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 			return dte_errors.NewDTEErrorSimple("InvalidPerceptionAmount",
@@ -271,13 +263,10 @@ func (s *CCFTaxStrategy) validatePerception() *dte_errors.DTEError {
 }
 
 func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
-	// Obtener total operación
 	totalOperation := decimal.NewFromFloat(s.Document.CreditSummary.TotalOperation.GetValue())
 
-	// Obtener montos que afectan el total a pagar
 	taxedAmount := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue())
 
-	// SubTotal debe ser igual a la suma de totales DESPUÉS de restar descuentos específicos
 	expectedSubTotal := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue()).
 		Sub(decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue())).
 		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalExempt.GetValue())).
@@ -286,7 +275,6 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		Sub(decimal.NewFromFloat(s.Document.CreditSummary.NonSubjectDiscount.GetValue()))
 
 	actualSubTotal := decimal.NewFromFloat(s.Document.CreditSummary.SubTotal.GetValue())
-	// Usar una pequeña tolerancia para comparaciones con decimales
 	diff := expectedSubTotal.Sub(actualSubTotal).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		logs.Error("Invalid subtotal calculation with discounts", map[string]interface{}{
@@ -321,24 +309,19 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		}
 	}
 
-	// Inicializar el total a pagar con el total operación
 	totalToPay := totalOperation
 
 	if taxedAmount.GreaterThan(decimal.Zero) {
-		// Agregar percepción
 		perception := decimal.NewFromFloat(s.Document.CreditSummary.IVAPerception.GetValue())
 		totalToPay = totalToPay.Add(perception)
 
-		// Restar retención IVA
 		ivaRetention := decimal.NewFromFloat(s.Document.CreditSummary.IVARetention.GetValue())
 		totalToPay = totalToPay.Sub(ivaRetention)
 
-		// Restar retención de renta
 		incomeRetention := decimal.NewFromFloat(s.Document.CreditSummary.IncomeRetention.GetValue())
 		totalToPay = totalToPay.Sub(incomeRetention)
 	}
 
-	// Agregar monto no gravado si existe
 	totalNonTaxed := decimal.NewFromFloat(s.Document.CreditSummary.TotalNonTaxed.GetValue())
 	if totalNonTaxed.GreaterThan(decimal.Zero) {
 		totalToPay = totalToPay.Add(totalNonTaxed)
@@ -346,7 +329,6 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 
 	actualTotalToPay := decimal.NewFromFloat(s.Document.CreditSummary.TotalToPay.GetValue())
 
-	// Usar una pequeña tolerancia para comparaciones con decimales
 	diff = totalToPay.Sub(actualTotalToPay).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		logs.Error("Invalid total to pay", map[string]interface{}{
@@ -371,7 +353,6 @@ func ValidateMonetaryAmount(amount float64, fieldName string) *dte_errors.DTEErr
 	multiplier := decimal.NewFromInt(100)
 	scaled := decValue.Mul(multiplier)
 
-	// Usar una pequeña tolerancia para comparaciones con decimales
 	diff := scaled.Sub(decimal.NewFromInt(scaled.IntPart())).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		return dte_errors.NewDTEErrorSimple("InvalidMonetaryAmount",
@@ -383,22 +364,18 @@ func ValidateMonetaryAmount(amount float64, fieldName string) *dte_errors.DTEErr
 }
 
 func (s *CCFTaxStrategy) validateMonetaryAmounts() *dte_errors.DTEError {
-	// Validar IVA Perception
 	if err := ValidateMonetaryAmount(s.Document.CreditSummary.IVAPerception.GetValue(), "iva_perception"); err != nil {
 		return err
 	}
 
-	// Validar Total Operation
 	if err := ValidateMonetaryAmount(s.Document.CreditSummary.TotalOperation.GetValue(), "total_operation"); err != nil {
 		return err
 	}
 
-	// Validar Total To Pay
 	if err := ValidateMonetaryAmount(s.Document.CreditSummary.TotalToPay.GetValue(), "total_to_pay"); err != nil {
 		return err
 	}
 
-	// Validar Payment Amounts
 	for _, payment := range s.Document.CreditSummary.GetPaymentTypes() {
 		if err := ValidateMonetaryAmount(payment.GetAmount(), "payment_amount"); err != nil {
 			return err

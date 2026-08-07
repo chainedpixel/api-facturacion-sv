@@ -1,129 +1,127 @@
 package mapper
 
 import (
-	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper"
 )
 
-// MapperFactory es una fábrica para crear adaptadores de mappers
+// MapperFactory creates request and response mapper adapters for each DTE type.
 type MapperFactory struct{}
 
-// NewMapperFactory crea una nueva instancia de MapperFactory
+// NewMapperFactory creates a new MapperFactory instance.
 func NewMapperFactory() *MapperFactory {
 	return &MapperFactory{}
 }
 
-// CreateInvoiceMapperAdapter crea un adaptador para el mapper de facturas
+// CreateInvoiceMapperAdapter creates a DTEMapper for invoice requests.
 func (f *MapperFactory) CreateInvoiceMapperAdapter() DTEMapper {
-	invoiceMapper := request_mapper.NewInvoiceMapper()
-
-	return &MapperAdapter{
-		MapFunc: func(req interface{}, issuer *dte.IssuerDTE, params ...interface{}) (interface{}, error) {
-			invoiceReq, ok := req.(*structs.CreateInvoiceRequest)
-			if !ok {
-				return nil, fmt.Errorf("invalid request type, expected *structs.CreateInvoiceRequest")
-			}
-			return invoiceMapper.MapToInvoiceData(invoiceReq, issuer)
-		},
-	}
+	m := request_mapper.NewInvoiceMapper()
+	return newTypedMapper[structs.CreateInvoiceRequest](m.MapToInvoiceData)
 }
 
-// CreateCCFMapperAdapter crea un adaptador para el mapper de CCF
+// CreateCCFMapperAdapter creates a DTEMapper for Comprobante de Crédito Fiscal requests.
 func (f *MapperFactory) CreateCCFMapperAdapter() DTEMapper {
-	ccfMapper := request_mapper.NewCCFMapper()
-
-	return &MapperAdapter{
-		MapFunc: func(req interface{}, issuer *dte.IssuerDTE, params ...interface{}) (interface{}, error) {
-			ccfReq, ok := req.(*structs.CreateCreditFiscalRequest)
-			if !ok {
-				return nil, fmt.Errorf("invalid request type, expected *structs.CreateCreditFiscalRequest")
-			}
-			return ccfMapper.MapToCCFData(ccfReq, issuer)
-		},
-	}
+	m := request_mapper.NewCCFMapper()
+	return newTypedMapper[structs.CreateCreditFiscalRequest](m.MapToCCFData)
 }
 
-// CreateCreditNoteMapperAdapter crea un adaptador para el mapper de Notas de Crédito
+// CreateCreditNoteMapperAdapter creates a DTEMapper for credit note requests.
 func (f *MapperFactory) CreateCreditNoteMapperAdapter() DTEMapper {
-	creditNoteMapper := request_mapper.NewCreditNoteMapper()
-
-	return &MapperAdapter{
-		MapFunc: func(req interface{}, issuer *dte.IssuerDTE, params ...interface{}) (interface{}, error) {
-			creditNoteReq, ok := req.(*structs.CreateCreditNoteRequest)
-			if !ok {
-				return nil, fmt.Errorf("invalid request type, expected *structs.CreateCreditNoteRequest")
-			}
-			return creditNoteMapper.MapToCreditNoteData(creditNoteReq, issuer)
-		},
-	}
+	m := request_mapper.NewCreditNoteMapper()
+	return newTypedMapper[structs.CreateCreditNoteRequest](m.MapToCreditNoteData)
 }
 
-// CreateRetentionMapperAdapter crea un adaptador para el mapper de Retenciones
+// CreateDebitNoteMapperAdapter creates a DTEMapper for debit note requests.
+func (f *MapperFactory) CreateDebitNoteMapperAdapter() DTEMapper {
+	m := request_mapper.NewDebitNoteMapper()
+	return newTypedMapper[structs.CreateDebitNoteRequest](m.MapToDebitNoteData)
+}
+
+// CreateRetentionMapperAdapter creates a DTEMapper for retention requests.
 func (f *MapperFactory) CreateRetentionMapperAdapter() DTEMapper {
-	retentionMapper := request_mapper.NewRetentionMapper()
-
-	return &MapperAdapter{
-		MapFunc: func(req interface{}, issuer *dte.IssuerDTE, params ...interface{}) (interface{}, error) {
-			retentionReq, ok := req.(*structs.CreateRetentionRequest)
-			if !ok {
-				return nil, fmt.Errorf("invalid request type, expected *structs.CreateRetentionRequest")
-			}
-			return retentionMapper.MapToRetentionData(retentionReq, issuer)
-		},
-	}
+	m := request_mapper.NewRetentionMapper()
+	return newTypedMapper[structs.CreateRetentionRequest](m.MapToRetentionData)
 }
 
-// CreateInvalidationMapperAdapter crea un adaptador para el mapper de Invalidaciones
-func (f *MapperFactory) CreateInvalidationMapperAdapter() DTEMapper {
-	invalidationMapper := request_mapper.NewInvalidationMapper()
+// CreateRemissionNoteMapperAdapter creates a DTEMapper for remission note requests.
+func (f *MapperFactory) CreateRemissionNoteMapperAdapter() DTEMapper {
+	m := request_mapper.NewRemissionNoteMapper()
+	return newTypedMapper[structs.CreateRemissionNoteRequest](m.MapToRemissionNoteData)
+}
 
-	return &MapperAdapter{
-		MapFunc: func(req interface{}, issuer *dte.IssuerDTE, params ...interface{}) (interface{}, error) {
+// CreateFSEMapperAdapter creates a DTEMapper for Factura de Sujeto Excluido requests.
+func (f *MapperFactory) CreateFSEMapperAdapter() DTEMapper {
+	m := request_mapper.NewFSEMapper()
+	return newTypedMapper[structs.CreateFSERequest](m.MapToFSEData)
+}
+
+// CreateInvalidationMapperAdapter creates a DTEMapper for invalidation requests.
+// It expects two extra params: *dte.DTEDetails and time.Time (emission date).
+func (f *MapperFactory) CreateInvalidationMapperAdapter() DTEMapper {
+	m := request_mapper.NewInvalidationMapper()
+	return newTypedMapperWithParams[structs.CreateInvalidationRequest](
+		func(req *structs.CreateInvalidationRequest, issuer *dte.IssuerDTE, params ...interface{}) (interface{}, error) {
 			baseDte := params[0].(*dte.DTEDetails)
 			emissionDate := params[1].(time.Time)
-
-			invalidationReq, ok := req.(*structs.CreateInvalidationRequest)
-			if !ok {
-				return nil, fmt.Errorf("invalid request type, expected *structs.CreateInvalidationRequest")
-			}
-			return invalidationMapper.MapToInvalidationData(invalidationReq, issuer, baseDte, emissionDate)
+			return m.MapToInvalidationData(req, issuer, baseDte, emissionDate)
 		},
-	}
+	)
 }
 
-// GetInvoiceResponseMapper devuelve la función de mapeo para respuestas de facturas
+// GetInvoiceResponseMapper returns the response mapper function for invoices.
 func (f *MapperFactory) GetInvoiceResponseMapper() ResponseMapperFunc {
 	return func(domain interface{}) interface{} {
 		return response_mapper.ToMHInvoice(domain)
 	}
 }
 
-// GetCCFResponseMapper devuelve la función de mapeo para respuestas de CCF
+// GetCCFResponseMapper returns the response mapper function for CCF documents.
 func (f *MapperFactory) GetCCFResponseMapper() ResponseMapperFunc {
 	return func(domain interface{}) interface{} {
 		return response_mapper.ToMHCreditFiscalInvoice(domain)
 	}
 }
 
-// GetCreditNoteResponseMapper devuelve la función de mapeo para respuestas de Notas de Crédito
+// GetCreditNoteResponseMapper returns the response mapper function for credit notes.
 func (f *MapperFactory) GetCreditNoteResponseMapper() ResponseMapperFunc {
 	return func(domain interface{}) interface{} {
 		return response_mapper.ToMHCreditNote(domain)
 	}
 }
 
-// GetRetentionResponseMapper devuelve la función de mapeo para respuestas de Retenciones
+// GetDebitNoteResponseMapper returns the response mapper function for debit notes.
+func (f *MapperFactory) GetDebitNoteResponseMapper() ResponseMapperFunc {
+	return func(domain interface{}) interface{} {
+		return response_mapper.ToMHDebitNote(domain)
+	}
+}
+
+// GetRetentionResponseMapper returns the response mapper function for retentions.
 func (f *MapperFactory) GetRetentionResponseMapper() ResponseMapperFunc {
 	return func(domain interface{}) interface{} {
 		return response_mapper.ToMHRetention(domain)
 	}
 }
 
-// GetInvalidationResponseMapper devuelve la función de mapeo para respuestas de Invalidaciones
+// GetRemissionNoteResponseMapper returns the response mapper function for remission notes.
+func (f *MapperFactory) GetRemissionNoteResponseMapper() ResponseMapperFunc {
+	return func(domain interface{}) interface{} {
+		return response_mapper.ToMHRemissionNote(domain)
+	}
+}
+
+// GetFSEResponseMapper returns the response mapper function for FSE documents.
+func (f *MapperFactory) GetFSEResponseMapper() ResponseMapperFunc {
+	return func(domain interface{}) interface{} {
+		return response_mapper.ToMHFSE(domain)
+	}
+}
+
+// GetInvalidationResponseMapper returns the response mapper function for invalidations.
 func (f *MapperFactory) GetInvalidationResponseMapper() ResponseMapperFunc {
 	return func(domain interface{}) interface{} {
 		return response_mapper.ToMHInvalidation(domain)

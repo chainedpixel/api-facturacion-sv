@@ -3,11 +3,11 @@ package strategy
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type CCFItemStrategy struct {
@@ -20,27 +20,22 @@ func (s *CCFItemStrategy) Validate() *dte_errors.DTEError {
 	}
 
 	for _, item := range s.Document.CreditItems {
-		// Validar tipos de venta y sus restricciones
 		if err := s.validateItemSaleTypes(&item); err != nil {
 			return err
 		}
 
-		// Validar reglas específicas de CCF para impuestos
 		if err := s.validateCCFTaxRules(&item); err != nil {
 			return err
 		}
 
-		// Validar reglas específicas de tipo 4 para CCF
 		if err := s.validateCCFType4Rules(&item); err != nil {
 			return err
 		}
 
-		// Validar reglas específicas de no gravados para CCF
 		if err := s.validateItemNonTaxedRules(&item); err != nil {
 			return err
 		}
 
-		// Validar reglas específicas de cada item
 		if err := s.validateItem(&item); err != nil {
 			return err
 		}
@@ -103,7 +98,6 @@ func (s *CCFItemStrategy) validateTotalNonTaxed() *dte_errors.DTEError {
 		Sub(ivaRetention).
 		Sub(incomeRetention)
 
-	// Usar comparación con una pequeña tolerancia
 	diff := totalToPay.Sub(expectedTotalToPay).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		logs.Error("Total to pay must be equal to total operation plus sum of non_taxed amounts", map[string]interface{}{
@@ -126,7 +120,6 @@ func (s *CCFItemStrategy) validateTotalNonTaxed() *dte_errors.DTEError {
 }
 
 func (s *CCFItemStrategy) validateCCFTaxRules(item *ccf_models.CreditItem) *dte_errors.DTEError {
-	// Validar que si hay venta gravada debe tener impuestos
 	if item.TaxedSale.GetValue() > 0 && len(item.GetTaxes()) == 0 {
 		logs.Error("No taxes present with non-zero taxed sale")
 		return dte_errors.NewDTEErrorSimple("MissingTaxesItem", item.GetNumber())
@@ -171,7 +164,6 @@ func (s *CCFItemStrategy) validateCCFTaxRules(item *ccf_models.CreditItem) *dte_
 		}
 	}
 
-	// Validar códigos de tributos para items tipo 4
 	if item.GetType() == constants.Impuesto {
 		for _, tax := range item.GetTaxes() {
 			if tax != constants.TaxIVA {
@@ -184,9 +176,7 @@ func (s *CCFItemStrategy) validateCCFTaxRules(item *ccf_models.CreditItem) *dte_
 }
 
 func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dte_errors.DTEError {
-	// Validar venta no gravada
 	if item.NonTaxed.GetValue() > 0 {
-		// No debe tener otros tipos de venta
 		if item.TaxedSale.GetValue() > 0 || item.ExemptSale.GetValue() > 0 || item.NonSubjectSale.GetValue() > 0 {
 			logs.Error("Items with non-taxed amount cannot have other sale types", map[string]interface{}{
 				"itemNumber":     item.GetNumber(),
@@ -198,7 +188,6 @@ func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dt
 			return dte_errors.NewDTEErrorSimple("InvalidMixedSalesWithNonTaxed", item.GetNumber())
 		}
 
-		// No debe tener impuestos
 		if len(item.GetTaxes()) > 0 {
 			logs.Error("Items with non-taxed amount cannot have taxes", map[string]interface{}{
 				"itemNumber": item.GetNumber(),
@@ -207,7 +196,6 @@ func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dt
 			return dte_errors.NewDTEErrorSimple("InvalidTaxesWithNonTaxed", item.GetNumber())
 		}
 
-		// Validar que el precio unitario sea 0
 		if item.GetUnitPrice() != 0 {
 			logs.Error("Items with non-taxed amount must have zero unit price", map[string]interface{}{
 				"itemNumber": item.GetNumber(),
@@ -217,9 +205,7 @@ func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dt
 		}
 	}
 
-	// Validar venta exenta
 	if item.ExemptSale.GetValue() > 0 {
-		// No debe tener otros tipos de venta
 		if item.TaxedSale.GetValue() > 0 || item.NonSubjectSale.GetValue() > 0 || item.NonTaxed.GetValue() > 0 {
 			logs.Error("Items with exempt sale cannot have other sale types", map[string]interface{}{
 				"itemNumber":     item.GetNumber(),
@@ -231,7 +217,6 @@ func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dt
 			return dte_errors.NewDTEErrorSimple("InvalidMixedSalesWithExempt", item.GetNumber())
 		}
 
-		// No debe tener impuestos
 		if len(item.GetTaxes()) > 0 {
 			logs.Error("Items with exempt sale cannot have taxes", map[string]interface{}{
 				"itemNumber": item.GetNumber(),
@@ -241,9 +226,7 @@ func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dt
 		}
 	}
 
-	// Validar venta no sujeta
 	if item.NonSubjectSale.GetValue() > 0 {
-		// No debe tener otros tipos de venta
 		if item.TaxedSale.GetValue() > 0 || item.ExemptSale.GetValue() > 0 || item.NonTaxed.GetValue() > 0 {
 			logs.Error("Items with non-subject sale cannot have other sale types", map[string]interface{}{
 				"itemNumber":     item.GetNumber(),
@@ -255,7 +238,6 @@ func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dt
 			return dte_errors.NewDTEErrorSimple("InvalidMixedSalesWithNonSubject", item.GetNumber())
 		}
 
-		// No debe tener impuestos
 		if len(item.GetTaxes()) > 0 {
 			logs.Error("Items with non-subject sale cannot have taxes", map[string]interface{}{
 				"itemNumber": item.GetNumber(),
@@ -270,13 +252,10 @@ func (s *CCFItemStrategy) validateItemSaleTypes(item *ccf_models.CreditItem) *dt
 
 func (s *CCFItemStrategy) validateCCFType4Rules(item interfaces.Item) *dte_errors.DTEError {
 	if item.GetType() == constants.Impuesto {
-		// Para tipo 4 en CCF, validar que:
-		// 1. Unidad de medida sea 99
 		if item.GetUnitMeasure() != 99 {
 			return dte_errors.NewDTEErrorSimple("InvalidUnitMeasure", item.GetUnitMeasure())
 		}
 
-		// 2. Solo tenga el impuesto IVA (20)
 		if len(item.GetTaxes()) != 1 || item.GetTaxes()[0] != constants.TaxIVA {
 			return dte_errors.NewDTEErrorSimple("InvalidTaxRulesCCF")
 		}

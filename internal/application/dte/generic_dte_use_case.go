@@ -2,112 +2,164 @@ package dte
 
 import (
 	"context"
+	"errors"
+	"strings"
 
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	appPorts "github.com/MarlonG1/api-facturacion-sv/internal/application/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	transmissionPorts "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/dte_documents"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/config"
+	appPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	transmissionPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// GenericDTEUseCase implementa un caso de uso genérico para cualquier tipo de DTE
+// GenericDTEUseCase implements a generic use case for any DTE type
 type GenericDTEUseCase struct {
-	authService    auth.AuthManager
-	dteService     transmissionPorts.DTEManager
-	transmitter    appPorts.BaseTransmitter
-	service        ports.DTEService
-	mapper         mapper.DTEMapper
-	responseMapper mapper.ResponseMapperFunc
-	additionalOps  AdditionalOperationsFunc
+	authService       auth.AuthManager
+	dteService        transmissionPorts.DTEManager
+	transmitter       appPorts.BaseTransmitter
+	service           ports.DTEService
+	sequentialManager transmissionPorts.SequentialNumberManager
+	mapper            mapper.DTEMapper
+	responseMapper    mapper.ResponseMapperFunc
+	additionalOps     AdditionalOperationsFunc
 }
 
-// NewGenericDTEUseCase crea una nueva instancia de GenericDTEUseCase
+// NewGenericDTEUseCase creates a new instance of GenericDTEUseCase
 func NewGenericDTEUseCase(
 	authService auth.AuthManager,
 	dteService transmissionPorts.DTEManager,
 	transmitter appPorts.BaseTransmitter,
 	service ports.DTEService,
+	sequentialManager transmissionPorts.SequentialNumberManager,
 	mapper mapper.DTEMapper,
 	responseMapper mapper.ResponseMapperFunc,
 	additionalOps AdditionalOperationsFunc,
 ) *GenericDTEUseCase {
 	return &GenericDTEUseCase{
-		authService:    authService,
-		dteService:     dteService,
-		transmitter:    transmitter,
-		service:        service,
-		mapper:         mapper,
-		responseMapper: responseMapper,
-		additionalOps:  additionalOps,
+		authService:       authService,
+		dteService:        dteService,
+		transmitter:       transmitter,
+		service:           service,
+		sequentialManager: sequentialManager,
+		mapper:            mapper,
+		responseMapper:    responseMapper,
+		additionalOps:     additionalOps,
 	}
 }
 
-// Create procesa cualquier tipo de DTE utilizando un flujo genérico
+// Create processes any DTE type using a generic flow
 func (u *GenericDTEUseCase) Create(ctx context.Context, req interface{}) (interface{}, *response.SuccessOptions, error) {
-	// 1. Obtener los claims y el token del contexto
 	claims := ctx.Value("claims").(*models.AuthClaims)
 	token := ctx.Value("token").(string)
 
-	// 2. Obtener la información del emisor
 	issuer, err := u.authService.GetIssuer(ctx, claims.BranchID)
 	if err != nil {
 		logs.Error("Error getting issuer information", map[string]interface{}{"error": err.Error()})
 		return nil, nil, err
 	}
 
-	// 3. Mapear a modelo de dominio
 	domainModel, err := u.mapper.MapToDomainModel(req, issuer)
 	if err != nil {
 		logs.Error("Error mapping to domain model", map[string]interface{}{"error": err.Error()})
 		return nil, nil, err
 	}
 
-	// 4. Crear DTE a nivel de servicio
 	result, err := u.service.Create(ctx, domainModel, claims.BranchID)
 	if err != nil {
 		logs.Error("Error creating DTE at service level", map[string]interface{}{"error": err.Error()})
 		return nil, nil, err
 	}
 
-	// 5. Mapear a modelo de hacienda
 	mhModel := u.responseMapper(result)
 
-	// 6. Extraer el código de generación
 	generationCode, err := extractGenerationCode(mhModel)
 	if err != nil {
 		logs.Error("Error extracting generation code", map[string]interface{}{"error": err.Error()})
 		return nil, nil, err
 	}
 
-	// 7. Configurar detalles de respuesta
+	controlNumber, err := extractControlNumber(mhModel)
+	if err != nil {
+		logs.Error("Error extracting control number", map[string]interface{}{"error": err.Error()})
+		return nil, nil, err
+	}
+
 	options := &response.SuccessOptions{
 		Ambient:        config.Server.AmbientCode,
 		GenerationCode: generationCode,
 		EmissionDate:   utils.TimeNow(),
 	}
 
-	// 8. Comenzar la transmisión del documento
 	transmitResult, err := u.transmitter.RetryTransmission(ctx, mhModel, token, claims.NIT)
 	if err != nil {
+		shouldHandleAsContingency := u.shouldHandleAsContingency(err)
+
+		if shouldHandleAsContingency {
+			logs.Info("Transmission failed - will handle as contingency, keeping reservation", map[string]interface{}{
+				"controlNumber": controlNumber,
+				"error":         err.Error(),
+			})
+		} else {
+			rejectionReason := err.Error()
+			haciendaCode := ""
+
+			var haciendaErr *hacienda_error.HaciendaResponseError
+			if errors.As(err, &haciendaErr) {
+				haciendaCode = haciendaErr.Code
+				rejectionReason = haciendaErr.Description
+				if len(haciendaErr.Observations) > 0 {
+					rejectionReason += " | Observaciones: " + strings.Join(haciendaErr.Observations, "; ")
+				}
+				logs.Info("Hacienda error detected for reservation release", map[string]interface{}{
+					"code":        haciendaCode,
+					"description": rejectionReason,
+				})
+			}
+
+			releaseErr := u.sequentialManager.ReleaseReservation(ctx, controlNumber, rejectionReason, haciendaCode, claims.BranchID)
+			if releaseErr != nil {
+				logs.Error("Error releasing reservation after transmission failure", map[string]interface{}{
+					"controlNumber": controlNumber,
+					"error":         releaseErr.Error(),
+				})
+			} else {
+				logs.Info("Reservation released successfully after transmission failure", map[string]interface{}{
+					"controlNumber":   controlNumber,
+					"rejectionReason": rejectionReason,
+					"haciendaCode":    haciendaCode,
+				})
+			}
+		}
+
 		logs.Error("Error transmitting document", map[string]interface{}{"error": err.Error()})
 		return mhModel, options, err
 	}
 	options.ReceptionStamp = transmitResult.ReceptionStamp
 
-	// 9. Guardar el documento en la base de datos
+	confirmErr := u.sequentialManager.ConfirmReservation(ctx, controlNumber, generationCode, claims.BranchID)
+	if confirmErr != nil {
+		logs.Error("Error confirming reservation after successful transmission", map[string]interface{}{
+			"controlNumber": controlNumber,
+			"error":         confirmErr.Error(),
+		})
+		return mhModel, options, confirmErr
+	}
+
 	err = u.dteService.Create(ctx, mhModel, constants.TransmissionNormal, constants.DocumentReceived, transmitResult.ReceptionStamp)
 	if err != nil {
 		logs.Error("Error saving document in database", map[string]interface{}{"error": err.Error()})
 		return mhModel, options, err
 	}
 
-	// 10. Ejecutar operaciones adicionales específicas (si las hay)
 	if u.additionalOps != nil {
 		err = u.additionalOps(ctx, result, claims.BranchID, mhModel)
 		if err != nil {
@@ -119,12 +171,58 @@ func (u *GenericDTEUseCase) Create(ctx context.Context, req interface{}) (interf
 	return mhModel, options, nil
 }
 
-// extractGenerationCode extrae el código de generación usando reflexión
+// extractGenerationCode extracts the generation code using reflection
 func extractGenerationCode(mhModel interface{}) (string, error) {
 	extractor, err := utils.ExtractAuxiliarIdentification(mhModel)
 	if err != nil {
 		return "", err
 	}
 
-	return extractor.Identification.GenerationCode, nil
+	code := extractor.Identification.GenerationCode
+	if code == "" {
+		return "", dte_errors.NewValidationError("RequiredField", "GenerationCode")
+	}
+
+	return code, nil
+}
+
+// extractControlNumber extracts the control number using reflection
+func extractControlNumber(mhModel interface{}) (string, error) {
+	extractor, err := utils.ExtractAuxiliarIdentification(mhModel)
+	if err != nil {
+		return "", err
+	}
+
+	number := extractor.Identification.ControlNumber
+	if number == "" {
+		return "", dte_errors.NewValidationError("RequiredField", "ControlNumber")
+	}
+
+	return number, nil
+}
+
+func (u *GenericDTEUseCase) shouldHandleAsContingency(err error) bool {
+	var validationErr *dte_errors.ValidationError
+	if errors.As(err, &validationErr) {
+		return false
+	}
+
+	var haciendaErr *hacienda_error.HaciendaResponseError
+	if errors.As(err, &haciendaErr) {
+		if haciendaErr.Status == "RECHAZADO" {
+			return false
+		}
+	}
+
+	var generalErr *shared_error.ServiceError
+	if errors.As(err, &generalErr) {
+		return false
+	}
+
+	var businessErr *dte_errors.DTEError
+	if errors.As(err, &businessErr) {
+		return false
+	}
+
+	return true
 }

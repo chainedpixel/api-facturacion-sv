@@ -1,11 +1,12 @@
 package dte
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
 )
 
-// ContingencyDocument representa un documento en estado de contingencia
+// ContingencyDocument represents a document in contingency state
 type ContingencyDocument struct {
 	ID              string    `json:"id,omitempty"`
 	DocumentID      string    `json:"document_id"`

@@ -1,14 +1,14 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
 )
 
-// MapCommonIssuer mapea un emisor común a un modelo de emisor -> Origen: Request
+// MapCommonIssuer maps a common issuer to an issuer model -> Source: Request
 func MapCommonIssuer(client *dte.IssuerDTE) (*models.Issuer, error) {
 	address, err := MapClientAddress(client.Address)
 	if err != nil {

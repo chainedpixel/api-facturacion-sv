@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/validator/strategy"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/validator/strategy"
 )
 
 type InvalidationRulesValidator struct {
@@ -16,10 +16,10 @@ func NewInvalidationRulesValidator(doc *invalidation_models.InvalidationDocument
 	validator := &InvalidationRulesValidator{
 		document: doc,
 		strategies: []interfaces.DTEValidationStrategy{
-			&strategy.InvalidationBasicStrategy{Document: doc},    // Validaciones básicas
-			&strategy.InvalidationDocumentStrategy{Document: doc}, // Validaciones del documento a invalidar
-			&strategy.InvalidationReasonStrategy{Document: doc},   // Validaciones específicas por tipo de anulación
-			&strategy.InvalidationDateStrategy{Document: doc},     // Validaciones de fechas y plazos
+			&strategy.InvalidationBasicStrategy{Document: doc},
+			&strategy.InvalidationDocumentStrategy{Document: doc},
+			&strategy.InvalidationReasonStrategy{Document: doc},
+			&strategy.InvalidationDateStrategy{Document: doc},
 		},
 	}
 	return validator

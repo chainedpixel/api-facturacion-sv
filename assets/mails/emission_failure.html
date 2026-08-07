@@ -1,0 +1,38 @@
+{{define "content"}}
+<div class="vf-summary">
+  <p class="vf-summary-title">Detalle del DTE</p>
+  <table class="vf-kv" cellpadding="0" cellspacing="0" border="0">
+    {{if .ClientName}}<tr><td class="k">Cliente</td><td class="v">{{.ClientName}}</td></tr>{{end}}
+    <tr><td class="k">NIT del emisor</td><td class="v">{{.NIT}}</td></tr>
+    <tr>
+      <td class="k">Sucursal</td>
+      <td class="v">
+        #{{.BranchID}}{{if .BranchAddress}} &mdash; {{.BranchAddress}}{{end}}
+      </td>
+    </tr>
+    <tr>
+      <td class="k">Tipo de DTE</td>
+      <td class="v">{{if .DTETypeLabel}}{{.DTETypeLabel}} ({{.DTEType}}){{else}}{{.DTEType}}{{end}}</td>
+    </tr>
+    <tr><td class="k">Número de control</td><td class="v" style="font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:12px;">{{.ControlNumber}}</td></tr>
+    <tr><td class="k">Intentos realizados</td><td class="v">{{.Attempts}}</td></tr>
+    <tr><td class="k">Código de error</td><td class="v">{{.ErrorCode}}</td></tr>
+    <tr><td class="k">Hora del último intento</td><td class="v">{{.Timestamp}}</td></tr>
+  </table>
+</div>
+<div class="vf-callout">
+  <span class="label">Respuesta de Hacienda</span>
+  {{.LastError}}
+  {{if .HaciendaObservations}}
+  <ul style="margin:8px 0 0 0;padding-left:18px;color:#475569;font-size:13px;">
+    {{range .HaciendaObservations}}<li>{{.}}</li>{{end}}
+  </ul>
+  {{end}}
+</div>
+<hr class="vf-divider">
+<p style="margin:0;color:#475569;font-size:13px;line-height:1.6;">
+  El DTE no pudo ser emitido tras {{.Attempts}} intento(s) consecutivos. Revisa la
+  configuración del emisor, el certificado del firmador y los logs del servicio para
+  determinar la causa raíz antes de reintentar manualmente.
+</p>
+{{end}}

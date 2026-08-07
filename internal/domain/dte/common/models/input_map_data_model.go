@@ -4,9 +4,9 @@ type InputDataCommon struct {
 	Identification *Identification
 	Issuer         *Issuer
 	Receiver       *Receiver
-	Extension      *Extension        `json:"extension,omitempty"`      // opcional
-	RelatedDocs    []RelatedDocument `json:"relatedDocs,omitempty"`    // opcional
-	OtherDocs      []OtherDocument   `json:"otherDocs,omitempty"`      // opcional
-	ThirdPartySale *ThirdPartySale   `json:"thirdPartySale,omitempty"` // opcional
-	Appendixes     []Appendix        `json:"appendixes,omitempty"`     // opcional
+	Extension      *Extension        `json:"extension,omitempty"`
+	RelatedDocs    []RelatedDocument `json:"relatedDocs,omitempty"`
+	OtherDocs      []OtherDocument   `json:"otherDocs,omitempty"`
+	ThirdPartySale *ThirdPartySale   `json:"thirdPartySale,omitempty"`
+	Appendixes     []Appendix        `json:"appendixes,omitempty"`
 }

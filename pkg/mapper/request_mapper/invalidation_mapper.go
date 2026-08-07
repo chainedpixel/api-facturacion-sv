@@ -1,17 +1,18 @@
 package request_mapper
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	identificationVO "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/invalidation"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/google/uuid"
 	"strings"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	identificationVO "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/invalidation"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/google/uuid"
 )
 
 type InvalidationMapper struct{}
@@ -35,7 +36,14 @@ func (i *InvalidationMapper) MapToInvalidationData(req *structs.CreateInvalidati
 		return nil, shared_error.NewFormattedGeneralServiceWithError("InvalidationMapper", "MapToInvalidationData", err, "ErrorMapping", "Invalidation->Document")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(1, 2, document.DocumentType.GetValue())
+	var documentType string
+	if document.DocumentType != nil {
+		documentType = document.DocumentType.GetValue()
+	} else {
+		documentType = baseDte.DTEType
+	}
+
+	identification, err := common.MapCommonRequestIdentification(1, 2, documentType)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("InvalidationMapper", "MapToInvalidationData", err, "ErrorMapping", "Invalidation->Identification")
 	}

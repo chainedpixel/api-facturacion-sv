@@ -2,7 +2,8 @@ package drivers
 
 import (
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
+
+	"github.com/chainedpixel/ordo-factus/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

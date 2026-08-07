@@ -1,10 +1,10 @@
 package fixtures
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// CreateAddressWithEmptyFields crea una dirección con campos vacíos
+// CreateAddressWithEmptyFields creates an address with empty fields
 func CreateAddressWithEmptyFields() *structs.AddressRequest {
 	return &structs.AddressRequest{
 		Department:   "",
@@ -13,14 +13,14 @@ func CreateAddressWithEmptyFields() *structs.AddressRequest {
 	}
 }
 
-// CreateAddressWithInvalidMunicipality crea una dirección con municipio inválido
+// CreateAddressWithInvalidMunicipality creates an address with an invalid municipality
 func CreateAddressWithInvalidMunicipality() *structs.AddressRequest {
 	address := CreateDefaultAddress()
-	address.Municipality = "99" // Código de municipio inválido
+	address.Municipality = "99"
 	return address
 }
 
-// CreateReceiverWithInvalidEmail crea un receptor con email inválido
+// CreateReceiverWithInvalidEmail creates a receiver with an invalid email
 func CreateReceiverWithInvalidEmail() *structs.ReceiverRequest {
 	receiver := CreateDefaultReceiver()
 	invalidEmail := "not-an-email"
@@ -28,7 +28,7 @@ func CreateReceiverWithInvalidEmail() *structs.ReceiverRequest {
 	return receiver
 }
 
-// CreateReceiverWithoutRequiredFields crea un receptor sin campos requeridos
+// CreateReceiverWithoutRequiredFields creates a receiver without required fields
 func CreateReceiverWithoutRequiredFields() *structs.ReceiverRequest {
 	receiver := CreateDefaultReceiver()
 	receiver.Name = nil
@@ -36,7 +36,7 @@ func CreateReceiverWithoutRequiredFields() *structs.ReceiverRequest {
 	return receiver
 }
 
-// CreateExtensionWithMissingFields crea una extensión con campos faltantes
+// CreateExtensionWithMissingFields creates an extension with missing fields
 func CreateExtensionWithMissingFields() *structs.ExtensionRequest {
 	ext := CreateDefaultExtension()
 	ext.DeliveryName = ""
@@ -44,21 +44,21 @@ func CreateExtensionWithMissingFields() *structs.ExtensionRequest {
 	return ext
 }
 
-// CreateAppendixWithInvalidField crea un apéndice con campo inválido
+// CreateAppendixWithInvalidField creates an appendix with an invalid field
 func CreateAppendixWithInvalidField() structs.AppendixRequest {
 	appendix := CreateDefaultAppendix()
 	appendix.Field = ""
 	return appendix
 }
 
-// CreatePaymentWithInvalidCode crea un pago con código inválido
+// CreatePaymentWithInvalidCode creates a payment with an invalid code
 func CreatePaymentWithInvalidCode() structs.PaymentRequest {
 	payment := CreateDefaultPayment()
-	payment.Code = "100" // Código de pago inválido
+	payment.Code = "100"
 	return payment
 }
 
-// CreateThirdPartySaleWithEmptyNIT crea una venta a terceros con NIT vacío
+// CreateThirdPartySaleWithEmptyNIT creates a third-party sale with an empty NIT
 func CreateThirdPartySaleWithEmptyNIT() *structs.ThirdPartySaleRequest {
 	sale := CreateDefaultThirdPartySale()
 	sale.NIT = ""

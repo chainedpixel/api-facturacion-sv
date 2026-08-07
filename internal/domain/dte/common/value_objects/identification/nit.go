@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type NIT struct {
@@ -13,7 +13,6 @@ type NIT struct {
 }
 
 func NewNIT(value string) (*NIT, error) {
-	//En caso de que el NIT tenga guiones, se eliminan para validar el patrón
 	if strings.Contains(value, "-") {
 		value = strings.ReplaceAll(value, "-", "")
 	}
@@ -30,7 +29,7 @@ func NewValidatedNIT(value string) *NIT {
 	return &NIT{Value: value}
 }
 
-// IsValid válido si el NIT tiene 14 o 9 dígitos
+// IsValid validates that the NIT has 14 or 9 digits
 func (n *NIT) IsValid() bool {
 	pattern := `^([0-9]{14}|[0-9]{9})$`
 	matched, _ := regexp.MatchString(pattern, n.Value)

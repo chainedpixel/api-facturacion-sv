@@ -5,8 +5,8 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Quantity struct {
@@ -25,7 +25,7 @@ func NewValidatedQuantity(value float64) *Quantity {
 	return &Quantity{Value: value}
 }
 
-// IsValid válida que el valor de Quantity sea mayor o igual a 0 y menor o igual a 99999999999.99
+// IsValid validates that the Quantity value is greater than 0 and less than or equal to 99999999999.99
 func (a *Quantity) IsValid() bool {
 	value, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", a.Value), 64)
 	return value > 0 && value <= 99999999999.99

@@ -1,14 +1,14 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/location"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/location"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
-// MapCommonRequestAddress mapea una dirección común a un modelo de dirección -> Origen: Request
+// MapCommonRequestAddress maps a common address to an address model -> Source: Request
 func MapCommonRequestAddress(address structs.AddressRequest) (*models.Address, error) {
 	if address.Department == "" || address.Municipality == "" || address.Complement == "" {
 		return nil, shared_error.NewFormattedGeneralServiceError("CommonMapper", "MapCommonRequestAddress", "AddressWithReceiver")
@@ -36,7 +36,7 @@ func MapCommonRequestAddress(address structs.AddressRequest) (*models.Address, e
 	}, nil
 }
 
-// MapClientAddress mapea una dirección de cliente a un modelo de dirección -> Origen: Base de datos
+// MapClientAddress maps a client address to an address model -> Source: Database
 func MapClientAddress(address *user.Address) (*models.Address, error) {
 	return &models.Address{
 		Department:   *location.NewValidatedDepartment(address.Department),

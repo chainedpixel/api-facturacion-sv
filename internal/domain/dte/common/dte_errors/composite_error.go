@@ -2,7 +2,7 @@ package dte_errors
 
 import "strings"
 
-// CompositeError representa un error compuesto que contiene varios errores
+// CompositeError represents a composite error that contains multiple errors
 type CompositeError struct {
 	Errors []error
 }
@@ -13,7 +13,7 @@ func NewCompositeError(errors ...error) *CompositeError {
 	}
 }
 
-// Error Implementación de la interfaz error para el error compuesto para lanzar error principal a nivel de DTEDocument y errores de validación de value objects
+// Error implements the error interface for the composite error to surface the primary error at the DTEDocument level and validation errors from value objects
 func (e *CompositeError) Error() string {
 	var messages []string
 	for _, err := range e.Errors {

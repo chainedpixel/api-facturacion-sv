@@ -1,6 +1,6 @@
 package notification
 
-// NotifiableUser representa un usuario que puede recibir notificaciones
+// NotifiableUser represents a user who can receive notifications
 type NotifiableUser struct {
 	ID          uint   `json:"id,omitempty"`
 	UserID      uint   `json:"user_id"`

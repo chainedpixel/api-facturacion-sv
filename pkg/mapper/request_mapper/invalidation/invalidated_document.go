@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 func MapInvalidatedDocument(baseDTE *dte.DTEDetails, request *structs.CreateInvalidationRequest, emissionDate time.Time) (*invalidation_models.InvalidatedDocument, error) {
@@ -22,25 +22,21 @@ func MapInvalidatedDocument(baseDTE *dte.DTEDetails, request *structs.CreateInva
 		return nil, shared_error.NewFormattedGeneralServiceError("InvalidationMapper", "MapToInvalidatedDocument", "InvalidBaseDTE")
 	}
 
-	// Deserializar JSON del DTE original
 	var dteData map[string]interface{}
 	if err := json.Unmarshal([]byte(baseDTE.JSONData), &dteData); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal DTE data: %w", err)
 	}
 
-	// Extraer datos del receptor del DTE original
 	docType, numDoc, name, email, phone, err := extractReceptorData(dteData)
 	if err != nil {
 		return nil, err
 	}
 
-	// Extraer monto IVA del resumen
 	montoIVA, err := extractIVAAmount(dteData)
 	if err != nil {
 		return nil, err
 	}
 
-	// Crear documento invalidado
 	doc := &invalidation_models.InvalidatedDocument{
 		Type:           *document.NewValidatedDTEType(baseDTE.DTEType),
 		GenerationCode: *identification.NewValidatedGenerationCode(baseDTE.ID),
@@ -50,7 +46,6 @@ func MapInvalidatedDocument(baseDTE *dte.DTEDetails, request *structs.CreateInva
 		IVAAmount:      financial.NewValidatedAmount(montoIVA),
 	}
 
-	// Campos opcionales
 	if phone != nil {
 		doc.Phone = base.NewValidatedPhone(*phone)
 	}
@@ -68,7 +63,6 @@ func MapInvalidatedDocument(baseDTE *dte.DTEDetails, request *structs.CreateInva
 		doc.Email = base.NewValidatedEmail(*email)
 	}
 
-	// Código de generación de reemplazo si aplica
 	if request.ReplacementGenerationCode != nil {
 		doc.ReplacementCode = identification.NewValidatedGenerationCode(*request.ReplacementGenerationCode)
 	}
@@ -81,7 +75,11 @@ func extractReceptorData(dteData map[string]interface{}) (*string, *string, *str
 
 	receptor, ok := dteData["receptor"].(map[string]interface{})
 	if !ok {
-		return nil, nil, nil, nil, nil, nil
+		sujetoExcluido, okSujeto := dteData["sujetoExcluido"].(map[string]interface{})
+		if !okSujeto {
+			return nil, nil, nil, nil, nil, nil
+		}
+		receptor = sujetoExcluido
 	}
 
 	if nombreValue, ok := receptor["nombre"].(string); ok {
@@ -137,7 +135,6 @@ func extractIVAAmount(dteData map[string]interface{}) (float64, error) {
 		return 0, nil
 	}
 
-	// Buscar IVA (código 20)
 	for _, t := range tributos {
 		tributo := t.(map[string]interface{})
 		if tributo["codigoTributo"] == constants.TaxIVA {

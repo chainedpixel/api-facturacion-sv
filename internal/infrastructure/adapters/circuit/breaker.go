@@ -1,23 +1,27 @@
 package circuit
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
 	"sync"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
+// CircuitBreaker implements the circuit breaker pattern to prevent cascading failures.
+// It transitions between Closed, Open, and Half-Open states based on failure thresholds.
 type CircuitBreaker struct {
 	failures    int32
 	lastFailure time.Time
 	threshold   int32
 	resetTime   time.Duration
 	state       constants.State
-	mu          sync.RWMutex
+	mu          sync.Mutex
 }
 
+// NewCircuitBreaker creates a new CircuitBreaker with the given failure threshold and reset duration.
 func NewCircuitBreaker(threshold int32, resetTime time.Duration) *CircuitBreaker {
 	return &CircuitBreaker{
 		threshold: threshold,
@@ -26,9 +30,11 @@ func NewCircuitBreaker(threshold int32, resetTime time.Duration) *CircuitBreaker
 	}
 }
 
+// AllowRequest returns true if the circuit breaker permits a request to proceed.
+// In the Open state, it transitions to Half-Open once the reset timeout has elapsed.
 func (cb *CircuitBreaker) AllowRequest() bool {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 
 	switch cb.state {
 	case constants.StateClosed:
@@ -50,6 +56,7 @@ func (cb *CircuitBreaker) AllowRequest() bool {
 	}
 }
 
+// RecordSuccess resets the failure counter and closes the circuit.
 func (cb *CircuitBreaker) RecordSuccess() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
@@ -63,6 +70,7 @@ func (cb *CircuitBreaker) RecordSuccess() {
 	cb.state = constants.StateClosed
 }
 
+// RecordFailure increments the failure counter and opens the circuit when the threshold is reached.
 func (cb *CircuitBreaker) RecordFailure() {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
@@ -79,14 +87,16 @@ func (cb *CircuitBreaker) RecordFailure() {
 	}
 }
 
+// GetState returns the current state of the circuit breaker.
 func (cb *CircuitBreaker) GetState() constants.State {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 	return cb.state
 }
 
+// GetFailureCount returns the current number of recorded failures.
 func (cb *CircuitBreaker) GetFailureCount() int32 {
-	cb.mu.RLock()
-	defer cb.mu.RUnlock()
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
 	return cb.failures
 }

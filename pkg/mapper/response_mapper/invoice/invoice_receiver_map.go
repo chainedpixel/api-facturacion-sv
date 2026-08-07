@@ -1,12 +1,12 @@
 package invoice
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapInvoiceResponseReceiver mapea un receptor a un modelo de receptor -> Origen: Response
+// MapInvoiceResponseReceiver maps a receiver to a receiver model -> Source: Response
 func MapInvoiceResponseReceiver(receiver interfaces.Receiver) structs.InvoiceReceiver {
 	result := structs.InvoiceReceiver{
 		TipoDocumento: receiver.GetDocumentType(),

@@ -1,36 +1,36 @@
 package interfaces
 
-// DTEDocumentGetter es una interfaz que define los métodos getter que deben ser implementados por un documento DTE
+// DTEDocumentGetter is an interface that defines the getter methods that must be implemented by a DTE document
 type DTEDocumentGetter interface {
-	GetIdentification() Identification      // GetIdentification retorna la identificación del documento
-	GetAppendix() []Appendix                // GetAppendix retorna los anexos del documento
-	GetExtension() Extension                // GetExtension retorna la extensión del documento
-	GetIssuer() Issuer                      // GetIssuer retorna el emisor del documento
-	GetReceiver() Receiver                  // GetReceiver retorna el receptor del documento
-	GetItems() []Item                       // GetItems retorna los items del documento
-	GetSummary() Summary                    // GetSummary retorna el resumen del documento
-	GetRelatedDocuments() []RelatedDocument // GetRelatedDocuments retorna los documentos relacionados
-	GetOtherDocuments() []OtherDocuments    // GetOtherDocuments retorna los otros documentos
-	GetThirdPartySale() ThirdPartySale      // GetThirdPartySale retorna la venta de terceros
+	GetIdentification() Identification
+	GetAppendix() []Appendix
+	GetExtension() Extension
+	GetIssuer() Issuer
+	GetReceiver() Receiver
+	GetItems() []Item
+	GetSummary() Summary
+	GetRelatedDocuments() []RelatedDocument
+	GetOtherDocuments() []OtherDocuments
+	GetThirdPartySale() ThirdPartySale
 }
 
-// DTEDocumentSetter es una interfaz que define los métodos setter que deben ser implementados por un documento DTE
+// DTEDocumentSetter is an interface that defines the setter methods that must be implemented by a DTE document
 type DTEDocumentSetter interface {
-	SetIdentification(identification Identification) error        // SetIdentification establece la identificación del documento
-	SetAppendix(appendix []Appendix) error                        // SetAppendix establece los anexos del documento
-	SetExtension(extension Extension) error                       // SetExtension establece la extensión del documento
-	SetIssuer(issuer Issuer) error                                // SetIssuer establece el emisor del documento
-	SetReceiver(receiver Receiver) error                          // SetReceiver establece el receptor del documento
-	SetItems(items []Item) error                                  // SetItems establece los items del documento
-	SetSummary(summary Summary) error                             // SetSummary establece el resumen del documento
-	SetRelatedDocuments(relatedDocuments []RelatedDocument) error // SetRelatedDocuments establece los documentos relacionados
-	SetOtherDocuments(otherDocuments []OtherDocuments) error      // SetOtherDocuments establece los otros documentos
-	SetThirdPartySale(thirdPartySale ThirdPartySale) error        // SetThirdPartySale establece la venta de terceros
+	SetIdentification(identification Identification) error
+	SetAppendix(appendix []Appendix) error
+	SetExtension(extension Extension) error
+	SetIssuer(issuer Issuer) error
+	SetReceiver(receiver Receiver) error
+	SetItems(items []Item) error
+	SetSummary(summary Summary) error
+	SetRelatedDocuments(relatedDocuments []RelatedDocument) error
+	SetOtherDocuments(otherDocuments []OtherDocuments) error
+	SetThirdPartySale(thirdPartySale ThirdPartySale) error
 }
 
-// DTEDocument es una interfaz que combina los getters y setters de DTEDocument
+// DTEDocument is an interface that combines the getters and setters of DTEDocument
 type DTEDocument interface {
 	DTEDocumentGetter
 	DTEDocumentSetter
-	Validate() error // Validate valida el documento
+	Validate() error
 }

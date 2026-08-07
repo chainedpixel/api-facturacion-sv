@@ -9,18 +9,18 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/retention_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
-	"github.com/MarlonG1/api-facturacion-sv/tests/mocks"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/tests/mocks"
 )
 
 func TestRetentionServiceCreate(t *testing.T) {
@@ -73,7 +73,6 @@ func TestRetentionServiceCreate(t *testing.T) {
 					gomock.Any(),
 				).Return("DTE-06-R0010001-000000000012345", nil)
 
-				// Mock para cada documento electrónico
 				mockDTE.EXPECT().GetByGenerationCode(
 					gomock.Any(),
 					gomock.Any(),
@@ -107,7 +106,6 @@ func TestRetentionServiceCreate(t *testing.T) {
 					gomock.Any(),
 				).Return("DTE-06-R0010001-000000000012345", nil)
 
-				// Mock para documentos electrónicos
 				mockDTE.EXPECT().GetByGenerationCode(
 					gomock.Any(),
 					gomock.Any(),
@@ -133,7 +131,6 @@ func TestRetentionServiceCreate(t *testing.T) {
 				return fixtures.BuildAsInputRetentionData(retention), nil
 			},
 			setupMock: func(mockSeq *mocks.MockSequentialNumberManager, mockDTE *mocks.MockDTEManager) {
-				// No se espera ninguna llamada porque la validación fallará antes
 			},
 			wantErr:   true,
 			errorCode: "InvalidTotalSubjectRetention",
@@ -149,7 +146,6 @@ func TestRetentionServiceCreate(t *testing.T) {
 				return fixtures.BuildAsInputRetentionData(retention), nil
 			},
 			setupMock: func(mockSeq *mocks.MockSequentialNumberManager, mockDTE *mocks.MockDTEManager) {
-				// No se espera ninguna llamada porque la validación fallará antes
 			},
 			wantErr:   true,
 			errorCode: "InvalidTotalSubjectRetention",
@@ -162,13 +158,11 @@ func TestRetentionServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Modificar la retención de IVA para que sea incorrecta
-				retention.RetentionItems[0].RetentionIVA = *financial.NewValidatedAmount(50.0) // Valor incorrecto
+				retention.RetentionItems[0].RetentionIVA = *financial.NewValidatedAmount(50.0)
 
 				return fixtures.BuildAsInputRetentionData(retention), nil
 			},
 			setupMock: func(mockSeq *mocks.MockSequentialNumberManager, mockDTE *mocks.MockDTEManager) {
-				// No se espera ninguna llamada porque la validación fallará antes
 			},
 			wantErr:   true,
 			errorCode: "InvalidRetentionIVA",
@@ -181,14 +175,12 @@ func TestRetentionServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer una fecha fuera del período permitido (más de un mes atrás)
 				oldDate, _ := temporal.NewEmissionDate(time.Now().AddDate(0, -3, 0))
 				retention.RetentionItems[0].EmissionDate = *oldDate
 
 				return fixtures.BuildAsInputRetentionData(retention), nil
 			},
 			setupMock: func(mockSeq *mocks.MockSequentialNumberManager, mockDTE *mocks.MockDTEManager) {
-				// No se espera ninguna llamada porque la validación fallará antes
 			},
 			wantErr:   true,
 			errorCode: "DateOutOfAllowedRange",
@@ -232,7 +224,7 @@ func TestRetentionServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 					gomock.Any(),
-				).Return("DTE-06-R001-INVALID", nil) // Formato inválido
+				).Return("DTE-06-R001-INVALID", nil)
 			},
 			wantErr:   true,
 			errorCode: "InvalidPattern",

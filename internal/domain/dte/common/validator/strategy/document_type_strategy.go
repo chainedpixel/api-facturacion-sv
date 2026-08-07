@@ -1,16 +1,16 @@
 package strategy
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type DocumentTypeStrategy struct {
 	Document interfaces.DTEDocument
 }
 
-// Validate Válida las reglas de tipo de documento de un documento DTE
+// Validate Validates the document type rules of a DTE document
 func (s *DocumentTypeStrategy) Validate() *dte_errors.DTEError {
 	if s.Document == nil || s.Document.GetIdentification() == nil {
 		return nil

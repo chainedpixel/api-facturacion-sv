@@ -13,7 +13,7 @@ type CreateCreditNoteRequest struct {
 	Appendixes     []AppendixRequest         `json:"appendixes,omitempty"`
 }
 
-// CreditNoteItemRequest estructura para mapear un item de Nota de Crédito
+// CreditNoteItemRequest structure for mapping an item of a Credit Note
 type CreditNoteItemRequest struct {
 	ItemRequest
 	NonSubjectSale float64 `json:"non_subject_sale"`
@@ -21,7 +21,7 @@ type CreditNoteItemRequest struct {
 	TaxedSale      float64 `json:"taxed_sale"`
 }
 
-// CreditNoteSummaryRequest estructura para mapear el resumen de una Nota de Crédito
+// CreditNoteSummaryRequest structure for mapping the summary of a Credit Note
 type CreditNoteSummaryRequest struct {
 	SummaryRequest
 	TaxedDiscount   float64 `json:"taxed_discount"`

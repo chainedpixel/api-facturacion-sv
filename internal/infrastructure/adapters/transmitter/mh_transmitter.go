@@ -6,18 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/application/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	models2 "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter/models"
-	ports2 "github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/transmitter/processors"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	models2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	ports2 "github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/processors"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type HaciendaConsultRequest struct {
@@ -44,14 +45,12 @@ func NewMHTransmitter(haciendaAuth ports.HaciendaAuthManager, failedSequenceRepo
 		processors: make(map[string]DocumentProcessor),
 	}
 
-	// Registrar processors
 	t.processors["invalidation"] = &processors.InvalidationProcessor{}
 	t.processors["dte"] = &processors.DTEProcessor{}
 	return t
 }
 
 func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, signedDoc string, systemToken string) (*models2.TransmitResult, error) {
-	// Forzar modo de contingencia si está activado
 	if config.Server.ForceContingency && config.Server.AmbientCode == "00" {
 		logs.Info("Forcing contingency mode - simulating service unavailable")
 		return nil, &hacienda_error.HTTPResponseError{
@@ -67,7 +66,6 @@ func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, sign
 		return nil, fmt.Errorf("no processor found for document type: %T", document)
 	}
 
-	// Preparar request
 	req, err := processor.ProcessRequest(signedDoc, document)
 	if err != nil {
 		logs.Error("Failed to process request", map[string]interface{}{
@@ -77,14 +75,12 @@ func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, sign
 		return nil, err
 	}
 
-	// Enviar a Hacienda
 	resp, err := t.SendToHacienda(ctx, req, systemToken)
 	if err != nil {
 		t.handleFailedSequence(ctx, err, document, req)
 		return nil, err
 	}
 
-	// Procesar respuesta
 	return processor.ProcessResponse(resp)
 }
 
@@ -174,51 +170,109 @@ func (t *MHTransmitter) SendToHacienda(ctx context.Context, request *models2.Hac
 	}
 	defer resp.Body.Close()
 
-	// Leer el cuerpo de la respuesta
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	var haciendaResp models2.HaciendaResponse
-	if err := json.Unmarshal(body, &haciendaResp); err == nil {
-
-		if haciendaResp.Status == "RECHAZADO" {
-			logs.Error("Document rejected by Hacienda", map[string]interface{}{
-				"code":         haciendaResp.MessageCode,
-				"message":      haciendaResp.DescriptionMessage,
-				"status":       haciendaResp.Status,
-				"observations": haciendaResp.Observations,
-				"processedAt":  haciendaResp.ProcessingDate,
-			})
-			return nil, hacienda_error.NewHaciendaError(&haciendaResp, resp.StatusCode)
+	if len(body) == 0 {
+		logs.Error("Hacienda returned empty response body", map[string]interface{}{
+			"statusCode": resp.StatusCode,
+			"url":        url,
+			"method":     "POST",
+		})
+		return nil, &hacienda_error.HTTPResponseError{
+			StatusCode: resp.StatusCode,
+			Body:       body,
+			URL:        url,
+			Method:     "POST",
 		}
-		return &haciendaResp, nil
 	}
 
-	var response models2.HaciendaResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("error decoding response: %w, body: %s", err, string(body))
+	var haciendaResp models2.HaciendaResponse
+	if err := json.Unmarshal(body, &haciendaResp); err != nil {
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			logs.Error("Hacienda returned non-2xx status code with invalid JSON", map[string]interface{}{
+				"statusCode": resp.StatusCode,
+				"body":       string(body),
+				"url":        url,
+				"method":     "POST",
+			})
+			return nil, &hacienda_error.HTTPResponseError{
+				StatusCode: resp.StatusCode,
+				Body:       body,
+				URL:        url,
+				Method:     "POST",
+			}
+		}
+
+		logs.Error("Failed to unmarshal Hacienda response", map[string]interface{}{
+			"error":      err.Error(),
+			"body":       string(body),
+			"statusCode": resp.StatusCode,
+		})
+		return nil, &hacienda_error.HTTPResponseError{
+			StatusCode: resp.StatusCode,
+			Body:       body,
+			URL:        url,
+			Method:     "POST",
+		}
 	}
 
-	return &response, nil
+	if haciendaResp.Status == "" {
+		logs.Error("Hacienda response missing required field 'estado'", map[string]interface{}{
+			"response": string(body),
+			"url":      url,
+		})
+		return nil, &hacienda_error.HTTPResponseError{
+			StatusCode: resp.StatusCode,
+			Body:       body,
+			URL:        url,
+			Method:     "POST",
+		}
+	}
+
+	if haciendaResp.Status == "RECHAZADO" {
+		logs.Error("Document rejected by Hacienda", map[string]interface{}{
+			"code":         haciendaResp.MessageCode,
+			"message":      haciendaResp.DescriptionMessage,
+			"status":       haciendaResp.Status,
+			"observations": haciendaResp.Observations,
+			"processedAt":  haciendaResp.ProcessingDate,
+		})
+		return nil, hacienda_error.NewHaciendaError(&haciendaResp, resp.StatusCode)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		logs.Error("Hacienda returned non-2xx status code", map[string]interface{}{
+			"statusCode": resp.StatusCode,
+			"body":       string(body),
+			"url":        url,
+			"method":     "POST",
+		})
+		return nil, &hacienda_error.HTTPResponseError{
+			StatusCode: resp.StatusCode,
+			Body:       body,
+			URL:        url,
+			Method:     "POST",
+		}
+	}
+
+	return &haciendaResp, nil
 }
 
 func (t *MHTransmitter) handleFailedSequence(ctx context.Context, err error, document interface{}, req *models2.HaciendaRequest) {
-	// Only register if it's a Hacienda error
 	var haciendaErr *hacienda_error.HaciendaResponseError
 	if !errors.As(err, &haciendaErr) {
 		return
 	}
 
-	// Extract necessary information for failed sequence
 	claims, ok := ctx.Value("claims").(*models.AuthClaims)
 	if !ok {
 		logs.Error("Failed to get claims from context for failed sequence", nil)
 		return
 	}
 
-	// Extract sequence number from control number
 	_, dteType, _, sequenceNumber, extractErr := processors.GetDocumentRequestData(document)
 	if extractErr != nil {
 		logs.Error("Failed to extract document data for failed sequence", map[string]interface{}{
@@ -227,10 +281,8 @@ func (t *MHTransmitter) handleFailedSequence(ctx context.Context, err error, doc
 		return
 	}
 
-	// Get current year
 	currentYear := uint(utils.TimeNow().Year())
 
-	// Register the failed sequence
 	registrationErr := t.failedSequenceRepo.RegisterFailedSequence(
 		ctx,
 		claims.BranchID,
@@ -261,7 +313,6 @@ func (t *MHTransmitter) handleFailedSequence(ctx context.Context, err error, doc
 }
 
 func formatHaciendaErrorResponse(err *hacienda_error.HaciendaResponseError) string {
-	// Convert the Hacienda error to a JSON string for storage
 	response := map[string]interface{}{
 		"status":         err.Status,
 		"code":           err.Code,
@@ -286,7 +337,6 @@ func formatHaciendaErrorResponse(err *hacienda_error.HaciendaResponseError) stri
 func (t *MHTransmitter) getProcessor(document interface{}) DocumentProcessor {
 	var docMap map[string]interface{}
 
-	// Si es string JSON, parsearlo
 	if jsonStr, ok := document.(string); ok {
 		if err := json.Unmarshal([]byte(jsonStr), &docMap); err != nil {
 			logs.Error("Failed to parse document JSON", map[string]interface{}{
@@ -295,7 +345,6 @@ func (t *MHTransmitter) getProcessor(document interface{}) DocumentProcessor {
 			return nil
 		}
 	} else {
-		// Si no es string, intentar convertir directamente
 		jsonBytes, err := json.Marshal(document)
 		if err != nil {
 			logs.Error("Failed to marshal document", map[string]interface{}{
@@ -311,13 +360,11 @@ func (t *MHTransmitter) getProcessor(document interface{}) DocumentProcessor {
 		}
 	}
 
-	// Determinar el tipo de documento basado en su estructura
 	if isInvalidationDocument(docMap) {
 		logs.Info("Document identified as invalidation")
 		return t.processors["invalidation"]
 	}
 
-	// Si no es invalidación, se asume que es un DTE
 	logs.Info("Document identified as DTE")
 	return t.processors["dte"]
 }
@@ -345,6 +392,5 @@ func isInvalidationDocument(doc map[string]interface{}) bool {
 	_, hasSummary := doc["resumen"]
 	_, hasItems := doc["cuerpoDocumento"]
 
-	// Si tiene resumen o items, NO es una invalidación
 	return !(hasSummary || hasItems)
 }

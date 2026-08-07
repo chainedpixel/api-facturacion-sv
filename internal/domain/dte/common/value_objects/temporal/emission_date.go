@@ -3,9 +3,9 @@ package temporal
 import (
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type EmissionDate struct {
@@ -32,7 +32,7 @@ func NewValidatedEmissionDate(value time.Time) *EmissionDate {
 	return &EmissionDate{Value: value}
 }
 
-// IsValid válido si la fecha no es cero y es menor a la fecha actual
+// IsValid validates that the date is not zero and is before the current date
 func (ed *EmissionDate) IsValid() bool {
 	return !ed.Value.IsZero() && ed.Value.Before(utils.TimeNow().Add(time.Hour*24))
 }

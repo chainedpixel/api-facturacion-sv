@@ -2,7 +2,7 @@ package dte
 
 import "time"
 
-// ControlNumberSequence representa la secuencia de números de control para DTEs
+// ControlNumberSequence represents the control number sequence for DTEs
 type ControlNumberSequence struct {
 	ID         uint      `json:"id,omitempty"`
 	BranchID   uint      `json:"branch_id"`

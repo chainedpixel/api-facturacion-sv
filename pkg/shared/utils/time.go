@@ -16,7 +16,7 @@ func TimeInit() error {
 	return nil
 }
 
-// TimeNow retorna el tiempo actual en la zona horaria configurada
+// TimeNow returns the current time in the configured timezone
 func TimeNow() time.Time {
 	return time.Now().In(timezone)
 }

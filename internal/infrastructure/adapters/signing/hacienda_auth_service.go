@@ -4,20 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	ports2 "github.com/MarlonG1/api-facturacion-sv/internal/application/ports"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	errPackage "github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/config"
+	ports2 "github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	errPackage "github.com/chainedpixel/ordo-factus/internal/infrastructure/error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type HaciendaAuthService struct {
@@ -39,7 +40,7 @@ type haciendaAuthResponse struct {
 	} `json:"body"`
 }
 
-// NewHaciendaAuthService crea una instancia de HaciendaAuthService. Recibe un cache de tokens de Hacienda.
+// NewHaciendaAuthService creates an instance of HaciendaAuthService. Receives a Hacienda token cache.
 func NewHaciendaAuthService(cache ports.CacheManager, authService auth.AuthManager) ports2.HaciendaAuthManager {
 	return &HaciendaAuthService{
 		authService: authService,
@@ -48,7 +49,7 @@ func NewHaciendaAuthService(cache ports.CacheManager, authService auth.AuthManag
 	}
 }
 
-// GetOrCreateHaciendaToken obtiene un token de Hacienda, primero verificando la caché.
+// GetOrCreateHaciendaToken retrieves a Hacienda token, first checking the cache.
 func (s *HaciendaAuthService) GetOrCreateHaciendaToken(ctx context.Context, systemToken string) (string, error) {
 	haciendaToken, err := s.getFromCache(systemToken)
 	if err == nil {
@@ -57,7 +58,6 @@ func (s *HaciendaAuthService) GetOrCreateHaciendaToken(ctx context.Context, syst
 	}
 
 	logs.Info("Token not found in cache, starting process to get it")
-	//Obtener del contexto los claims
 	claims, ok := ctx.Value("claims").(*models.AuthClaims)
 	if !ok {
 		logs.Error("Claims not found in context")
@@ -65,7 +65,6 @@ func (s *HaciendaAuthService) GetOrCreateHaciendaToken(ctx context.Context, syst
 	}
 	logs.Info("Claims found in context", map[string]interface{}{"claims": claims})
 
-	//Obtener las credenciales de hacienda
 	haciendaCreds, err := s.authService.GetHaciendaCredentials(ctx, claims.NIT, systemToken)
 	if err != nil {
 		logs.Error("Error getting hacienda credentials", map[string]interface{}{"error": err.Error()})

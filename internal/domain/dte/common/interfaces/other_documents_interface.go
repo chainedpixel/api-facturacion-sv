@@ -1,44 +1,44 @@
 package interfaces
 
-// OtherDocumentsGetter es una interfaz que define los métodos getter que debe implementar un documento
+// OtherDocumentsGetter is an interface that defines the getter methods that a document must implement
 type OtherDocumentsGetter interface {
-	GetAssociatedDocument() int // GetAssociatedDocument obtiene el documento asociado
-	GetDescription() string     // GetDescription obtiene la descripción del documento
-	GetDetail() string          // GetDetail obtiene el detalle del documento
-	GetDoctor() DoctorInfo      // GetDoctor obtiene la información del doctor
+	GetAssociatedDocument() int
+	GetDescription() string
+	GetDetail() string
+	GetDoctor() DoctorInfo
 }
 
-// OtherDocumentsSetter es una interfaz que define los métodos setter que debe implementar un documento
+// OtherDocumentsSetter is an interface that defines the setter methods that a document must implement
 type OtherDocumentsSetter interface {
-	SetAssociatedDocument(associatedDocument int) error // SetAssociatedDocument establece el documento asociado
-	SetDescription(description string) error            // SetDescription establece la descripción del documento
-	SetDetail(detail string) error                      // SetDetail establece el detalle del documento
-	SetDoctor(doctor DoctorInfo) error                  // SetDoctor establece la información del doctor
+	SetAssociatedDocument(associatedDocument int) error
+	SetDescription(description string) error
+	SetDetail(detail string) error
+	SetDoctor(doctor DoctorInfo) error
 }
 
-// OtherDocuments es una interfaz que combina los getters y setters de OtherDocuments
+// OtherDocuments is an interface that combines the getters and setters of OtherDocuments
 type OtherDocuments interface {
 	OtherDocumentsGetter
 	OtherDocumentsSetter
 }
 
-// DoctorInfoGetter es una interfaz que define los métodos getter que debe implementar un doctor
+// DoctorInfoGetter is an interface that defines the getter methods that a doctor must implement
 type DoctorInfoGetter interface {
-	GetName() string           // GetName obtiene el nombre del doctor
-	GetServiceType() int       // GetServiceType obtiene el tipo de servicio del doctor
-	GetNIT() string            // GetNIT obtiene el NIT del doctor
-	GetIdentification() string // GetIdentification obtiene la identificación del doctor
+	GetName() string
+	GetServiceType() int
+	GetNIT() string
+	GetIdentification() string
 }
 
-// DoctorInfoSetter es una interfaz que define los métodos setter que debe implementar un doctor
+// DoctorInfoSetter is an interface that defines the setter methods that a doctor must implement
 type DoctorInfoSetter interface {
-	SetName(name string) error                     // SetName establece el nombre del doctor
-	SetServiceType(serviceType int) error          // SetServiceType establece el tipo de servicio del doctor
-	SetNIT(nit string) error                       // SetNIT establece el NIT del doctor
-	SetIdentification(identification string) error // SetIdentification establece la identificación del doctor
+	SetName(name string) error
+	SetServiceType(serviceType int) error
+	SetNIT(nit string) error
+	SetIdentification(identification string) error
 }
 
-// DoctorInfo es una interfaz que combina los getters y setters de DoctorInfo
+// DoctorInfo is an interface that combines the getters and setters of DoctorInfo
 type DoctorInfo interface {
 	DoctorInfoGetter
 	DoctorInfoSetter

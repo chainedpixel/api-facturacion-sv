@@ -3,23 +3,24 @@ package services
 import (
 	"context"
 	"errors"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
-	"github.com/MarlonG1/api-facturacion-sv/tests/mocks"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/tests/mocks"
 )
 
 func TestInvalidationServiceValidate(t *testing.T) {
@@ -101,8 +102,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 			setupInvalidation: func() (*invalidation_models.InvalidationDocument, error) {
 				doc, _ := fixtures.BuildInvalidationWithReplacement()
 
-				// Establecer una fecha muy antigua para el documento original
-				oldDate, _ := temporal.NewEmissionDate(time.Now().AddDate(0, -6, 0)) // 6 meses atrás
+				oldDate, _ := temporal.NewEmissionDate(time.Now().AddDate(0, -6, 0))
 				doc.Document.EmissionDate = *oldDate
 
 				return doc, nil
@@ -114,7 +114,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 			name: "Error - Invalidation with Invalid Reception Stamp",
 			setupInvalidation: func() (*invalidation_models.InvalidationDocument, error) {
 				doc, _ := fixtures.BuildInvalidationWithReplacement()
-				doc.Document.ReceptionStamp = "INVALID_STAMP" // No cumple con el patrón requerido
+				doc.Document.ReceptionStamp = "INVALID_STAMP"
 				return doc, nil
 			},
 			wantErr:   true,
@@ -125,8 +125,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 			setupInvalidation: func() (*invalidation_models.InvalidationDocument, error) {
 				doc, _ := fixtures.BuildInvalidationWithReplacement()
 
-				// Crear un tipo de documento inválido
-				invalidType := document.NewValidatedDTEType("99") // Tipo inexistente
+				invalidType := document.NewValidatedDTEType("99")
 				doc.Document.Type = *invalidType
 
 				return doc, nil
@@ -191,14 +190,12 @@ func TestInvalidationServiceValidateStatus(t *testing.T) {
 				}
 			},
 			setupMock: func(mockDTE *mocks.MockDTEManager) {
-				// El documento original es válido
 				mockDTE.EXPECT().VerifyStatus(
 					gomock.Any(),
 					gomock.Any(),
 					"DTE-01-00000001-000000000000001",
 				).Return(constants.DocumentReceived, nil)
 
-				// El documento de reemplazo es válido
 				mockDTE.EXPECT().VerifyStatus(
 					gomock.Any(),
 					gomock.Any(),
@@ -218,7 +215,6 @@ func TestInvalidationServiceValidateStatus(t *testing.T) {
 				}
 			},
 			setupMock: func(mockDTE *mocks.MockDTEManager) {
-				// El documento original es válido
 				mockDTE.EXPECT().VerifyStatus(
 					gomock.Any(),
 					gomock.Any(),
@@ -300,14 +296,12 @@ func TestInvalidationServiceValidateStatus(t *testing.T) {
 				}
 			},
 			setupMock: func(mockDTE *mocks.MockDTEManager) {
-				// El documento original es válido
 				mockDTE.EXPECT().VerifyStatus(
 					gomock.Any(),
 					gomock.Any(),
 					"DTE-01-00000001-000000000000001",
 				).Return(constants.DocumentReceived, nil)
 
-				// El documento de reemplazo es inválido
 				mockDTE.EXPECT().VerifyStatus(
 					gomock.Any(),
 					gomock.Any(),

@@ -25,8 +25,10 @@
 x-app-environment: &app-environment
   # Configuración de la aplicación
   APP_NAME: DTE-Microservice
+  API_VERSION: 3.0.0
 
   APP_LANG: es # Actualmente soporta es y en
+  APP_LANG_PATH: /assets/i18n/
   DEBUG: true
   FORCE_CONTINGENCY: false # Forzar el uso de contingencia
   RUN_MIGRATION: false
@@ -38,7 +40,7 @@ x-app-environment: &app-environment
   JWT_SECRET: TU-SECRET # Cambiar por tu cadena secreta
 
   LOG_LEVEL: debug
-  LOG_PATH: /pkg/shared/logs/
+  LOG_PATH: /assets/logs/
   LOG_FILE_LOGGING: true
 
   # Configuración de bases de datos
@@ -68,6 +70,14 @@ x-app-environment: &app-environment
   MH_CONTINGENCY_URL: https://apitest.dtes.mh.gob.sv/fesv/contingencia
   MH_NULLIFY_URL: https://apitest.dtes.mh.gob.sv/fesv/anulardte
 
+  SMTP_HOST:
+  SMTP_PORT: 587
+  SMTP_USERNAME:
+  SMTP_PASSWORD:
+  SMTP_FROM:
+  SMTP_TLS: true
+  NOTIFY_COOLDOWN_MINUTES: 15
+
 x-mysql-environment: &mysql-environment
   MYSQL_ROOT_PASSWORD: root_password
   MYSQL_DATABASE: dte_db
@@ -75,7 +85,6 @@ x-mysql-environment: &mysql-environment
   MYSQL_PASSWORD: app_password
 
 services:
-  # Servicio de MySQL
   mysql:
     image: mysql:8.0
     container_name: mysql-container
@@ -90,8 +99,6 @@ services:
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password
     networks:
       - dte_network
-
-  # Servicio de Redis
   redis:
     image: redis:7.4.2
     container_name: redis-container
@@ -103,8 +110,6 @@ services:
     command: redis-server
     networks:
       - dte_network
-
-  # Servicio de Firmador de Hacienda
   signer:
     image: svfe/svfe-api-firmador:v20230109
     container_name: signer-container
@@ -114,8 +119,6 @@ services:
       - "./temp:/uploads"
     networks:
       - dte_network
-
-  # Servicio para producción
   backend:
     image: golang:1.23-alpine
     container_name: dte-container
@@ -132,26 +135,6 @@ services:
       <<: *app-environment
     networks:
       - dte_network
-
-  # Servicio para desarrollo (Hot Reload)
-  backend-dev:
-    image: golang:1.23-alpine
-    container_name: dte-container-dev
-    volumes:
-      - ../:/app
-    working_dir: /app
-    ports:
-      - "7319:7319"
-    command: sh -c "go mod download && go run ./cmd/main.go"
-    depends_on:
-      - mysql
-      - redis
-    environment:
-      <<: *app-environment
-    networks:
-      - dte_network
-    profiles:
-      - dev
 
 volumes:
   mysql_data:

@@ -3,13 +3,15 @@ package jobs
 import (
 	"context"
 	"errors"
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/contingency"
 	"sync/atomic"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/config/drivers"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
+
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type RetransmissionJob struct {
@@ -17,6 +19,7 @@ type RetransmissionJob struct {
 	ContingencyService contingency.ContingencyManager
 	IsRunning          atomic.Bool
 	MaxExecutionTime   time.Duration
+	Bus                event.Bus
 }
 
 func NewRetransmissionJob(contingencyService contingency.ContingencyManager, connection *drivers.DbConnection) *RetransmissionJob {
@@ -27,9 +30,12 @@ func NewRetransmissionJob(contingencyService contingency.ContingencyManager, con
 	}
 }
 
+func (j *RetransmissionJob) SetEventBus(bus event.Bus) {
+	j.Bus = bus
+}
+
 // Execute ejecuta el trabajo de retransmisión de documentos en contingencia.
 func (j *RetransmissionJob) Execute() {
-	// Evitar ejecuciones concurrentes
 	if !j.IsRunning.CompareAndSwap(false, true) {
 		logs.Warn("Job already running, skipping execution")
 		return
@@ -69,10 +75,17 @@ func (j *RetransmissionJob) handleExecutionError(err error) {
 			"MaxExecutionTime": j.MaxExecutionTime,
 			"error":            err.Error(),
 		})
-		return
+	} else {
+		logs.Error("Job execution failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 
-	logs.Error("Job execution failed", map[string]interface{}{
-		"error": err.Error(),
-	})
+	if j.Bus != nil {
+		j.Bus.Publish(context.Background(), event.RetransmissionJobFailedEvent{
+			JobName:        "contingency_retransmission",
+			LastError:      err.Error(),
+			OccurredAtTime: time.Now(),
+		})
+	}
 }

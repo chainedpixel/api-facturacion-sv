@@ -1,20 +1,20 @@
 package db_models
 
-// DTEDetails es una estructura que representa los detalles de un DTE almacenados en la base de datos.
-// Se utiliza para almacenar los detalles de un DTE en la base de datos y recuperarlos para su procesamiento.
-// Los detalles de un DTE se almacenan en la base de datos para su posterior procesamiento y envío a Hacienda.
+// DTEDetails is a structure that represents the details of a DTE stored in the database.
+// It is used to store DTE details in the database and retrieve them for processing.
+// The details of a DTE are stored in the database for subsequent processing and submission to Hacienda.
 //
-// Para más información de la estructura de un DTE ver: https://factura.gob.sv/informacion-tecnica-y-funcional/
-// en la sección de "Documentos de Sistema de Transmisión DTE", documento: "3. Manual Funcional del Sistema de Transmisión"
-// página 53 del documento PDF.
+// For more information about the structure of a DTE see: https://factura.gob.sv/informacion-tecnica-y-funcional/
+// in the section "Documentos de Sistema de Transmisión DTE", document: "3. Manual Funcional del Sistema de Transmisión"
+// page 53 of the PDF document.
 //
-// Nota: El DTE no se almacena firmado, solo se almacena en formato JSON, formato previo a la firma, la firma es el propio DTE
-// firmado con la llave privada del emisor en formato JWT.
+// Note: The DTE is not stored signed; it is only stored in JSON format, the format prior to signing. The signature is the DTE itself
+// signed with the issuer's private key in JWT format.
 //
-// El campo de DTEType indica el tipo de DTE, para más información sobre los tipos de DTE ver:
+// The DTEType field indicates the type of DTE. For more information about DTE types see:
 // https://factura.gob.sv/informacion-tecnica-y-funcional/
-// en la sección de "Documentos de Sistema de Transmisión DTE", documento: "2. Catálogos- Sistema de Transmisión"
-// página 5 del documento PDF y revisar /internal/domain/dte/common/constants/dte_type.go
+// in the section "Documentos de Sistema de Transmisión DTE", document: "2. Catálogos- Sistema de Transmisión"
+// page 5 of the PDF document and review /internal/domain/dte/common/constants/dte_type.go
 type DTEDetails struct {
 	ID             string  `gorm:"column:id;varchar(36);primaryKey;not null;index:idx_dte_details"`
 	DTEType        string  `gorm:"column:dte_type;varchar(2);not null;index:idx_dte_type"`

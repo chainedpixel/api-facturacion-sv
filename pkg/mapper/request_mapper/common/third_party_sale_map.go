@@ -1,13 +1,13 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
-// MapCommonRequestThirdPartySale mapea una venta a tercero a un modelo
+// MapCommonRequestThirdPartySale maps a third-party sale to a model
 func MapCommonRequestThirdPartySale(sale *structs.ThirdPartySaleRequest) (*models.ThirdPartySale, error) {
 	if sale.Name == "" || sale.NIT == "" {
 		return nil, shared_error.NewFormattedGeneralServiceError(

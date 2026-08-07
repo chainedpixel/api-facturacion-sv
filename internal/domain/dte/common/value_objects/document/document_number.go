@@ -1,9 +1,10 @@
 package document
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
 	"regexp"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 const (
@@ -39,13 +40,11 @@ func (d *DocumentNumber) GetValue() string {
 }
 
 func (d *DocumentNumber) IsValid() bool {
-	// Validar formato fisico tradicional
 	if d.DocumentType == 1 {
 		matchString, _ := regexp.MatchString(PhysicalFormat, d.Number)
 		return matchString
 	}
 
-	// Validar formato electronico UUID
 	matchString, _ := regexp.MatchString(ElectronicFormat, d.Number)
 	return matchString
 }

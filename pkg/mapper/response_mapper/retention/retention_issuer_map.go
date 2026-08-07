@@ -1,9 +1,9 @@
 package retention
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
 func MapRetentionResponseIssuer(issuer interfaces.Issuer) structs.RetentionIssuer {
@@ -19,7 +19,6 @@ func MapRetentionResponseIssuer(issuer interfaces.Issuer) structs.RetentionIssue
 		Correo:              issuer.GetEmail(),
 	}
 
-	// Mapear campos opcionales si tienen valor
 	if name := issuer.GetCommercialName(); name != "" {
 		result.NombreComercial = &name
 	}

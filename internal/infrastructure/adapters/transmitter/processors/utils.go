@@ -3,9 +3,10 @@ package processors
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
 	"strconv"
 	"strings"
+
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 func GetDocumentRequestData(document interface{}) (int, string, string, int, error) {
@@ -20,14 +21,12 @@ func GetDocumentRequestData(document interface{}) (int, string, string, int, err
 		return 0, "", "", 0, err
 	}
 
-	// Buscar el objeto identificacion
 	identification, ok := docMap["identificacion"].(map[string]interface{})
 	if !ok {
 		logs.Error("Missing or invalid identificacion object")
 		return 0, "", "", 0, fmt.Errorf("missing or invalid identificacion object")
 	}
 
-	// Extraer version
 	version, ok := identification["version"].(float64)
 	if !ok {
 		logs.Error("Missing or invalid version field")
@@ -73,7 +72,6 @@ func GetDocumentRequestData(document interface{}) (int, string, string, int, err
 }
 
 func extractCorrelativo(numeroControl string) (int, error) {
-	// Separar por guiones: "DTE-03-00000000-000000000000085" -> ["DTE", "03", "00000000", "000000000000085"]
 	parts := strings.Split(numeroControl, "-")
 	if len(parts) != 4 {
 		return 0, fmt.Errorf("invalid numeroControl format")

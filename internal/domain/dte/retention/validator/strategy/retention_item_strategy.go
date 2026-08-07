@@ -1,12 +1,13 @@
 package strategy
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/retention/retention_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/shopspring/decimal"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/shopspring/decimal"
 )
 
 type RetentionItemStrategy struct {
@@ -57,7 +58,7 @@ func (s *RetentionItemStrategy) ValidateAmountAndCode() *dte_errors.DTEError {
 	return nil
 }
 
-// ValidateDateRange valida que las fechas de los documentos físicos estén dentro del plazo permitido
+// ValidateDateRange validates that the dates of the physical documents are within the allowed period
 func (s *RetentionItemStrategy) ValidateDateRange() *dte_errors.DTEError {
 	if s.Document == nil || len(s.Document.RetentionItems) == 0 {
 		return nil
@@ -67,7 +68,6 @@ func (s *RetentionItemStrategy) ValidateDateRange() *dte_errors.DTEError {
 	for _, item := range s.Document.RetentionItems {
 
 		docDate := item.EmissionDate.GetValue()
-		// Verificar si la fecha del documento está dentro del rango permitido
 		if !isWithinAllowedPeriod(docDate, creDate) {
 			logs.Info("Document date out of allowed range", map[string]interface{}{
 				"item_number":    item.Number.GetValue(),
@@ -83,13 +83,11 @@ func (s *RetentionItemStrategy) ValidateDateRange() *dte_errors.DTEError {
 	return nil
 }
 
-// isWithinAllowedPeriod verifica si la fecha del CRE está dentro del plazo permitido
+// isWithinAllowedPeriod checks if the CRE date is within the allowed period
 func isWithinAllowedPeriod(documentDate, retentionDate time.Time) bool {
-	// Normalize times to midnight UTC to avoid time component issues
 	docDate := time.Date(documentDate.Year(), documentDate.Month(), documentDate.Day(), 0, 0, 0, 0, time.UTC)
 	retDate := time.Date(retentionDate.Year(), retentionDate.Month(), retentionDate.Day(), 0, 0, 0, 0, time.UTC)
 
-	// Check if document is from current month or previous month
 	sameMonth := docDate.Year() == retDate.Year() && docDate.Month() == retDate.Month()
 
 	var previousMonth bool
@@ -103,19 +101,17 @@ func isWithinAllowedPeriod(documentDate, retentionDate time.Time) bool {
 		return false
 	}
 
-	// For same month, any date is valid
 	if sameMonth {
 		return true
 	}
 
-	// For previous month, check 10 business days rule
 	firstDayNextMonth := time.Date(docDate.Year(), docDate.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 	lastAllowedDay := addBusinessDays(firstDayNextMonth, 10)
 
 	return retDate.Before(lastAllowedDay) || retDate.Equal(lastAllowedDay)
 }
 
-// addBusinessDays añade días hábiles a una fecha (excluyendo fines de semana)
+// addBusinessDays adds business days to a date (excluding weekends)
 func addBusinessDays(date time.Time, days int) time.Time {
 	result := date
 	added := 0
@@ -123,7 +119,6 @@ func addBusinessDays(date time.Time, days int) time.Time {
 	for added < days {
 		result = result.AddDate(0, 0, 1)
 
-		// Si no es fin de semana (sábado=6, domingo=0)
 		if result.Weekday() != time.Saturday && result.Weekday() != time.Sunday {
 			added++
 		}
@@ -132,12 +127,12 @@ func addBusinessDays(date time.Time, days int) time.Time {
 	return result
 }
 
-// addMonths añade meses a una fecha
+// addMonths adds months to a date
 func addMonths(date time.Time, months int) time.Time {
 	return date.AddDate(0, months, 0)
 }
 
-// compareTotalsWithTolerance compara dos totales con una tolerancia especificada
+// compareTotalsWithTolerance compares two totals with a specified tolerance
 func (s *RetentionItemStrategy) compareTotalsWithTolerance(expected, actual decimal.Decimal, tolerance float64) bool {
 	diff := expected.Sub(actual).Abs()
 	return diff.LessThanOrEqual(decimal.NewFromFloat(tolerance))

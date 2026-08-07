@@ -5,20 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	health2 "github.com/MarlonG1/api-facturacion-sv/internal/domain/health"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/dimiro1/health"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/config"
+	health2 "github.com/chainedpixel/ordo-factus/internal/domain/health"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/dimiro1/health"
 )
 
-// haciendaChecker implementa tanto la interfaz ports.ComponentChecker como health.Checker
+// haciendaChecker implements both the ports.ComponentChecker and health.Checker interfaces
 type haciendaChecker struct {
 	client *http.Client
 }
@@ -33,9 +34,8 @@ func (c *haciendaChecker) Name() string {
 	return "hacienda"
 }
 
-// Check implementa ports.ComponentChecker.Check
+// Check implements ports.ComponentChecker.Check
 func (c *haciendaChecker) Check() models.Health {
-	// CustomHealthChecker para Hacienda
 	health := c.checkHealth()
 
 	status := constants.StatusUp
@@ -45,7 +45,6 @@ func (c *haciendaChecker) Check() models.Health {
 		status = constants.StatusDown
 		details = utils.TranslateHealthDown(c.Name())
 
-		// Extraer detalles si están disponibles
 		if health.GetInfo("error") != nil {
 			details = fmt.Sprintf("%s: %v", details, health.GetInfo("error"))
 		}
@@ -60,7 +59,6 @@ func (c *haciendaChecker) Check() models.Health {
 func (c *haciendaChecker) checkHealth() health.Health {
 	result := health.NewHealth()
 
-	// 1. Verificar disponibilidad básica de los endpoints
 	endpoints := map[string]string{
 		"signing":     config.MHPaths.AuthURL,
 		"reception":   config.MHPaths.ReceptionURL,
@@ -77,23 +75,22 @@ func (c *haciendaChecker) checkHealth() health.Health {
 			result.Down()
 
 			if strings.Contains(err.Error(), "dial tcp") {
-				result.AddInfo("error", fmt.Sprintf(utils.TranslateHealthError("NotInternet", name, err.Error())))
+				result.AddInfo("error", utils.TranslateHealthError("NotInternet", name, err.Error()))
 				return result
 			}
 
-			result.AddInfo("error", fmt.Sprintf(utils.TranslateHealthError("HaciendaEndpointUnavailable", name, err.Error())))
+			result.AddInfo("error", utils.TranslateHealthError("HaciendaEndpointUnavailable", name, err.Error()))
 			return result
 		}
 	}
 
-	// 2. Verificar el procesamiento real mediante intento de autenticación
 	if err := c.checkAuthProcessing(); err != nil {
 		logs.Error("Hacienda signing processing check failed", map[string]interface{}{
 			"error": err.Error(),
 		})
 
 		result.Down()
-		result.AddInfo("error", fmt.Sprintf(utils.TranslateHealthError("HaciendaEndpointAuthFailed", err.Error())))
+		result.AddInfo("error", utils.TranslateHealthError("HaciendaEndpointAuthFailed", err.Error()))
 		return result
 	}
 
@@ -101,7 +98,7 @@ func (c *haciendaChecker) checkHealth() health.Health {
 	return result
 }
 
-// Mantener los métodos auxiliares originales sin cambios
+// Keep the original helper methods unchanged
 func (c *haciendaChecker) checkEndpoint(url string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -125,14 +122,13 @@ func (c *haciendaChecker) checkEndpoint(url string) error {
 	}(resp.Body)
 
 	if resp.StatusCode >= 500 {
-		return fmt.Errorf(utils.TranslateHealthError("HaciendaServiceUnavailable", resp.StatusCode))
+		return fmt.Errorf("%s", utils.TranslateHealthError("HaciendaServiceUnavailable", resp.StatusCode))
 	}
 
 	return nil
 }
 
 func (c *haciendaChecker) checkAuthProcessing() error {
-	// Credenciales de prueba
 	dummyAuth := struct {
 		User string `json:"user"`
 		Pwd  string `json:"pwd"`
@@ -172,12 +168,10 @@ func (c *haciendaChecker) checkAuthProcessing() error {
 		}
 	}(resp.Body)
 
-	// Si el servicio está funcionando, debería responder con 401 o 400
-	// ya que las credenciales son inválidas
 	if resp.StatusCode != http.StatusUnauthorized &&
 		resp.StatusCode != http.StatusBadRequest &&
 		resp.StatusCode != http.StatusOK {
-		return fmt.Errorf(utils.TranslateHealthError("UnexpectedHaciendaServiceResponse", resp.StatusCode))
+		return fmt.Errorf("%s", utils.TranslateHealthError("UnexpectedHaciendaServiceResponse", resp.StatusCode))
 	}
 
 	return nil

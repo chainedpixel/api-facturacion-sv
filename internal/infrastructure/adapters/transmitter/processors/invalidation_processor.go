@@ -1,10 +1,10 @@
 package processors
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	models2 "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter/models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/config"
+	models2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type InvalidationProcessor struct{}

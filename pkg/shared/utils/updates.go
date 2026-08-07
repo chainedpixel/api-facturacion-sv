@@ -3,26 +3,23 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 )
 
-// UpdateContingencyIdentification actualiza la identificación de contingencia en el JSON del DTE.
+// UpdateContingencyIdentification updates the contingency identification in the DTE JSON.
 func UpdateContingencyIdentification(document interface{}, contiType *int8, reason *string) (map[string]interface{}, error) {
-	// 1. Convertir cualquier struct a map[string]interface{} mediante Marshal y Unmarshal
 	var dteDoc map[string]interface{}
 	switch v := document.(type) {
 	case string:
-		// Si es string, directamente hacer unmarshal
 		if err := json.Unmarshal([]byte(v), &dteDoc); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
 		}
 	case []byte:
-		// Si son bytes, directamente hacer unmarshal
 		if err := json.Unmarshal(v, &dteDoc); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
 		}
 	default:
-		// Si es otro tipo (struct, map), primero marshal y luego unmarshal
 		jsonBytes, err := json.Marshal(document)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal DTE JSON: %w", err)
@@ -33,7 +30,6 @@ func UpdateContingencyIdentification(document interface{}, contiType *int8, reas
 		}
 	}
 
-	// 2. Actualizar la identificación de contingencia en el JSON del DTE
 	if identifi, exist := dteDoc["identificacion"]; exist {
 		identification, ok := identifi.(map[string]interface{})
 		if !ok {
@@ -48,44 +44,40 @@ func UpdateContingencyIdentification(document interface{}, contiType *int8, reas
 	return dteDoc, nil
 }
 
-// SetReceptionStampIntoAppendix añade el sello de recepción al apéndice del documento.
+// SetReceptionStampIntoAppendix adds the reception stamp to the document appendix.
 func SetReceptionStampIntoAppendix(document string, receptionStamp *string) (string, error) {
-	// 1. Determinar el tipo de DTE
+	if receptionStamp == nil || *receptionStamp == "" {
+		return document, nil
+	}
+
 	dteInfo, err := ExtractAuxiliarIdentificationFromStringJSON(document)
 	if err != nil || dteInfo.Identification.DTEType == "" {
 		return "", fmt.Errorf("failed to determine DTE type: %w", err)
 	}
 
-	// 2. Mapear el documento a un HashMap
 	var dteDoc map[string]interface{}
 	if err := json.Unmarshal([]byte(document), &dteDoc); err != nil {
 		return "", fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
 	}
 
-	// 3. Verificar si existe el campo de apéndices
+	stampEntry := map[string]interface{}{
+		"Campo":    "Datos del documento",
+		"Etiqueta": "Sello de recepción",
+		"Valor":    *receptionStamp,
+	}
+
 	if appendix, exist := dteDoc["apendice"]; exist {
 		if appendix == nil {
-			// Si no existe, crear un nuevo apéndice
-			dteDoc["apendice"] = []map[string]interface{}{
-				{
-					"Campo":    "Datos del documento",
-					"Etiqueta": "Sello de recepción",
-					"Valor":    *receptionStamp,
-				},
-			}
+			dteDoc["apendice"] = []map[string]interface{}{stampEntry}
 		} else {
-			// Si existe, añadir el sello de recepción al apéndice
-			appendices := appendix.([]interface{})
-			newAppendices := append(appendices, map[string]interface{}{
-				"Campo":    "Datos del documento",
-				"Etiqueta": "Sello de recepción",
-				"Valor":    *receptionStamp,
-			})
-			dteDoc["apendice"] = newAppendices
+			appendices, ok := appendix.([]interface{})
+			if !ok {
+				return "", fmt.Errorf("unexpected appendix type: expected []interface{}")
+			}
+			dteDoc["apendice"] = append(appendices, stampEntry)
 		}
 	}
 
-	// 4. Convertir el HashMap a JSON
 	jsonData, err := json.Marshal(dteDoc)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal DTE JSON: %w", err)

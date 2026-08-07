@@ -2,19 +2,19 @@ package db_models
 
 import "time"
 
-// ControlNumberSequence representa la secuencia de control de los números de los documentos electrónicos emitidos.
-// Esta secuencia se utiliza para generar el número de control de los documentos electrónicos por tipo de documento y año.
-// Representan los últimos 15 dígitos del número de control de un documento electrónico.
-// Esta secuencia se reinicia cada año y por tipo de documento. Se incrementa en 1 por cada documento electrónico emitido.
+// ControlNumberSequence represents the control sequence for the numbers of issued electronic documents.
+// This sequence is used to generate the control number of electronic documents by document type and year.
+// They represent the last 15 digits of the control number of an electronic document.
+// This sequence resets each year and per document type. It increments by 1 for each electronic document issued.
 //
-// Para más información ver: https://factura.gob.sv/informacion-tecnica-y-funcional/
-// en la sección de "Documentos de Sistema de Transmisión DTE", documento: "3. Manual Funcional del Sistema de Transmisión"
-// página 16 del documento PDF.
+// For more information see: https://factura.gob.sv/informacion-tecnica-y-funcional/
+// in the section "Documentos de Sistema de Transmisión DTE", document: "3. Manual Funcional del Sistema de Transmisión"
+// page 16 of the PDF document.
 //
-// El campo DTEType representa el tipo de documento electrónico, de dos caracteres, como exige el Ministerio de Hacienda.
-// Para más información ver: https://factura.gob.sv/informacion-tecnica-y-funcional/
-// en la sección de "Documentos de Sistema de Transmisión DTE", documento: "2. Catálogos- Sistema de Transmisión"
-// página 5 del documento PDF y revisar /internal/domain/dte/common/constants/dte_type.go
+// The DTEType field represents the type of electronic document, two characters long, as required by the Ministry of Finance.
+// For more information see: https://factura.gob.sv/informacion-tecnica-y-funcional/
+// in the section "Documentos de Sistema de Transmisión DTE", document: "2. Catálogos- Sistema de Transmisión"
+// page 5 of the PDF document and review /internal/domain/dte/common/constants/dte_type.go
 type ControlNumberSequence struct {
 	ID         uint      `gorm:"column:id;type:uint;primaryKey;autoIncrement;not null"`
 	BranchID   uint      `gorm:"column:branch_id;type:uint;not null;uniqueIndex:idx_branch_dte_year,priority:1"`
@@ -24,7 +24,6 @@ type ControlNumberSequence struct {
 	CreatedAt  time.Time `gorm:"column:created_at;type:timestamp;default:CURRENT_TIMESTAMP"`
 	UpdatedAt  time.Time `gorm:"column:updated_at;type:timestamp;default:CURRENT_TIMESTAMP"`
 
-	// Relaciones
 	Branch *BranchOffice `gorm:"foreignKey:BranchID;references:ID"`
 }
 

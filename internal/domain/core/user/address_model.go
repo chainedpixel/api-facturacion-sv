@@ -1,10 +1,10 @@
 package user
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 )
 
-// Address representa la dirección de una sucursal o casa matriz
+// Address represents the address of a branch office or headquarters
 type Address struct {
 	ID           uint   `json:"-"`
 	BranchID     uint   `json:"-"`

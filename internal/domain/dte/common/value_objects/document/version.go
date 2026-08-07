@@ -3,8 +3,8 @@ package document
 import (
 	"fmt"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Version struct {
@@ -23,7 +23,7 @@ func NewValidatedVersion(value int) *Version {
 	return &Version{Value: value}
 }
 
-// IsValid valida que el valor de Version sea 1, 2 o 3
+// IsValid validates that the Version value is 1, 2 or 3
 func (v *Version) IsValid() bool {
 	return v.Value > 0 && v.Value <= 3
 }

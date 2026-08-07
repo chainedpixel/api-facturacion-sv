@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/test_endpoint"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/test_endpoint"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type TestHandler struct {
@@ -20,17 +20,9 @@ func NewTestHandler(testManager test_endpoint.TestManager) *TestHandler {
 	}
 }
 
-// RunSystemTest godoc
-// @Summary      Run system test
-// @Description  Run system test
-// @Tags         Test
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} models.TestResult
-// @Failure      500 {object} response.APIError
-// @Router       /api/v1/test [get]
+// RunSystemTest executes the end-to-end system smoke test and returns its result.
 func (h *TestHandler) RunSystemTest(w http.ResponseWriter, r *http.Request) {
-	result, err := h.testManager.RunSystemTest()
+	result, err := h.testManager.RunSystemTest(r.Context())
 	if err != nil {
 		logs.Error("System test failed", map[string]interface{}{
 			"error": err.Error(),

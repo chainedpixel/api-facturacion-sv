@@ -1,16 +1,16 @@
 package health
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
 )
 
-// ComponentChecker es una interfaz que define los métodos para verificar el estado de un componente
+// ComponentChecker is an interface that defines the methods to check the status of a component
 type ComponentChecker interface {
-	Check() models.Health // Check verifica el estado de un componente y devuelve un modelo de models.Health
-	Name() string         // Name devuelve el nombre del componente
+	Check() models.Health
+	Name() string
 }
 
-// HealthManager es una interfaz que define los métodos para verificar el estado de todos los componentes
+// HealthManager is an interface that defines the methods to check the status of all components
 type HealthManager interface {
-	CheckHealth() (*models.HealthStatus, error) // CheckHealth verifica el estado de todos los componentes y devuelve un modelo de models.HealthStatus
+	CheckHealth() (*models.HealthStatus, error)
 }

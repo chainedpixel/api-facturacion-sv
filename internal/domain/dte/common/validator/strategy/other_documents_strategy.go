@@ -1,29 +1,25 @@
-// strategy/other_documents_strategy.go
-
 package strategy
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type OtherDocumentsStrategy struct {
 	Document interfaces.DTEDocument
 }
 
-// Validate valida los documentos adicionales del DTE
+// Validate validates the additional documents of the DTE
 func (s *OtherDocumentsStrategy) Validate() *dte_errors.DTEError {
 	docs := s.Document.GetOtherDocuments()
 	if docs == nil || len(docs) == 0 {
-		return nil // Es opcional
+		return nil
 	}
 
-	// Validar cantidad de documentos
 	if len(docs) > 10 {
 		return dte_errors.NewDTEErrorSimple("InvalidOtherDocsCount", len(docs))
 	}
 
-	// Validar cada documento
 	for _, doc := range docs {
 		if err := s.validateDocument(doc); err != nil {
 			return err
@@ -33,9 +29,8 @@ func (s *OtherDocumentsStrategy) Validate() *dte_errors.DTEError {
 	return nil
 }
 
-// Validar documento
+// validateDocument validates a document
 func (s *OtherDocumentsStrategy) validateDocument(doc interfaces.OtherDocuments) *dte_errors.DTEError {
-	// Validar código
 	code := doc.GetAssociatedDocument()
 	if code < 1 || code > 4 {
 		return dte_errors.NewDTEErrorSimple("InvalidAssociatedDocumentCode", code)
@@ -48,7 +43,7 @@ func (s *OtherDocumentsStrategy) validateDocument(doc interfaces.OtherDocuments)
 	return s.validateRegularDocument(doc)
 }
 
-// Validar documento médico
+// validateMedicalDocument validates a medical document
 func (s *OtherDocumentsStrategy) validateMedicalDocument(doc interfaces.OtherDocuments) *dte_errors.DTEError {
 	if doc.GetDescription() != "" || doc.GetDetail() != "" {
 		return dte_errors.NewDTEErrorSimple("InvalidMedicalDocFields")
@@ -61,7 +56,7 @@ func (s *OtherDocumentsStrategy) validateMedicalDocument(doc interfaces.OtherDoc
 	return s.validateDoctor(doc.GetDoctor())
 }
 
-// Validar documento regular (no médico)
+// validateRegularDocument validates a regular (non-medical) document
 func (s *OtherDocumentsStrategy) validateRegularDocument(doc interfaces.OtherDocuments) *dte_errors.DTEError {
 	if doc.GetDoctor().GetName() != "" || doc.GetDoctor().GetServiceType() != 0 || doc.GetDoctor().GetNIT() != "" || doc.GetDoctor().GetIdentification() != "" {
 		return dte_errors.NewDTEErrorSimple("InvalidField", "Doctor must be null")
@@ -88,7 +83,7 @@ func (s *OtherDocumentsStrategy) validateRegularDocument(doc interfaces.OtherDoc
 	return nil
 }
 
-// validateDoctor valida los datos del doctor en un documento médico
+// validateDoctor validates the doctor data in a medical document
 func (s *OtherDocumentsStrategy) validateDoctor(doctor interfaces.DoctorInfo) *dte_errors.DTEError {
 	if len(doctor.GetName()) == 0 || len(doctor.GetName()) > 100 {
 		return dte_errors.NewDTEErrorSimple("InvalidLength", "DoctorName", "1-100", doctor.GetName())
@@ -99,7 +94,6 @@ func (s *OtherDocumentsStrategy) validateDoctor(doctor interfaces.DoctorInfo) *d
 		return dte_errors.NewDTEErrorSimple("InvalidServiceType", serviceType)
 	}
 
-	// Validar NIT y documento de identificación mutuamente excluyentes
 	hasNIT := doctor.GetNIT() != ""
 	hasID := doctor.GetIdentification() != ""
 

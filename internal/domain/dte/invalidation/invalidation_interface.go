@@ -3,16 +3,13 @@ package invalidation
 import (
 	"context"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// InvalidationManager es la interfaz que define los métodos que se pueden realizar sobre la invalidación de documentos
+// InvalidationManager is the interface that defines the methods that can be performed on document invalidation
 type InvalidationManager interface {
-	// Validate valida el documento de invalidación
 	Validate(ctx context.Context, branchID uint, document *invalidation_models.InvalidationDocument) error
-	// ValidateStatus valida el estado del documento a invalidar y del documento de reemplazo
 	ValidateStatus(ctx context.Context, branchID uint, req structs.CreateInvalidationRequest) error
-	// InvalidateDocument invalida un documento
 	InvalidateDocument(ctx context.Context, branchID uint, originalCode string) error
 }

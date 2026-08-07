@@ -13,7 +13,7 @@ type CommonDTEDocument struct {
 	Apendice             []DTEApendice        `json:"apendice"`
 }
 
-// DTEIdentification mapea la sección "identificacion" del JSON Schema
+// DTEIdentification maps the "identificacion" section of the JSON Schema
 type DTEIdentification struct {
 	Version          int     `json:"version"`
 	Ambiente         string  `json:"ambiente"`
@@ -29,7 +29,7 @@ type DTEIdentification struct {
 	TipoMoneda       string  `json:"tipoMoneda"`
 }
 
-// DTEIssuer mapea la sección "emisor" del JSON Schema
+// DTEIssuer maps the "emisor" section of the JSON Schema
 type DTEIssuer struct {
 	NIT                 string     `json:"nit,omitempty"`
 	NRC                 string     `json:"nrc"`
@@ -47,7 +47,7 @@ type DTEIssuer struct {
 	CodPuntoVenta       *string    `json:"codPuntoVenta"`
 }
 
-// DTEReceiver mapea la sección "receptor" del JSON Schema
+// DTEReceiver maps the "receptor" section of the JSON Schema
 type DTEReceiver struct {
 	Nombre          *string     `json:"nombre"`
 	TipoDocumento   *string     `json:"tipoDocumento,omitempty"`
@@ -62,14 +62,14 @@ type DTEReceiver struct {
 	NombreComercial *string     `json:"nombreComercial,omitempty"`
 }
 
-// DTEAddress mapea la dirección según el Schema
+// DTEAddress maps the address according to the Schema
 type DTEAddress struct {
 	Departamento string `json:"departamento"`
 	Municipio    string `json:"municipio"`
 	Complemento  string `json:"complemento"`
 }
 
-// DTEItem mapea un ítem del cuerpo del documento
+// DTEItem maps an item of the document body
 type DTEItem struct {
 	NumItem         int      `json:"numItem"`
 	TipoItem        int      `json:"tipoItem"`
@@ -90,7 +90,7 @@ type DTEItem struct {
 	IvaItem         float64  `json:"ivaItem,omitempty"`
 }
 
-// DTESummary mapea el resumen (todos campos requeridos según schema)
+// DTESummary maps the summary (all fields required according to schema)
 type DTESummary struct {
 	TotalNoSuj          float64      `json:"totalNoSuj"`
 	TotalExenta         float64      `json:"totalExenta"`
@@ -117,14 +117,14 @@ type DTESummary struct {
 	NumPagoElectronico  *string      `json:"numPagoElectronico"`
 }
 
-// DTETax mapea un tributo
+// DTETax maps a tax
 type DTETax struct {
 	Codigo      string  `json:"codigo"`
 	Descripcion string  `json:"descripcion"`
 	Valor       float64 `json:"valor"`
 }
 
-// DTEPayment mapea un pago
+// DTEPayment maps a payment
 type DTEPayment struct {
 	Codigo     string  `json:"codigo"`
 	MontoPago  float64 `json:"montoPago"`

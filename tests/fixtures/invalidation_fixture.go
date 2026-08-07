@@ -1,26 +1,26 @@
 package fixtures
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// CreateDefaultReasonRequest crea una razón de invalidación predeterminada válida
+// CreateDefaultReasonRequest creates a valid default invalidation reason
 func CreateDefaultReasonRequest() *structs.ReasonRequest {
 	reason := "Factura con datos incorrectos"
 
 	return &structs.ReasonRequest{
-		Type:               1, // Reemplazo
+		Type:               1,
 		ResponsibleName:    "Juan Responsable",
-		ResponsibleDocType: "13", // DUI
+		ResponsibleDocType: "13",
 		ResponsibleNumDoc:  "12345678-9",
 		RequestorName:      "Ana Solicitante",
-		RequestorDocType:   "13", // DUI
+		RequestorDocType:   "13",
 		RequestorNumDoc:    "98765432-1",
 		Reason:             &reason,
 	}
 }
 
-// CreateDefaultInvalidationRequest crea una solicitud de invalidación predeterminada válida
+// CreateDefaultInvalidationRequest creates a valid default invalidation request
 func CreateDefaultInvalidationRequest() *structs.CreateInvalidationRequest {
 	replacementCode := "FF54E9DB-79C3-42CE-B432-EC522C97EFB9"
 
@@ -31,26 +31,25 @@ func CreateDefaultInvalidationRequest() *structs.CreateInvalidationRequest {
 	}
 }
 
-// CreateInvalidationWithInvalidType crea una solicitud de invalidación con tipo inválido
+// CreateInvalidationWithInvalidType creates an invalidation request with an invalid type
 func CreateInvalidationWithInvalidType() *structs.CreateInvalidationRequest {
 	req := CreateDefaultInvalidationRequest()
-	req.Reason.Type = 99 // Tipo inválido
+	req.Reason.Type = 99
 	return req
 }
 
-// CreateInvalidationTypeWithoutReason crea una solicitud de invalidación de tipo 3 sin razón
+// CreateInvalidationTypeWithoutReason creates a type 3 invalidation request without a reason
 func CreateInvalidationTypeWithoutReason() *structs.CreateInvalidationRequest {
 	req := CreateDefaultInvalidationRequest()
-	req.Reason.Type = 3     // Invalidación definitiva
-	req.Reason.Reason = nil // Sin razón
+	req.Reason.Type = 3
+	req.Reason.Reason = nil
 	return req
 }
 
-// CreateInvalidationType2WithReplacementCode crea una solicitud de invalidación de tipo 2 con código de reemplazo
+// CreateInvalidationType2WithReplacementCode creates a type 2 invalidation request with a replacement code
 func CreateInvalidationType2WithReplacementCode() *structs.CreateInvalidationRequest {
 	req := CreateDefaultInvalidationRequest()
-	req.Reason.Type = 2 // Anulación
-	// No debería tener código de reemplazo pero lo tiene
+	req.Reason.Type = 2
 	replacementCode := "FF54E9DB-79C3-42CE-B432-EC522C97EFB9"
 	req.ReplacementGenerationCode = &replacementCode
 	return req

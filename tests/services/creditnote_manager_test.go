@@ -4,23 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
-	"testing"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
-	"github.com/MarlonG1/api-facturacion-sv/tests/mocks"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/tests/mocks"
 )
 
 func TestCreditNoteServiceCreate(t *testing.T) {
@@ -52,7 +53,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 				).Return("DTE-04-N0010001-000000000012345", nil)
 
-				// Simulamos que el documento relacionado existe y está recibido
 				mockDTE.EXPECT().GetByGenerationCode(
 					gomock.Any(),
 					gomock.Any(),
@@ -177,7 +177,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Configurar todas las ventas como exentas
 				for i := range creditNote.CreditItems {
 					amount := creditNote.CreditItems[i].TaxedSale.GetValue()
 					taxedZero := financial.NewValidatedAmount(0.0)
@@ -185,10 +184,9 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 
 					creditNote.CreditItems[i].TaxedSale = *taxedZero
 					creditNote.CreditItems[i].ExemptSale = *exemptAmount
-					creditNote.CreditItems[i].Taxes = nil // Sin impuestos para ventas exentas
+					creditNote.CreditItems[i].Taxes = nil
 				}
 
-				// Actualizar los totales en el resumen
 				totalExempt := 0.0
 				for _, item := range creditNote.CreditItems {
 					totalExempt += item.ExemptSale.GetValue()
@@ -200,12 +198,11 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 				creditNote.CreditSummary.Summary.SetSubTotal(totalExempt)
 				creditNote.CreditSummary.Summary.SetTotalOperation(totalExempt)
 				creditNote.CreditSummary.Summary.SetTotalToPay(totalExempt)
-				creditNote.CreditSummary.Summary.SetTotalTaxes(nil) // Sin impuestos
+				creditNote.CreditSummary.Summary.SetTotalTaxes(nil)
 
-				// Actualizar los pagos
 				payments := creditNote.CreditSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
-					if i == 0 { // Ajustar el primer pago
+					if i == 0 {
 						payment.SetAmount(totalExempt)
 					}
 				}
@@ -255,25 +252,22 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer retenciones válidas
 				taxedAmount := creditNote.CreditSummary.Summary.GetTotalTaxed()
-				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)    // 1%
-				incomeRetention := financial.NewValidatedAmount(taxedAmount * 0.05) // 5%
+				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)
+				incomeRetention := financial.NewValidatedAmount(taxedAmount * 0.05)
 
 				creditNote.CreditSummary.IVARetention = *ivaRetention
 				creditNote.CreditSummary.IncomeRetention = *incomeRetention
 
-				// Actualizar el total a pagar para incluir las retenciones
 				totalOperation := creditNote.CreditSummary.Summary.GetTotalOperation()
 				newTotalToPay := totalOperation - ivaRetention.GetValue() - incomeRetention.GetValue()
 				newTotalToPay = decimal.NewFromFloat(newTotalToPay).Round(2).InexactFloat64()
 				creditNote.CreditSummary.Summary.SetTotalToPay(newTotalToPay)
 				creditNote.CreditSummary.Summary.SetTotalOperation(newTotalToPay)
 
-				// Actualizar los pagos
 				payments := creditNote.CreditSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
-					if i == 0 { // Ajustar el primer pago
+					if i == 0 {
 						payment.SetAmount(newTotalToPay)
 					}
 				}
@@ -323,14 +317,12 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Eliminar los documentos relacionados
 				creditNoteInput := fixtures.BuildAsCreditNoteInput(creditNote)
 				creditNoteInput.RelatedDocs = nil
 
 				return creditNoteInput, nil
 			},
 			setupMock: func(mockSeq *mocks.MockSequentialNumberManager, mockDTE *mocks.MockDTEManager) {
-				// No se espera llamada porque debería fallar antes
 			},
 			wantErr:   true,
 			errorCode: "NoRelatedDocs",
@@ -381,7 +373,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 					gomock.Any(),
-				).Return(constants.DocumentRejected, nil) // No recibido
+				).Return(constants.DocumentRejected, nil)
 			},
 			wantErr:   true,
 			errorCode: "DocumentNotReceived",
@@ -404,7 +396,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 				).Return(&dte.DTEDocument{
 					CreatedAt: utils.TimeNow(),
 					Details: &dte.DTEDetails{
-						JSONData: `{"receptor":{"nit":"1111111111111"}}`, // NIT diferente
+						JSONData: `{"receptor":{"nit":"1111111111111"}}`,
 					},
 				}, nil)
 
@@ -425,7 +417,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con ventas exentas y gravadas a la vez
 				exemptAmount, _ := financial.NewAmount(100.0)
 				creditNote.CreditItems[0].ExemptSale = *exemptAmount
 
@@ -448,6 +439,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "MixedSalesTypesNotAllowed",
@@ -460,11 +458,10 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Modificar los impuestos a valores incorrectos
 				for _, t := range creditNote.CreditSummary.Summary.GetTotalTaxes() {
 					tax, ok := t.(*models.Tax)
 					if ok && tax.GetCode() == constants.TaxIVA {
-						tax.SetValue(50.0) // Valor incorrecto
+						tax.SetValue(50.0)
 						break
 					}
 				}
@@ -488,6 +485,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidTaxCalculation",
@@ -500,10 +504,8 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer una percepción con valor incorrecto
-				// La percepción debería ser el 1% de la venta gravada
 				taxedAmount := creditNote.CreditSummary.Summary.GetTotalTaxed()
-				incorrectPerception := financial.NewValidatedAmount(taxedAmount * 0.02) // Debería ser 0.01
+				incorrectPerception := financial.NewValidatedAmount(taxedAmount * 0.02)
 				creditNote.CreditSummary.IVAPerception = *incorrectPerception
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
@@ -525,6 +527,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidPerceptionAmount",
@@ -537,7 +546,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Eliminar la referencia a documento relacionado de un ítem
 				creditNote.CreditItems[0].SetForceRelatedDoc(nil)
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
@@ -559,6 +567,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "MissingItemRelatedDoc",
@@ -571,7 +586,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Cambiar la referencia a un documento que no existe en RelatedDocs
 				invalidRef := "INVALID-REF-00000000"
 				creditNote.CreditItems[0].SetRelatedDoc(&invalidRef)
 
@@ -594,6 +608,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidItemRelatedDoc",
@@ -606,7 +627,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir más de 50 documentos relacionados
 				relatedDocs := make([]models.RelatedDocument, 51)
 				for i := 0; i < 51; i++ {
 					doc := models.RelatedDocument{}
@@ -651,7 +671,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Modificar el tipo de documento a uno inválido
 				invalidType := constants.FacturaElectronica
 				creditNote.RelatedDocuments[0].SetDocumentType(invalidType)
 
@@ -674,6 +693,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidRelatedDocTypeForCreditNote",
@@ -686,7 +712,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Precio unitario cero pero con venta gravada
 				creditNote.CreditItems[0].Item.SetUnitPrice(0)
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
@@ -708,6 +733,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidUnitPriceZero",
@@ -720,9 +752,8 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem de tipo 4 (impuesto) con unidad de medida incorrecta
 				creditNote.CreditItems[0].Item.SetType(constants.Impuesto)
-				creditNote.CreditItems[0].Item.SetUnitMeasure(58) // Debe ser 99
+				creditNote.CreditItems[0].Item.SetUnitMeasure(58)
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
 			},
@@ -743,6 +774,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidUnitMeasure",
@@ -755,10 +793,9 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem de tipo 4 (impuesto) con más de un impuesto
 				creditNote.CreditItems[0].Item.SetType(constants.Impuesto)
-				creditNote.CreditItems[0].Item.SetUnitMeasure(99)                                         // Correcto
-				creditNote.CreditItems[0].Item.SetTaxes([]string{constants.TaxIVA, constants.TaxTourism}) // Incorrecto: sólo debería tener IVA
+				creditNote.CreditItems[0].Item.SetUnitMeasure(99)
+				creditNote.CreditItems[0].Item.SetTaxes([]string{constants.TaxIVA, constants.TaxTourism})
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
 			},
@@ -779,6 +816,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidTaxRulesCCF",
@@ -791,9 +835,8 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer un descuento que excede el subtotal
 				subtotal := creditNote.CreditSummary.Summary.GetSubTotal()
-				creditNote.CreditSummary.TaxedDiscount = *financial.NewValidatedAmount(subtotal * 2) // Descuento mayor al subtotal
+				creditNote.CreditSummary.TaxedDiscount = *financial.NewValidatedAmount(subtotal * 2)
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
 			},
@@ -814,6 +857,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "DiscountExceedsSubtotal",
@@ -826,8 +876,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Modificar el total gravado a un valor inconsistente
-				creditNote.CreditSummary.Summary.SetTotalTaxed(2000.0) // Valor incorrecto
+				creditNote.CreditSummary.Summary.SetTotalTaxed(2000.0)
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
 			},
@@ -848,6 +897,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidTotalTaxed",
@@ -860,7 +916,6 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Mantener venta gravada pero eliminar los impuestos
 				creditNote.CreditSummary.Summary.SetTotalTaxes(nil)
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
@@ -882,6 +937,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "MissingTaxes",
@@ -894,11 +956,10 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Cambiar el subtotal a un valor incorrecto
 				incorrectSubtotal := creditNote.CreditSummary.Summary.GetSubtotalSales() -
 					creditNote.CreditSummary.TaxedDiscount.GetValue() -
 					creditNote.CreditSummary.Summary.GetExemptDiscount() -
-					creditNote.CreditSummary.Summary.GetNonSubjectDiscount() + 50.0 // Valor incorrecto
+					creditNote.CreditSummary.Summary.GetNonSubjectDiscount() + 50.0
 
 				creditNote.CreditSummary.Summary.SetSubTotal(incorrectSubtotal)
 
@@ -921,6 +982,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidSubTotalCalculation",
@@ -933,8 +1001,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer un total a pagar con más de 2 decimales
-				creditNote.CreditSummary.IVAPerception = *financial.NewValidatedAmount(9.505) // 3 decimales
+				creditNote.CreditSummary.IVAPerception = *financial.NewValidatedAmount(9.505)
 
 				return fixtures.BuildAsCreditNoteInput(creditNote), nil
 			},
@@ -955,6 +1022,13 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 				).Return(constants.DocumentReceived, nil).AnyTimes()
+
+				mockDTE.EXPECT().ValidateForCreditNote(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
 			errorCode: "InvalidMonetaryAmount",

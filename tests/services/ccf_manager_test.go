@@ -4,23 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
-	"github.com/MarlonG1/api-facturacion-sv/tests/mocks"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/tests/mocks"
 )
 
 func TestCreditFiscalServiceCreate(t *testing.T) {
@@ -62,20 +63,17 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer una percepción válida (1% del total gravado)
 				taxedAmount := ccf.CreditSummary.Summary.GetTotalTaxed()
 				validPerception := financial.NewValidatedAmount(math.Round(taxedAmount*0.01*100) / 100)
 				ccf.CreditSummary.IVAPerception = *validPerception
 
-				// Actualizar el total a pagar para incluir la percepción
 				totalOperation := ccf.CreditSummary.Summary.GetTotalOperation()
 				newTotalToPay := totalOperation + validPerception.GetValue()
 				ccf.CreditSummary.Summary.SetTotalToPay(newTotalToPay)
 
-				// Actualizar los pagos
 				payments := ccf.CreditSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
-					if i == 0 { // Ajustar el primer pago
+					if i == 0 {
 						payment.SetAmount(newTotalToPay)
 					}
 				}
@@ -101,7 +99,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Configurar todas las ventas como exentas
 				for i := range ccf.CreditItems {
 					amount := ccf.CreditItems[i].TaxedSale.GetValue()
 					taxedZero := financial.NewValidatedAmount(0.0)
@@ -109,10 +106,9 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 
 					ccf.CreditItems[i].TaxedSale = *taxedZero
 					ccf.CreditItems[i].ExemptSale = *exemptAmount
-					ccf.CreditItems[i].Taxes = nil // Sin impuestos para ventas exentas
+					ccf.CreditItems[i].Taxes = nil
 				}
 
-				// Actualizar los totales en el resumen
 				totalExempt := 0.0
 				for _, item := range ccf.CreditItems {
 					totalExempt += item.ExemptSale.GetValue()
@@ -124,12 +120,11 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 				ccf.CreditSummary.Summary.SetSubTotal(totalExempt)
 				ccf.CreditSummary.Summary.SetTotalOperation(totalExempt)
 				ccf.CreditSummary.Summary.SetTotalToPay(totalExempt)
-				ccf.CreditSummary.Summary.SetTotalTaxes(nil) // Sin impuestos
+				ccf.CreditSummary.Summary.SetTotalTaxes(nil)
 
-				// Actualizar los pagos
 				payments := ccf.CreditSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
-					if i == 0 { // Ajustar el primer pago
+					if i == 0 {
 						payment.SetAmount(totalExempt)
 					}
 				}
@@ -155,21 +150,18 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer retenciones válidas
 				taxedAmount := ccf.CreditSummary.Summary.GetTotalTaxed()
-				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)    // 1%
-				incomeRetention := financial.NewValidatedAmount(taxedAmount * 0.05) // 5%
+				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)
+				incomeRetention := financial.NewValidatedAmount(taxedAmount * 0.05)
 
 				ccf.CreditSummary.IVARetention = *ivaRetention
 				ccf.CreditSummary.IncomeRetention = *incomeRetention
 
-				// Actualizar el total a pagar para incluir las retenciones
 				totalOperation := ccf.CreditSummary.Summary.GetTotalOperation()
 				newTotalToPay := totalOperation - ivaRetention.GetValue() - incomeRetention.GetValue()
 				newTotalToPay = math.Round(newTotalToPay*100) / 100
 				ccf.CreditSummary.Summary.SetTotalToPay(newTotalToPay)
 
-				// Actualizar los pagos
 				payments := ccf.CreditSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
 					if i == 0 {
@@ -198,7 +190,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir documentos relacionados válidos
 				relatedDoc1 := models.RelatedDocument{}
 				relatedDoc1.SetGenerationType(constants.ElectronicDocument)
 				relatedDoc1.SetDocumentNumber("001BEDAD-93F3-4F49-85D9-1E3618425F6B")
@@ -214,7 +205,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 				ccfData := fixtures.BuildAsCCFData(ccf)
 				ccfData.RelatedDocs = []models.RelatedDocument{relatedDoc1, relatedDoc2}
 
-				// Establecer la referencia a documentos relacionados en los ítems
 				for i := range ccfData.Items {
 					docRef := "001BEDAD-93F3-4F49-85D9-1E3618425F6B"
 					ccfData.Items[i].SetRelatedDoc(&docRef)
@@ -241,30 +231,25 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir un ítem de tipo impuesto (4) válido
 				taxItem := ccf.CreditItems[0]
-				taxItem.Item.SetNumber(3) // Nuevo número de ítem
+				taxItem.Item.SetNumber(3)
 				taxItem.Item.SetType(constants.Impuesto)
-				taxItem.Item.SetUnitMeasure(99) // Unidad de medida requerida para tipo 4
+				taxItem.Item.SetUnitMeasure(99)
 				taxItem.Item.SetDescription("IVA")
 
-				// Actualizar los taxes de summary
 				totalTaxedSummary := ccf.CreditSummary.Summary.GetTotalTaxed()
 				totalTaxedSummary += taxItem.TaxedSale.GetValue()
 				ccf.CreditSummary.Summary.SetTotalTaxed(totalTaxedSummary)
 				ccf.CreditSummary.SetSubtotalSales(totalTaxedSummary)
 				ccf.CreditSummary.Summary.SetSubTotal(totalTaxedSummary)
 
-				// Agregar el item a los existentes
 				ccf.CreditItems = append(ccf.CreditItems, taxItem)
 
-				// Los impuestos en resumen
 				taxes := models.Tax{}
 				taxes.SetCode(constants.TaxIVA)
 				taxes.SetValue(totalTaxedSummary * 0.13)
 				taxes.SetDescription("IVA 13%")
 
-				// Añadir el nuevo ítem a los existentes
 				var taxInterfaces []interfaces.Tax
 				taxInterfaces = append(taxInterfaces, &taxes)
 				ccf.Summary.SetTotalTaxes(taxInterfaces)
@@ -290,7 +275,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir exactamente 50 documentos relacionados (límite máximo)
 				relatedDocs := make([]models.RelatedDocument, 50)
 				for i := 0; i < 50; i++ {
 					doc := models.RelatedDocument{}
@@ -305,7 +289,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 				ccfData := fixtures.BuildAsCCFData(ccf)
 				ccfData.RelatedDocs = relatedDocs
 
-				// Establecer la referencia a un documento relacionado en los ítems
 				for i := range ccfData.Items {
 					docRef := "001BEDAD-93F3-4F49-85D9-1E3618425F00"
 					ccfData.Items[i].SetRelatedDoc(&docRef)
@@ -332,7 +315,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con ventas exentas y gravadas a la vez
 				exemptAmount, _ := financial.NewAmount(100.0)
 				ccf.CreditItems[0].ExemptSale = *exemptAmount
 
@@ -350,12 +332,10 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer ventas exentas pero mantener impuestos
 				taxedAmount, _ := financial.NewAmount(0.0)
 				exemptAmount, _ := financial.NewAmount(100.0)
 				ccf.CreditItems[0].TaxedSale = *taxedAmount
 				ccf.CreditItems[0].ExemptSale = *exemptAmount
-				// Mantener la lista de impuestos del ítem
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
@@ -371,7 +351,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con ventas no sujetas y gravadas a la vez
 				nonSubjectAmount, _ := financial.NewAmount(100.0)
 				ccf.CreditItems[0].NonSubjectSale = *nonSubjectAmount
 
@@ -389,7 +368,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con montos no gravados y ventas gravadas a la vez
 				nonTaxedAmount, _ := financial.NewAmount(100.0)
 				ccf.CreditItems[0].NonTaxed = *nonTaxedAmount
 
@@ -407,7 +385,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem con monto no gravado y precio unitario no cero
 				nonTaxedAmount, _ := financial.NewAmount(100.0)
 				zeroAmount, _ := financial.NewAmount(0.0)
 
@@ -416,7 +393,7 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 				ccf.CreditItems[0].ExemptSale = *zeroAmount
 				ccf.CreditItems[0].NonSubjectSale = *zeroAmount
 				ccf.CreditItems[0].Taxes = nil
-				ccf.CreditItems[0].Item.SetForceUnitPrice(50.0) // Precio unitario no debe ser cero
+				ccf.CreditItems[0].Item.SetForceUnitPrice(50.0)
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
@@ -432,9 +409,8 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Crear un ítem de tipo impuesto con unidad de medida incorrecta
 				ccf.CreditItems[0].Item.SetType(constants.Impuesto)
-				ccf.CreditItems[0].Item.SetUnitMeasure(58) // No es 99
+				ccf.CreditItems[0].Item.SetUnitMeasure(58)
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
@@ -450,15 +426,14 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer un descuento que excede el subtotal
 				subtotal := ccf.CreditSummary.Summary.GetSubTotal()
-				ccf.CreditSummary.TaxedDiscount = *financial.NewValidatedAmount(subtotal * 2) // Descuento mayor al subtotal
+				ccf.CreditSummary.TaxedDiscount = *financial.NewValidatedAmount(subtotal * 2)
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
 			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
 			wantErr:   true,
-			errorCode: "DiscountExceedsSubtotal",
+			errorCode: "DiscountExceedsBase",
 		},
 		{
 			name: "Error - CCF with MissingTaxes",
@@ -468,7 +443,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Mantener venta gravada pero eliminar los impuestos
 				ccf.CreditSummary.Summary.SetTotalTaxes(nil)
 
 				return fixtures.BuildAsCCFData(ccf), nil
@@ -485,10 +459,8 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer una percepción con valor incorrecto
-				// La percepción debería ser el 1% de la venta gravada
 				taxedAmount := ccf.CreditSummary.Summary.GetTotalTaxed()
-				incorrectPerception := financial.NewValidatedAmount(taxedAmount * 0.02) // Debería ser 0.01
+				incorrectPerception := financial.NewValidatedAmount(taxedAmount * 0.02)
 				ccf.CreditSummary.IVAPerception = *incorrectPerception
 
 				return fixtures.BuildAsCCFData(ccf), nil
@@ -505,7 +477,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Eliminar el código de actividad económica del receptor
 				ccf.Receiver.SetActivityCode(nil)
 
 				return fixtures.BuildAsCCFData(ccf), nil
@@ -522,11 +493,10 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Cambiar el subtotal a un valor incorrecto
 				incorrectSubtotal := ccf.CreditSummary.Summary.GetSubtotalSales() -
 					ccf.CreditSummary.TaxedDiscount.GetValue() -
 					ccf.CreditSummary.Summary.GetExemptDiscount() -
-					ccf.CreditSummary.Summary.GetNonSubjectDiscount() + 50.0 // Valor incorrecto
+					ccf.CreditSummary.Summary.GetNonSubjectDiscount() + 50.0
 
 				ccf.CreditSummary.Summary.SetSubTotal(incorrectSubtotal)
 
@@ -544,8 +514,7 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Establecer un total a pagar con más de 2 decimales
-				ccf.CreditSummary.Summary.SetForceTotalToPay(100.123) // 3 decimales
+				ccf.CreditSummary.Summary.SetForceTotalToPay(100.123)
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
@@ -561,7 +530,6 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir más de 50 documentos relacionados
 				relatedDocs := make([]models.RelatedDocument, 51)
 				for i := 0; i < 51; i++ {
 					doc := models.RelatedDocument{}
@@ -589,10 +557,9 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				// Añadir un documento relacionado con un tipo inválido
 				relatedDoc := models.RelatedDocument{}
 				relatedDoc.SetDocumentNumber("DTE-01-C0020000-000000000000001")
-				relatedDoc.SetDocumentType(constants.DocumentInvalid) // Tipo inválido
+				relatedDoc.SetDocumentType(constants.DocumentInvalid)
 
 				relatedDoc.SetEmissionDate(utils.TimeNow())
 
@@ -630,7 +597,7 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 				for _, t := range ccf.CreditSummary.Summary.GetTotalTaxes() {
 					tax, ok := t.(*models.Tax)
 					if ok && tax.GetCode() == constants.TaxIVA {
-						tax.SetValue(50.0) // Incorrect value
+						tax.SetValue(50.0)
 						break
 					}
 				}
@@ -649,7 +616,7 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
-				ccf.CreditSummary.Summary.SetTotalToPay(1500.0) // Incorrect value
+				ccf.CreditSummary.Summary.SetTotalToPay(1500.0)
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},

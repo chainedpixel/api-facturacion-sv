@@ -3,8 +3,8 @@ package document
 import (
 	"fmt"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type OperationType struct {
@@ -23,7 +23,7 @@ func NewValidatedOperationType(value int) *OperationType {
 	return &OperationType{Value: value}
 }
 
-// IsValid válida que el valor de OperationType sea 1 o 2
+// IsValid validates that the OperationType value is 1 or 2
 func (ot *OperationType) IsValid() bool {
 	return ot.Value == 1 || ot.Value == 2
 }

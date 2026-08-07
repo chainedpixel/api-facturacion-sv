@@ -1,7 +1,7 @@
 package transmitter
 
 import (
-	models2 "github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	models2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
 )
 
 type DocumentProcessor interface {

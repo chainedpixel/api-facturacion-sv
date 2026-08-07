@@ -3,14 +3,14 @@ package common
 import (
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// MapCommonRequestRelatedDocuments mapea una lista de documentos relacionados a un modelo de documento relacionado -> Origen: Request
+// MapCommonRequestRelatedDocuments maps a list of related documents to a related document model -> Source: Request
 func MapCommonRequestRelatedDocuments(relatedDocuments []structs.RelatedDocRequest) ([]models.RelatedDocument, error) {
 	result := make([]models.RelatedDocument, len(relatedDocuments))
 
@@ -25,7 +25,7 @@ func MapCommonRequestRelatedDocuments(relatedDocuments []structs.RelatedDocReque
 	return result, nil
 }
 
-// MapCommonRequestRelatedDocumentIndex mapea un documento relacionado a un modelo de documento relacionado -> Origen: Request
+// MapCommonRequestRelatedDocumentIndex maps a related document to a related document model -> Source: Request
 func MapCommonRequestRelatedDocumentIndex(doc structs.RelatedDocRequest) (*models.RelatedDocument, error) {
 
 	dteType, err := document.NewDTEType(doc.DocumentType)

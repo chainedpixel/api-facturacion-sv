@@ -3,8 +3,8 @@ package identification
 import (
 	"regexp"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type NRC struct {
@@ -23,7 +23,7 @@ func NewValidatedNRC(value string) *NRC {
 	return &NRC{Value: value}
 }
 
-// IsValid válido si el NRC tiene entre 1 y 8 dígitos
+// IsValid validates that the NRC has between 1 and 8 digits
 func (n *NRC) IsValid() bool {
 	pattern := `^[0-9]{1,8}$`
 	matched, _ := regexp.MatchString(pattern, n.Value)

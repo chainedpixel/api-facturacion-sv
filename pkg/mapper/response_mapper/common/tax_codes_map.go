@@ -1,6 +1,6 @@
 package common
 
-// MapTaxCodes mapea los códigos de impuestos
+// MapTaxCodes maps the tax codes
 func MapTaxCodes(taxes []string) {
 	codes := make([]string, len(taxes))
 	for i, tax := range taxes {

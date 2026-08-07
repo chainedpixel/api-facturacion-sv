@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/validator/strategy"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/validator/strategy"
 )
 
 type CreditNoteRulesValidator struct {
@@ -16,15 +16,15 @@ func NewCreditNoteRulesValidator(doc *credit_note_models.CreditNoteModel) *Credi
 	validator := &CreditNoteRulesValidator{
 		document: doc,
 		strategies: []interfaces.DTEValidationStrategy{
-			&strategy.CreditNoteItemStrategy{Document: doc},       // Validaciones de ítems
-			&strategy.CreditNoteTaxStrategy{Document: doc},        // Validaciones de impuestos
-			&strategy.CreditNoteRelatedDocStrategy{Document: doc}, // Validaciones de documentos relacionados
+			&strategy.CreditNoteItemStrategy{Document: doc},
+			&strategy.CreditNoteTaxStrategy{Document: doc},
+			&strategy.CreditNoteRelatedDocStrategy{Document: doc},
 		},
 	}
 	return validator
 }
 
-// Validate Ejecuta las validaciones de la nota de crédito electrónica.
+// Validate Executes the electronic credit note validations.
 func (v *CreditNoteRulesValidator) Validate() *dte_errors.DTEError {
 	var validationErrors []*dte_errors.DTEError
 

@@ -1,22 +1,22 @@
 package interfaces
 
-// TaxGetter es una interfaz que define los métodos getter que debe implementar un impuesto
+// TaxGetter is an interface that defines the getter methods that a tax must implement
 type TaxGetter interface {
-	GetTotalAmount() float64 // GetTotalAmount obtiene el monto total del impuesto
-	GetCode() string         // GetCode obtiene el código del impuesto
-	GetDescription() string  // GetDescription obtiene la descripción del impuesto
-	GetValue() float64       // GetValue obtiene el valor del impuesto
+	GetTotalAmount() float64
+	GetCode() string
+	GetDescription() string
+	GetValue() float64
 }
 
-// TaxSetter es una interfaz que define los métodos setter que debe implementar un impuesto
+// TaxSetter is an interface that defines the setter methods that a tax must implement
 type TaxSetter interface {
-	SetTotalAmount(totalAmount float64) error // SetTotalAmount establece el monto total del impuesto
-	SetCode(code string) error                // SetCode establece el código del impuesto
-	SetDescription(description string) error  // SetDescription establece la descripción del impuesto
-	SetValue(value float64) error             // SetValue establece el valor del impuesto
+	SetTotalAmount(totalAmount float64) error
+	SetCode(code string) error
+	SetDescription(description string) error
+	SetValue(value float64) error
 }
 
-// Tax es una interfaz que combina los getters y setters de Tax
+// Tax is an interface that combines the getters and setters of Tax
 type Tax interface {
 	TaxGetter
 	TaxSetter

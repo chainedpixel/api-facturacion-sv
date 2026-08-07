@@ -1,11 +1,11 @@
 package invoice
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
 func MapInvoiceItems(item []structs.InvoiceItemRequest) ([]invoice_models.InvoiceItem, error) {
@@ -22,7 +22,7 @@ func MapInvoiceItems(item []structs.InvoiceItemRequest) ([]invoice_models.Invoic
 	return result, nil
 }
 
-// MapInvoiceRequestItem mapea un item de invoice -> Origen: Request
+// MapInvoiceRequestItem maps an invoice item -> Source: Request
 func MapInvoiceRequestItem(item structs.InvoiceItemRequest, index int) (*invoice_models.InvoiceItem, error) {
 
 	baseItem, err := common.MapCommonRequestItem(structs.ItemRequest{

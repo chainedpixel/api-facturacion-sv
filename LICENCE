@@ -1,17 +1,4 @@
-api-facturacion-sv - API de Emisión de Documentos Tributarios Electrónicos (DTE) de El Salvador usando el servicio de Facturación Electrónica de la Dirección General de Impuestos Internos (DGII) de El Salvador.
-Copyright (C) 2025 Marlon Isaac Hernández García. Todos los derechos reservados.
-
-Este programa es software libre: puede redistribuirlo y/o modificarlo
-bajo los términos de la Licencia Pública General GNU tal como está publicada
-por la Free Software Foundation, ya sea la versión 3 de la Licencia, o
-(a su elección) cualquier versión posterior.
-
-Este programa se distribuye con la esperanza de que sea útil,
-pero SIN NINGUNA GARANTÍA; sin siquiera la garantía implícita de
-COMERCIABILIDAD o IDONEIDAD PARA UN PROPÓSITO PARTICULAR. Ver la
-Licencia Pública General GNU para más detalles.
-
-                    GNU GENERAL PUBLIC LICENSE
+GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
@@ -207,7 +194,7 @@ technological measures.
 
   4. Conveying Verbatim Copies.
 
-  You may convey verbatim copies of the Program's source code as you
+  You may convey verbatim copies of the Program's source source code as you
 receive it, in any medium, provided that you conspicuously and
 appropriately publish on each copy an appropriate copyright notice;
 keep intact all notices stating that this License and any
@@ -484,8 +471,8 @@ sale, or importing the Program or any portion of it.
   11. Patents.
 
   A "contributor" is a copyright holder who authorizes use under this
-License of the Program or a work on which the Program is based.  The
-work thus licensed is called the contributor's "contributor version".
+License of the Program or a work based.  The work thus licensed is
+called the contributor's "contributor version".
 
   A contributor's "essential patent claims" are all patent claims
 owned or controlled by the contributor, whether already acquired or
@@ -670,7 +657,7 @@ notice like this when it starts in an interactive mode:
     This is free software, and you are welcome to redistribute it
     under certain conditions; type `show c' for details.
 
-The hypothetical commands `show w' and `show c' should show the appropriate
+  The hypothetical commands `show w' and `show c' should show the appropriate
 parts of the General Public License.  Of course, your program's commands
 might be different; for a GUI interface, you would use an "about box".
 

@@ -3,8 +3,8 @@ package location
 import (
 	"regexp"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Department struct {
@@ -23,7 +23,7 @@ func NewValidatedDepartment(value string) *Department {
 	return &Department{Value: value}
 }
 
-// IsValid válida que el valor de Department sea un número entre 01 y 14 (dos dígitos)
+// IsValid validates that the Department value is a number between 01 and 14 (two digits)
 func (d *Department) IsValid() bool {
 	pattern := `^0[1-9]|1[0-4]$`
 	matched, _ := regexp.MatchString(pattern, d.Value)

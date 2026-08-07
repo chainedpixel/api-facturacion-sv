@@ -1,13 +1,13 @@
 package common
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
-// MapCommonRequestSummary mapea un resumen común a un modelo de resumen -> Origen: Request
+// MapCommonRequestSummary maps a common summary to a summary model -> Source: Request
 func MapCommonRequestSummary(summary structs.SummaryRequest) (*models.Summary, error) {
 	if err := validateSummaryFields(summary); err != nil {
 		return nil, err

@@ -3,15 +3,16 @@ package checkers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/models"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
 )
 
 type signerChecker struct {

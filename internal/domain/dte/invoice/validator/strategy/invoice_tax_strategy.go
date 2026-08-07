@@ -3,47 +3,42 @@ package strategy
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/validator/strategy"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
-// InvoiceTaxStrategy implementa la validación de impuestos de una invoice electrónica
+// InvoiceTaxStrategy implements the tax validation of an electronic invoice
 type InvoiceTaxStrategy struct {
 	*strategy.TaxCalculationStrategy
 	Document *invoice_models.ElectronicInvoice
 }
 
-// Validate valida los impuestos de la invoice, sobreescribiendo el método de la interfaz
+// Validate validates the invoice taxes, overriding the interface method
 func (s *InvoiceTaxStrategy) Validate() *dte_errors.DTEError {
 	if s.Document == nil || len(s.Document.InvoiceItems) == 0 {
 		return nil
 	}
 
-	// 1. Validar totales base
 	if err := s.validateBaseTotals(); err != nil {
 		return err
 	}
 
-	// 2. Validar IVA
 	if err := s.validateIVA(); err != nil {
 		return err
 	}
 
-	// 3. Validar montos monetarios
 	if err := s.validateMonetaryAmounts(); err != nil {
 		return err
 	}
 
-	// 4. Validar montos totales
 	if err := s.validateTotalAmounts(); err != nil {
 		return err
 	}
 
-	// 5. Validar estrategia de items
 	for _, item := range s.Document.InvoiceItems {
 		if len(s.Document.RelatedDocuments) > 0 {
 
@@ -80,10 +75,8 @@ func (s *InvoiceTaxStrategy) Validate() *dte_errors.DTEError {
 }
 
 func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
-	// Obtener total operación
 	totalOperation := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalOperation.GetValue())
 
-	// Obtener montos que afectan el total a pagar
 	taxedAmount := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue())
 
 	expectedSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue()).
@@ -124,20 +117,16 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		}
 	}
 
-	// Inicializar el total a pagar con el total operación
 	totalToPay := totalOperation
 
 	if taxedAmount.GreaterThan(decimal.Zero) {
-		// Restar retención IVA
 		ivaRetention := decimal.NewFromFloat(s.Document.InvoiceSummary.IVARetention.GetValue())
 		totalToPay = totalToPay.Sub(ivaRetention)
 
-		// Restar retención de renta
 		incomeRetention := decimal.NewFromFloat(s.Document.InvoiceSummary.IncomeRetention.GetValue())
 		totalToPay = totalToPay.Sub(incomeRetention)
 	}
 
-	// Validar que la retención de IVA y la retención de renta no sean mayores al monto gravado
 	if s.Document.InvoiceSummary.IVARetention.GetValue() > 0 && taxedAmount.IsZero() {
 		logs.Error("IVA retention without taxed amount", map[string]interface{}{
 			"ivaRetention": s.Document.InvoiceSummary.IVARetention.GetValue(),
@@ -153,7 +142,6 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		return dte_errors.NewDTEErrorSimple("InvalidIncomeRetentionWithoutTaxedAmount")
 	}
 
-	// Validar que las ventas no gravadas no sean mayores al monto no gravado
 	var nonTaxed decimal.Decimal
 	for _, item := range s.Document.InvoiceItems {
 		nonTaxed = nonTaxed.Add(decimal.NewFromFloat(item.NonTaxed.GetValue()))
@@ -170,14 +158,12 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			nonTaxed.InexactFloat64())
 	}
 
-	// Agregar monto no gravado si existe
 	if totalNonTaxed.GreaterThan(decimal.Zero) {
 		totalToPay = totalToPay.Add(totalNonTaxed)
 	}
 
 	actualTotalToPay := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalToPay.GetValue())
 
-	// Usar una pequeña tolerancia para comparaciones con decimales
 	if !s.CompareTaxWithTolerance(totalToPay, actualTotalToPay, 0.01) {
 		logs.Error("Invalid total to pay", map[string]interface{}{
 			"calculated":      totalToPay,
@@ -212,7 +198,6 @@ func ValidateMonetaryAmount(amount float64, fieldName string) *dte_errors.DTEErr
 func (s *InvoiceTaxStrategy) validateIVA() *dte_errors.DTEError {
 	baseTaxed := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue())
 
-	// Si no hay monto gravado, no debe haber impuestos
 	if !baseTaxed.GreaterThan(decimal.Zero) {
 		if len(s.Document.InvoiceSummary.TotalTaxes) > 0 {
 			return dte_errors.NewDTEErrorSimple("InvalidTaxes")
@@ -220,14 +205,12 @@ func (s *InvoiceTaxStrategy) validateIVA() *dte_errors.DTEError {
 		return nil
 	}
 
-	// Validar cada impuesto
 	for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
 		if err := s.validateTaxCalculation(tax, baseTaxed); err != nil {
 			return err
 		}
 	}
 
-	// Validar los totales de impuestos
 	if err := s.validateSummaryTaxes(); err != nil {
 		return err
 	}
@@ -236,27 +219,22 @@ func (s *InvoiceTaxStrategy) validateIVA() *dte_errors.DTEError {
 }
 
 func (s *InvoiceTaxStrategy) validateMonetaryAmounts() *dte_errors.DTEError {
-	// Validar Total Operation
 	if err := ValidateMonetaryAmount(s.Document.InvoiceSummary.TotalOperation.GetValue(), "total_operation"); err != nil {
 		return err
 	}
 
-	// Validar IVA Retention
 	if err := ValidateMonetaryAmount(s.Document.InvoiceSummary.IVARetention.GetValue(), "iva_retention"); err != nil {
 		return err
 	}
 
-	// Validar Income Retention
 	if err := ValidateMonetaryAmount(s.Document.InvoiceSummary.IncomeRetention.GetValue(), "income_retention"); err != nil {
 		return err
 	}
 
-	// Validar Total To Pay
 	if err := ValidateMonetaryAmount(s.Document.InvoiceSummary.TotalToPay.GetValue(), "total_to_pay"); err != nil {
 		return err
 	}
 
-	// Validar Payment Amounts
 	for _, payment := range s.Document.InvoiceSummary.GetPaymentTypes() {
 		if err := ValidateMonetaryAmount(payment.GetAmount(), "payment_amount"); err != nil {
 			return err
@@ -300,7 +278,6 @@ func (s *InvoiceTaxStrategy) validateTaxCalculation(tax interfaces.Tax, baseTaxe
 
 func (s *InvoiceTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 
-	//Verificar que los descuentos no sobrepasen el subtotal
 	if decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotal.GetValue()).LessThan(decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue())) {
 		logs.Error("Invalid taxed discount", map[string]interface{}{
 			"taxedDiscount": s.Document.InvoiceSummary.TaxedDiscount.GetValue(),
@@ -337,10 +314,8 @@ func (s *InvoiceTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 	return nil
 }
 
-// validateSummaryTaxes valida los totales de impuestos del resumen
+// validateSummaryTaxes validates the summary tax totals
 func (s *InvoiceTaxStrategy) validateSummaryTaxes() *dte_errors.DTEError {
-	// Cuando hay descuentos a nivel de taxed_discount, no se valida la coincidencia
-	// entre IVA de items e IVA del resumen porque pueden ser diferentes por diseño.
 
 	summaryIVA := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalIva.GetValue())
 	taxedAmount := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue())
@@ -356,7 +331,7 @@ func (s *InvoiceTaxStrategy) validateSummaryTaxes() *dte_errors.DTEError {
 	return nil
 }
 
-// CompareTaxWithTolerance Compara dos impuestos con una tolerancia dada, normalmente 0.0001
+// CompareTaxWithTolerance Compares two tax values with a given tolerance, typically 0.0001
 func (s *InvoiceTaxStrategy) CompareTaxWithTolerance(expected, actual decimal.Decimal, tolerance float64) bool {
 	diff := expected.Sub(actual).Abs()
 	return diff.LessThanOrEqual(decimal.NewFromFloat(tolerance))

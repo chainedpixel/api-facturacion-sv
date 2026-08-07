@@ -7,22 +7,22 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type ErrorMiddleware struct {
 	responseWriter *response.ResponseWriter
 }
 
-// NewErrorMiddleware crea una nueva instancia de ErrorMiddleware
+// NewErrorMiddleware creates a new instance of ErrorMiddleware
 func NewErrorMiddleware() *ErrorMiddleware {
 	return &ErrorMiddleware{
 		responseWriter: response.NewResponseWriter(),
 	}
 }
 
-// Handler es un middleware que captura los errores de pánico y los errores de cliente.
+// Handler is a middleware that captures panic errors and client errors.
 func (m *ErrorMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -77,21 +77,21 @@ func (m *ErrorMiddleware) Handler(next http.Handler) http.Handler {
 	})
 }
 
-// statusWriter es un wrapper para http.ResponseWriter que captura el código de estado
+// statusWriter is a wrapper for http.ResponseWriter that captures the status code
 type statusWriter struct {
 	http.ResponseWriter
 	status  int
 	written bool
 }
 
-// WriteHeader captura el código de estado
+// WriteHeader captures the status code
 func (w *statusWriter) WriteHeader(status int) {
 	w.status = status
 	w.written = true
 	w.ResponseWriter.WriteHeader(status)
 }
 
-// Write captura el código de estado si no se ha escrito antes
+// Write captures the status code if it has not been written before
 func (w *statusWriter) Write(b []byte) (int, error) {
 	if !w.written {
 		w.written = true
@@ -100,7 +100,7 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-// Hijack implementa el interface http.Hijacker si es necesario
+// Hijack implements the http.Hijacker interface if needed
 func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if hijacker, ok := w.ResponseWriter.(http.Hijacker); ok {
 		return hijacker.Hijack()

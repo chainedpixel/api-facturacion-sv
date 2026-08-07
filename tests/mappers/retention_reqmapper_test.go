@@ -3,27 +3,24 @@ package mappers
 import (
 	"testing"
 
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
-	"github.com/MarlonG1/api-facturacion-sv/tests"
-	"github.com/MarlonG1/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/ordo-factus/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMapToRetentionData(t *testing.T) {
 	test.TestMain(t)
 
-	// Emisor por defecto para todas las pruebas
 	issuer := fixtures.CreateDefaultIssuer()
 
-	// Definir casos de prueba
 	tests := []struct {
 		name      string
 		req       func() *structs.CreateRetentionRequest
 		wantErr   bool
 		errorCode string
 	}{
-		// ------ VALIDACIONES BÁSICAS ------
 		{
 			name: "Valid retention request with physical documents",
 			req: func() *structs.CreateRetentionRequest {
@@ -84,7 +81,6 @@ func TestMapToRetentionData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 
-		// ------ VALIDACIONES DE RECEPTOR ------
 		{
 			name: "Retention without receiver document type",
 			req: func() *structs.CreateRetentionRequest {
@@ -170,7 +166,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Retention with invalid receiver phone",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				invalidPhone := "123" // Demasiado corto
+				invalidPhone := "123"
 				req.Receiver.Phone = &invalidPhone
 				return req
 			},
@@ -178,7 +174,6 @@ func TestMapToRetentionData(t *testing.T) {
 			errorCode: "InvalidPhone",
 		},
 
-		// ------ VALIDACIONES DE ITEMS FÍSICOS ------
 		{
 			name: "Physical item without taxed amount",
 			req: func() *structs.CreateRetentionRequest {
@@ -223,7 +218,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Physical item with invalid document number",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Items[0].DocumentNumber = "" // Vacío (inválido)
+				req.Items[0].DocumentNumber = ""
 				return req
 			},
 			wantErr:   true,
@@ -233,7 +228,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Physical item with invalid DTE type",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				invalidDTEType := "99" // Tipo inválido
+				invalidDTEType := "99"
 				req.Items[0].DTEType = &invalidDTEType
 				return req
 			},
@@ -244,7 +239,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Physical item with invalid emission date format",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				invalidDate := "20/04/2025" // Formato incorrecto
+				invalidDate := "20/04/2025"
 				req.Items[0].EmissionDate = &invalidDate
 				return req
 			},
@@ -255,7 +250,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Physical item with future emission date",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				futureDate := "2099-01-01" // Fecha futura
+				futureDate := "2099-01-01"
 				req.Items[0].EmissionDate = &futureDate
 				return req
 			},
@@ -263,12 +258,11 @@ func TestMapToRetentionData(t *testing.T) {
 			errorCode: "InvalidDateTime",
 		},
 
-		// ------ VALIDACIONES DE ITEMS ELECTRÓNICOS ------
 		{
 			name: "Electronic item without description",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreateElectronicDocumentsRetentionRequest()
-				req.Items[0].Description = "" // Vacío (inválido)
+				req.Items[0].Description = ""
 				return req
 			},
 			wantErr:   true,
@@ -278,7 +272,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Electronic item with invalid document number",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreateElectronicDocumentsRetentionRequest()
-				req.Items[0].DocumentNumber = "123-not-valid-uuid" // Formato inválido para documento electrónico
+				req.Items[0].DocumentNumber = "123-not-valid-uuid"
 				return req
 			},
 			wantErr:   true,
@@ -288,19 +282,18 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Electronic item with invalid document type",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreateElectronicDocumentsRetentionRequest()
-				req.Items[0].DocumentType = 99 // Tipo inválido
+				req.Items[0].DocumentType = 99
 				return req
 			},
 			wantErr:   true,
 			errorCode: "InvalidNumberRange",
 		},
 
-		// ------ VALIDACIONES DE CÓDIGOS DE RETENCIÓN ------
 		{
 			name: "Item with invalid retention code",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Items[0].RetentionCode = "99" // Código inválido
+				req.Items[0].RetentionCode = "99"
 				return req
 			},
 			wantErr:   true,
@@ -310,7 +303,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Item with valid retention code 22 (IVA 1%)",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Items[0].RetentionCode = "22" // Código válido
+				req.Items[0].RetentionCode = "22"
 				return req
 			},
 			wantErr: false,
@@ -319,7 +312,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Item with valid retention code C4 (IVA 13%)",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Items[0].RetentionCode = "C4" // Código válido
+				req.Items[0].RetentionCode = "C4"
 				return req
 			},
 			wantErr: false,
@@ -328,18 +321,17 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Item with valid retention code C9 (Otros casos)",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Items[0].RetentionCode = "C9" // Código válido
+				req.Items[0].RetentionCode = "C9"
 				return req
 			},
 			wantErr: false,
 		},
 
-		// ------ VALIDACIONES DE CAMPOS FINANCIEROS ------
 		{
 			name: "Summary with negative total retention amount",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Summary.TotalRetentionAmount = -100.0 // Monto negativo
+				req.Summary.TotalRetentionAmount = -100.0
 				return req
 			},
 			wantErr:   true,
@@ -349,7 +341,7 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Summary with negative total retention IVA",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Summary.TotalRetentionIVA = -13.0 // Monto negativo
+				req.Summary.TotalRetentionIVA = -13.0
 				return req
 			},
 			wantErr:   true,
@@ -378,13 +370,12 @@ func TestMapToRetentionData(t *testing.T) {
 			errorCode: "InvalidAmount",
 		},
 
-		// ------ VALIDACIONES DE CAMPOS OPCIONALES ------
 		{
 			name: "Retention with invalid extension",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
 				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "", // Requerido pero vacío
+					DeliveryName:     "",
 					DeliveryDocument: "123456",
 					ReceiverName:     "Ana López",
 					ReceiverDocument: "98765432-1",
@@ -404,7 +395,7 @@ func TestMapToRetentionData(t *testing.T) {
 					DeliveryDocument: "12345678-9",
 					ReceiverName:     "Ana López",
 					ReceiverDocument: "98765432-1",
-					VehiculePlate:    &plate, // No permitido en retenciones
+					VehiculePlate:    &plate,
 				}
 				return req
 			},
@@ -417,7 +408,7 @@ func TestMapToRetentionData(t *testing.T) {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
 				req.Appendixes = []structs.AppendixRequest{
 					{
-						Field: "", // Requerido pero vacío
+						Field: "",
 						Label: "Etiqueta",
 						Value: "Valor",
 					},
@@ -434,7 +425,7 @@ func TestMapToRetentionData(t *testing.T) {
 				req.Appendixes = []structs.AppendixRequest{
 					{
 						Field: "campo",
-						Label: "ab", // Demasiado corto (mínimo 3)
+						Label: "ab",
 						Value: "Valor",
 					},
 				}
@@ -444,7 +435,6 @@ func TestMapToRetentionData(t *testing.T) {
 			errorCode: "InvalidAppendixLabel",
 		},
 
-		// ------ CASOS VÁLIDOS ADICIONALES ------
 		{
 			name: "Retention with valid extension",
 			req: func() *structs.CreateRetentionRequest {
@@ -478,7 +468,6 @@ func TestMapToRetentionData(t *testing.T) {
 		},
 	}
 
-	// Ejecutar casos de prueba
 	mapper := request_mapper.NewRetentionMapper()
 
 	for _, tt := range tests {
@@ -504,7 +493,6 @@ func TestMapToRetentionData(t *testing.T) {
 			assert.NotNil(t, got.RetentionItems)
 			assert.Len(t, got.RetentionItems, len(req.Items))
 
-			// Verificar campos específicos según el tipo de documento
 			isAllPhysical := true
 			for _, item := range req.Items {
 				if item.DocumentType == 2 {
@@ -519,7 +507,6 @@ func TestMapToRetentionData(t *testing.T) {
 				assert.NotZero(t, got.RetentionSummary.TotalIVARetention.GetValue())
 			}
 
-			// Verificar campos opcionales si están presentes
 			if req.Extension != nil {
 				assert.NotNil(t, got.Extension)
 			}

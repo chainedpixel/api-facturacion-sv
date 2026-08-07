@@ -1,11 +1,12 @@
 package health
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/adapters/health/checkers"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/health/checkers"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +15,8 @@ type healthService struct {
 }
 
 type HealthServiceConfig struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	Bus event.Bus
 }
 
 func NewHealthService(cfg *HealthServiceConfig) health.HealthManager {
@@ -25,6 +27,8 @@ func NewHealthService(cfg *HealthServiceConfig) health.HealthManager {
 			checkers.NewHaciendaChecker(),
 			checkers.NewFileSystemChecker(),
 			checkers.NewSignerChecker(),
+			checkers.NewDomainEventsChecker(cfg.Bus),
+			checkers.NewSMTPChecker(),
 		},
 	}
 	return service

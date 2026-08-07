@@ -1,8 +1,8 @@
 package base
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Phone struct {
@@ -21,7 +21,7 @@ func NewValidatedPhone(value string) *Phone {
 	return &Phone{Value: value}
 }
 
-// IsValid válida si el número de teléfono tiene entre 8 y 30 dígitos
+// IsValid validates that the phone number has between 8 and 30 digits
 func (p *Phone) IsValid() bool {
 	return len(p.Value) >= 8 && len(p.Value) <= 30
 }

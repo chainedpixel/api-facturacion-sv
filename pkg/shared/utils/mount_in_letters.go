@@ -15,7 +15,7 @@ var (
 	cs                 = []string{"x", "cien", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"}
 )
 
-// InLetters convierte un número a letras en español y lo devuelve en mayúsculas.
+// InLetters converts a number to words in Spanish and returns it in uppercase.
 func InLetters(n float64) string {
 	if math.IsNaN(n) || math.IsInf(n, 0) || math.Abs(n) >= 1000000000 {
 		return ErrValorNoAdmitido.Error()

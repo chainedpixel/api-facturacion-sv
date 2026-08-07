@@ -2,12 +2,13 @@ package user
 
 import (
 	"encoding/json"
-	errPackage "github.com/MarlonG1/api-facturacion-sv/internal/domain/core/error"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
 	"time"
+
+	errPackage "github.com/chainedpixel/ordo-factus/internal/domain/core/error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
 )
 
 type User struct {
@@ -28,11 +29,10 @@ type User struct {
 	CreatedAt            time.Time `json:"-"`
 	UpdatedAt            time.Time `json:"-"`
 
-	// Relationships
 	BranchOffices []BranchOffice `json:"branch_offices,omitempty"`
 }
 
-// Validate válida los campos del usuario para que cumplan con las reglas de negocio
+// Validate validates the user fields to ensure they comply with business rules
 func (u *User) Validate() error {
 	if _, err := identification.NewNIT(u.NIT); err != nil {
 		return err
@@ -100,9 +100,8 @@ func (u *User) Validate() error {
 	return nil
 }
 
-// GetBranchOfficeMatrix retorna la sucursal que es la casa matriz
+// GetBranchOfficeMatrix returns the branch office that is the headquarters
 func (u *User) GetBranchOfficeMatrix() (*BranchOffice, error) {
-	// 1. Buscar la casa matriz
 	for _, branchOffice := range u.BranchOffices {
 		if branchOffice.EstablishmentType == constants.CasaMatriz {
 			return &branchOffice, nil
@@ -112,17 +111,15 @@ func (u *User) GetBranchOfficeMatrix() (*BranchOffice, error) {
 	return nil, dte_errors.NewFormattedValidationError(errPackage.ErrBranchMatrixNotFound)
 }
 
-// ValidateBranchOffices valida las sucursales del usuario para que cumplan con las reglas de negocio
+// ValidateBranchOffices validates the user's branch offices to ensure they comply with business rules
 func (u *User) ValidateBranchOffices() error {
 	var matrixCount int
 	var matrixHasAddress bool
 
-	// 1. Validar que tenga al menos una sucursal
 	if len(u.BranchOffices) == 0 {
 		return dte_errors.NewFormattedValidationError(errPackage.ErrAtLeastOneBranch)
 	}
 
-	// 2. Validar cada sucursal individualmente
 	for _, branchOffice := range u.BranchOffices {
 		if err := branchOffice.Validate(); err != nil {
 			return err
@@ -136,17 +133,14 @@ func (u *User) ValidateBranchOffices() error {
 		}
 	}
 
-	// 3. Validar que tenga una casa matriz
 	if matrixCount == 0 {
 		return dte_errors.NewFormattedValidationError(errPackage.ErrDontHaveBranchMatrix)
 	}
 
-	// 4. Validar que la casa matriz tenga dirección
 	if !matrixHasAddress {
 		return dte_errors.NewFormattedValidationError(errPackage.ErrBranchMatrixWithoutAddress)
 	}
 
-	// 5. Validar que tenga solo una casa matriz
 	if matrixCount > 1 {
 		return dte_errors.NewFormattedValidationError(errPackage.ErrMoreThanOneBranchMatrix)
 	}
@@ -154,7 +148,7 @@ func (u *User) ValidateBranchOffices() error {
 	return nil
 }
 
-// SetBranchesKeysAndSecrets asigna las llaves y secretos a las sucursales del usuario
+// SetBranchesKeysAndSecrets assigns keys and secrets to the user's branch offices
 func (u *User) SetBranchesKeysAndSecrets(keys []string, secrets []string) {
 	for i := range u.BranchOffices {
 		u.BranchOffices[i].APIKey = keys[i]

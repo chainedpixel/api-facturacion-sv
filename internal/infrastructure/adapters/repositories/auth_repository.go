@@ -3,14 +3,15 @@ package repositories
 import (
 	"context"
 	"errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
 	"gorm.io/gorm"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/dte"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/database/db_models"
-	errPackage "github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/error"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	errPackage "github.com/chainedpixel/ordo-factus/internal/infrastructure/error"
 )
 
 type AuthRepository struct {
@@ -21,9 +22,8 @@ func NewAuthRepository(db *gorm.DB) auth.AuthRepositoryPort {
 	return &AuthRepository{db: db}
 }
 
-// GetAuthTypeByApiKey obtiene el tipo de autenticación de un usuario por su API key
+// GetAuthTypeByApiKey retrieves the authentication type of a user by their API key
 func (r *AuthRepository) GetAuthTypeByApiKey(ctx context.Context, apiKey string) (string, error) {
-	// 1. Obtener usuario por API key
 	user, err := r.GetByBranchApiKey(ctx, apiKey)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -38,10 +38,9 @@ func (r *AuthRepository) GetAuthTypeByApiKey(ctx context.Context, apiKey string)
 	return user.AuthType, nil
 }
 
-// GetByNIT obtiene un usuario por su NIT
+// GetByNIT retrieves a user by their NIT
 func (r *AuthRepository) GetByNIT(ctx context.Context, nit string) (*user.User, error) {
 	var dbUser db_models.User
-	// 1. Obtener usuario por NIT
 	result := r.db.WithContext(ctx).Where("nit = ? AND status = ?", nit, true).First(&dbUser)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -50,7 +49,6 @@ func (r *AuthRepository) GetByNIT(ctx context.Context, nit string) (*user.User, 
 		return nil, result.Error
 	}
 
-	// 2. Convertir a modelo de dominio
 	user := &user.User{
 		ID:             dbUser.ID,
 		NIT:            dbUser.NIT,
@@ -71,11 +69,10 @@ func (r *AuthRepository) GetByNIT(ctx context.Context, nit string) (*user.User, 
 	return user, nil
 }
 
-// GetByBranchApiKey obtiene un usuario por la API key de una sucursal
+// GetByBranchApiKey retrieves a user by the API key of a branch office
 func (r *AuthRepository) GetByBranchApiKey(ctx context.Context, apiKey string) (*user.User, error) {
 	var branch db_models.BranchOffice
 
-	// 1. Obtener la sucursal por su API key
 	result := r.db.WithContext(ctx).Where("api_key = ? AND is_active = ?", apiKey, true).First(&branch)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -84,7 +81,6 @@ func (r *AuthRepository) GetByBranchApiKey(ctx context.Context, apiKey string) (
 		return nil, result.Error
 	}
 
-	// 2. Obtener el usuario asociado
 	var dbUser db_models.User
 	result = r.db.WithContext(ctx).Where("id = ? AND status = ?", branch.UserID, true).First(&dbUser)
 	if result.Error != nil {
@@ -94,7 +90,6 @@ func (r *AuthRepository) GetByBranchApiKey(ctx context.Context, apiKey string) (
 		return nil, result.Error
 	}
 
-	// 3. Convertir a modelo de dominio
 	return &user.User{
 		ID:                   dbUser.ID,
 		NIT:                  dbUser.NIT,
@@ -115,7 +110,7 @@ func (r *AuthRepository) GetByBranchApiKey(ctx context.Context, apiKey string) (
 	}, nil
 }
 
-// GetBranchByBranchApiKey obtiene una sucursal por su API key
+// GetBranchByBranchApiKey retrieves a branch office by its API key
 func (r *AuthRepository) GetBranchByBranchApiKey(ctx context.Context, apiKey string) (*user.BranchOffice, error) {
 	var branch db_models.BranchOffice
 
@@ -153,11 +148,10 @@ func (r *AuthRepository) GetBranchByBranchApiKey(ctx context.Context, apiKey str
 	return localUser, nil
 }
 
-// GetByBranchID obtiene un usuario por el ID de una sucursal
+// GetByBranchID retrieves a user by the ID of a branch office
 func (r *AuthRepository) GetByBranchID(ctx context.Context, branchID uint) (*user.User, error) {
 	var branch db_models.BranchOffice
 
-	// 1. Obtener la sucursal por su API key
 	result := r.db.WithContext(ctx).Where("id = ? AND is_active = ?", branchID, true).First(&branch)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -166,7 +160,6 @@ func (r *AuthRepository) GetByBranchID(ctx context.Context, branchID uint) (*use
 		return nil, result.Error
 	}
 
-	// 2. Obtener el usuario asociado
 	var dbUser db_models.User
 	result = r.db.WithContext(ctx).Where("id = ? AND status = ?", branch.UserID, true).First(&dbUser)
 	if result.Error != nil {
@@ -176,7 +169,6 @@ func (r *AuthRepository) GetByBranchID(ctx context.Context, branchID uint) (*use
 		return nil, result.Error
 	}
 
-	// 3. Convertir a modelo de dominio
 	return &user.User{
 		ID:                   dbUser.ID,
 		NIT:                  dbUser.NIT,
@@ -197,10 +189,9 @@ func (r *AuthRepository) GetByBranchID(ctx context.Context, branchID uint) (*use
 	}, nil
 }
 
-// Create crea un usuario con sus sucursales
+// Create creates a user along with their branch offices
 func (r *AuthRepository) Create(ctx context.Context, user *user.User) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. Convertir modelo de dominio a modelo de base de datos
 		dbUser := db_models.User{
 			NIT:                  user.NIT,
 			NRC:                  user.NRC,
@@ -220,15 +211,12 @@ func (r *AuthRepository) Create(ctx context.Context, user *user.User) error {
 			dbUser.TokenLifetime = user.TokenLifetime
 		}
 
-		// 2. Crear usuario
 		if err := tx.Create(&dbUser).Error; err != nil {
 			return err
 		}
 
-		// 3. Actualizar ID en el modelo de dominio
 		user.ID = dbUser.ID
 
-		// 4. Crear sucursales
 		for i := range user.BranchOffices {
 			dbBranch := db_models.BranchOffice{
 				UserID:              dbUser.ID,
@@ -248,7 +236,6 @@ func (r *AuthRepository) Create(ctx context.Context, user *user.User) error {
 				return err
 			}
 
-			// 5. Si la sucursal tiene dirección, crearla también
 			if user.BranchOffices[i].Address != nil {
 				dbAddress := db_models.Address{
 					BranchID:     dbBranch.ID,
@@ -262,7 +249,6 @@ func (r *AuthRepository) Create(ctx context.Context, user *user.User) error {
 				}
 			}
 
-			// 6. Actualizar ID en el modelo de dominio
 			user.BranchOffices[i].ID = dbBranch.ID
 		}
 
@@ -270,9 +256,8 @@ func (r *AuthRepository) Create(ctx context.Context, user *user.User) error {
 	})
 }
 
-// Update actualiza un usuario
+// Update updates a user
 func (r *AuthRepository) Update(ctx context.Context, user *user.User) error {
-	// 1. Convertir modelo de dominio a modelo de base de datos
 	dbUser := db_models.User{
 		ID:             user.ID,
 		NIT:            user.NIT,
@@ -288,22 +273,19 @@ func (r *AuthRepository) Update(ctx context.Context, user *user.User) error {
 		TokenLifetime:  user.TokenLifetime,
 	}
 
-	// 2. Actualizar usuario
 	return r.db.WithContext(ctx).Model(&dbUser).Updates(dbUser).Error
 }
 
-// UpdateBranchOffices actualiza las sucursales de un usuario
+// UpdateBranchOffices updates the branch offices of a user
 func (r *AuthRepository) UpdateBranchOffices(ctx context.Context, userID uint, branches []user.BranchOffice) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, branch := range branches {
-			// 1. Comprobar que la sucursal pertenece al usuario
 			var count int64
 			tx.Model(&db_models.BranchOffice{}).Where("id = ? AND user_id = ?", branch.ID, userID).Count(&count)
 			if count == 0 {
 				return errPackage.ErrBranchDoesNotBelong
 			}
 
-			// 2. Actualizar sucursal
 			dbBranch := db_models.BranchOffice{
 				ID:                  branch.ID,
 				EstablishmentCode:   branch.EstablishmentCode,
@@ -322,7 +304,6 @@ func (r *AuthRepository) UpdateBranchOffices(ctx context.Context, userID uint, b
 				return err
 			}
 
-			// 3. Si hay dirección, actualizarla también
 			if branch.Address != nil {
 				dbAddress := db_models.Address{
 					BranchID:     branch.ID,
@@ -331,12 +312,10 @@ func (r *AuthRepository) UpdateBranchOffices(ctx context.Context, userID uint, b
 					Complement:   branch.Address.Complement,
 				}
 
-				// 3.1 Actualizar o crear dirección
 				var existingAddress db_models.Address
 				result := tx.Where("branch_id = ?", branch.ID).First(&existingAddress)
 				if result.Error != nil {
 					if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-						// 3.2 Crear dirección si no existe
 						if err := tx.Create(&dbAddress).Error; err != nil {
 							return err
 						}
@@ -344,7 +323,6 @@ func (r *AuthRepository) UpdateBranchOffices(ctx context.Context, userID uint, b
 						return result.Error
 					}
 				} else {
-					// 3.4 Actualizar dirección existente
 					dbAddress.ID = existingAddress.ID
 					if err := tx.Model(&dbAddress).Updates(dbAddress).Error; err != nil {
 						return err
@@ -357,22 +335,19 @@ func (r *AuthRepository) UpdateBranchOffices(ctx context.Context, userID uint, b
 	})
 }
 
-// DeleteBranchOffice elimina una sucursal de un usuario
+// DeleteBranchOffice deletes a branch office from a user
 func (r *AuthRepository) DeleteBranchOffice(ctx context.Context, userID uint, branchID uint) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. Comprobar que la sucursal pertenece al usuario
 		var count int64
 		tx.Model(&db_models.BranchOffice{}).Where("id = ? AND user_id = ?", branchID, userID).Count(&count)
 		if count == 0 {
 			return errPackage.ErrBranchDoesNotBelong
 		}
 
-		// 2. Eliminar dirección primero (debido a la restricción de clave foránea)
 		if err := tx.Where("branch_id = ?", branchID).Delete(&db_models.Address{}).Error; err != nil {
 			return err
 		}
 
-		// 3. Eliminar sucursal
 		return tx.Delete(&db_models.BranchOffice{}, branchID).Error
 	})
 }
@@ -428,7 +403,7 @@ func (r *AuthRepository) GetBranchByBranchID(ctx context.Context, branchID uint)
 	return localBranch, nil
 }
 
-// GetAuthTypeByNIT obtiene el tipo de autenticación de un usuario por su NIT
+// GetAuthTypeByNIT retrieves the authentication type of a user by their NIT
 func (r *AuthRepository) GetAuthTypeByNIT(ctx context.Context, nit string) (string, error) {
 	user, err := r.GetByNIT(ctx, nit)
 	if err != nil {
@@ -438,9 +413,8 @@ func (r *AuthRepository) GetAuthTypeByNIT(ctx context.Context, nit string) (stri
 	return user.AuthType, nil
 }
 
-// GetIssuerInfoByBranchID obtiene la información del usuario y sucursal formateada para el DTE de Hacienda
+// GetIssuerInfoByBranchID retrieves the user and branch information formatted for the Hacienda DTE
 func (r *AuthRepository) GetIssuerInfoByBranchID(ctx context.Context, branchID uint) (*dte.IssuerDTE, error) {
-	// 1. Obtener sucursal
 	branch, err := r.GetBranchByBranchID(ctx, branchID)
 	if err != nil {
 		return nil, err
@@ -448,23 +422,19 @@ func (r *AuthRepository) GetIssuerInfoByBranchID(ctx context.Context, branchID u
 	phone := branch.Phone
 	email := branch.Email
 
-	// 2. Obtener usuario
 	user, err := r.GetByBranchID(ctx, branchID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2.1 Si la sucursal no tiene correo, usar el del usuario
 	if branch.Email == nil {
 		email = &user.Email
 	}
 
-	// 2.2 Si la sucursal no tiene teléfono, usar el del usuario
 	if branch.Phone == nil {
 		phone = &user.Phone
 	}
 
-	// 2.3 Si la sucursal no tiene dirección, usar la de la casa matriz
 	if branch.Address == nil {
 		matrixBranch, err := r.GetMatrixBranch(ctx, user.ID)
 		if err != nil {
@@ -474,17 +444,14 @@ func (r *AuthRepository) GetIssuerInfoByBranchID(ctx context.Context, branchID u
 		branch.Address = matrixBranch.Address
 	}
 
-	// 2.4 Recortar a 4 characteres el POS Code
 	if branch.POSCode != nil && len(*branch.POSCode) > 4 {
 		*branch.POSCode = (*branch.POSCode)[:4]
 	}
 
-	// 2.5 Recortar a 4 characteres el EstablishmentCode
 	if branch.EstablishmentCode != nil && len(*branch.EstablishmentCode) > 4 {
 		*branch.EstablishmentCode = (*branch.EstablishmentCode)[:4]
 	}
 
-	// 3. Formatear información para DTE
 	return &dte.IssuerDTE{
 		NIT:                  user.NIT,
 		NRC:                  user.NRC,
@@ -503,7 +470,7 @@ func (r *AuthRepository) GetIssuerInfoByBranchID(ctx context.Context, branchID u
 	}, nil
 }
 
-// GetMatrixBranch obtiene la sucursal registrada como casa matriz
+// GetMatrixBranch retrieves the branch office registered as the main office (casa matriz)
 func (r *AuthRepository) GetMatrixBranch(ctx context.Context, userID uint) (*user.BranchOffice, error) {
 	var branch db_models.BranchOffice
 

@@ -1,6 +1,6 @@
 package structs
 
-// CreateInvoiceRequest estructura para mapear la creación de una invoice
+// CreateInvoiceRequest structure for mapping the creation of an invoice
 type CreateInvoiceRequest struct {
 	Items          []InvoiceItemRequest   `json:"items"`
 	Receiver       *ReceiverRequest       `json:"receiver"`
@@ -14,7 +14,7 @@ type CreateInvoiceRequest struct {
 	Appendixes     []AppendixRequest      `json:"appendixes,omitempty"`
 }
 
-// InvoiceItemRequest estructura para mapear un item de una invoice
+// InvoiceItemRequest structure for mapping an item of an invoice
 type InvoiceItemRequest struct {
 	ItemRequest
 	NonSubjectSale float64 `json:"non_subject_sale"`
@@ -25,7 +25,7 @@ type InvoiceItemRequest struct {
 	IVAItem        float64 `json:"iva_item"`
 }
 
-// InvoiceSummaryRequest estructura para mapear el resumen de una invoice
+// InvoiceSummaryRequest structure for mapping the summary of an invoice
 type InvoiceSummaryRequest struct {
 	SummaryRequest
 	TaxedDiscount   float64 `json:"taxed_discount"`

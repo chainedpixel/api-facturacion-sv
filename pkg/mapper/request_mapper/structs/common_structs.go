@@ -1,13 +1,13 @@
 package structs
 
-// AddressRequest estructura para mapear la dirección de un receptor
+// AddressRequest structure for mapping the address of a receiver
 type AddressRequest struct {
 	Department   string `json:"department"`
 	Municipality string `json:"municipality"`
 	Complement   string `json:"complement"`
 }
 
-// ExtensionRequest estructura para mapear la extensión de un documento
+// ExtensionRequest structure for mapping the extension of a document
 type ExtensionRequest struct {
 	DeliveryName     string  `json:"delivery_name"`
 	DeliveryDocument string  `json:"delivery_document"`
@@ -17,7 +17,7 @@ type ExtensionRequest struct {
 	VehiculePlate    *string `json:"vehicule_plate,omitempty"`
 }
 
-// ReceiverRequest estructura para mapear el receptor de un documento
+// ReceiverRequest structure for mapping the receiver of a document
 type ReceiverRequest struct {
 	DocumentType   *string         `json:"document_type,omitempty"`
 	DocumentNumber *string         `json:"document_number,omitempty"`
@@ -32,7 +32,7 @@ type ReceiverRequest struct {
 	CommercialName *string         `json:"commercial_name,omitempty"`
 }
 
-// ItemRequest estructura para mapear un item de un documento
+// ItemRequest structure for mapping an item of a document
 type ItemRequest struct {
 	Number      int      `json:"number"`
 	Type        int      `json:"type"`
@@ -47,7 +47,7 @@ type ItemRequest struct {
 	Taxes       []string `json:"taxes,omitempty"`
 }
 
-// SummaryRequest estructura para mapear el resumen de un documento
+// SummaryRequest structure for mapping the summary of a document
 type SummaryRequest struct {
 	TotalNonSubject    float64          `json:"total_non_subject"`
 	TotalExempt        float64          `json:"total_exempt"`
@@ -67,21 +67,21 @@ type SummaryRequest struct {
 	TotalInWords       *string          `json:"total_in_words,omitempty"`
 }
 
-// TaxRequest estructura para mapear un impuesto de un documento
+// TaxRequest structure for mapping a tax of a document
 type TaxRequest struct {
 	Code        string  `json:"code"`
 	Description string  `json:"description"`
 	Value       float64 `json:"value"`
 }
 
-// AppendixRequest estructura para mapear un anexo de un documento
+// AppendixRequest structure for mapping an appendix of a document
 type AppendixRequest struct {
 	Field string `json:"field"`
 	Label string `json:"label"`
 	Value string `json:"value"`
 }
 
-// PaymentRequest estructura para mapear un pago de un documento
+// PaymentRequest structure for mapping a payment of a document
 type PaymentRequest struct {
 	Code      string  `json:"code"`
 	Amount    float64 `json:"amount"`
@@ -90,7 +90,7 @@ type PaymentRequest struct {
 	Reference *string `json:"reference,omitempty"`
 }
 
-// RelatedDocRequest estructura para mapear un documento relacionado de una invoice
+// RelatedDocRequest structure for mapping a related document of an invoice
 type RelatedDocRequest struct {
 	DocumentType   string `json:"document_type"`
 	GenerationType int    `json:"generation_type"`
@@ -98,7 +98,7 @@ type RelatedDocRequest struct {
 	EmissionDate   string `json:"emission_date"`
 }
 
-// OtherDocRequest estructura para mapear un documento relacionado de una invoice
+// OtherDocRequest structure for mapping an other document of an invoice
 type OtherDocRequest struct {
 	DocumentCode int            `json:"document_code"`
 	Description  *string        `json:"description,omitempty"`
@@ -106,7 +106,7 @@ type OtherDocRequest struct {
 	Doctor       *DoctorRequest `json:"doctor,omitempty"`
 }
 
-// DoctorRequest estructura para mapear un doctor de una invoice
+// DoctorRequest structure for mapping a doctor of an invoice
 type DoctorRequest struct {
 	Name              string  `json:"name"`
 	NIT               *string `json:"nit,omitempty"`
@@ -114,7 +114,7 @@ type DoctorRequest struct {
 	ServiceType       int     `json:"service_type"`
 }
 
-// ThirdPartySaleRequest estructura para mapear una venta de terceros de una invoice
+// ThirdPartySaleRequest structure for mapping a third-party sale of an invoice
 type ThirdPartySaleRequest struct {
 	NIT  string `json:"nit"`
 	Name string `json:"name"`

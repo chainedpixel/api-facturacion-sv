@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/health"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/health"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type HealthHandler struct {
@@ -20,15 +20,7 @@ func NewHealthHandler(checkHealthUseCase health.HealthManager) *HealthHandler {
 	}
 }
 
-// CheckHealth godoc
-// @Summary      Health Check
-// @Description  Check the health of all core service
-// @Tags         Health
-// @Accept       json
-// @Produce      json
-// @Success      200 {object} models.HealthStatus
-// @Failure      500 {object} response.APIError
-// @Router       /api/v1/health [get]
+// CheckHealth reports the readiness of the core dependencies (DB, cache, Hacienda).
 func (h *HealthHandler) CheckHealth(w http.ResponseWriter, r *http.Request) {
 	logs.Info("Starting health check")
 	defer logs.Info("Health check finished")

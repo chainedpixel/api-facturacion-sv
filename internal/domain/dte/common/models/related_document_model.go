@@ -1,14 +1,15 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
 )
 
-// RelatedDocument representa un documento relacionado a la invoice
+// RelatedDocument represents a document related to the invoice
 type RelatedDocument struct {
 	DocumentType   document.DTEType      `json:"documentType"`
 	GenerationType document.ModelType    `json:"generationType"`

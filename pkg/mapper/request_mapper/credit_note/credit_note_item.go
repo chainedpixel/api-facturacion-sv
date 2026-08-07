@@ -1,10 +1,10 @@
 package credit_note
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/common"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
 func MapCreditNoteItems(item []structs.CreditNoteItemRequest) ([]credit_note_models.CreditNoteItem, error) {
@@ -21,7 +21,7 @@ func MapCreditNoteItems(item []structs.CreditNoteItemRequest) ([]credit_note_mod
 	return result, nil
 }
 
-// MapCreditNoteRequestItem mapea un item de Nota de Crédito -> Origen: Request
+// MapCreditNoteRequestItem maps an item of a Credit Note -> Source: Request
 func MapCreditNoteRequestItem(item structs.CreditNoteItemRequest, index int) (*credit_note_models.CreditNoteItem, error) {
 	baseItem, err := common.MapCommonRequestItem(structs.ItemRequest{
 		Type:        item.Type,

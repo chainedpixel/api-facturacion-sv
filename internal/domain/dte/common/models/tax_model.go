@@ -1,11 +1,11 @@
 package models
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
 )
 
-// TaxAmount es una estructura que representa un monto de un impuesto de un DTE, contiene TotalAmount
+// TaxAmount is a structure that represents an amount of a tax in a DTE, contains TotalAmount
 type TaxAmount struct {
 	TotalAmount financial.Amount `json:"totalAmount,omitempty"`
 }
@@ -14,7 +14,7 @@ func (t *TaxAmount) GetTotalAmount() financial.Amount {
 	return t.TotalAmount
 }
 
-// Tax es una estructura que representa un impuesto de un DTE, contiene Code, Description y Value
+// Tax is a structure that represents a tax in a DTE, contains Code, Description and Value
 type Tax struct {
 	Code        financial.TaxType `json:"code"`
 	Description string            `json:"description"`

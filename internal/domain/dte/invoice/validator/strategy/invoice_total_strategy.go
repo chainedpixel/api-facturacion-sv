@@ -3,8 +3,8 @@ package strategy
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
 )
 
 type InvoiceTotalsStrategy struct {
@@ -31,9 +31,8 @@ func (s *InvoiceTotalsStrategy) Validate() *dte_errors.DTEError {
 	return nil
 }
 
-// validateSubTotal valida el subtotal de la invoice electrónica
+// validateSubTotal validates the subtotal of the electronic invoice
 func (s *InvoiceTotalsStrategy) validateSubTotal() *dte_errors.DTEError {
-	// Restar los descuentos específicos de cada tipo
 	expectedSubTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue()).
 		Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue())).
 		Add(decimal.NewFromFloat(s.Document.InvoiceSummary.TotalExempt.GetValue())).
@@ -51,28 +50,64 @@ func (s *InvoiceTotalsStrategy) validateSubTotal() *dte_errors.DTEError {
 	return nil
 }
 
-// validateDiscounts valida los descuentos de la invoice electrónica
+// validateDiscounts validates the discounts of the electronic invoice
 func (s *InvoiceTotalsStrategy) validateDiscounts() *dte_errors.DTEError {
 	totalDiscount := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalDiscount.GetValue())
-	subTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotal.GetValue())
+	taxedDiscount := decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue())
+	exemptDiscount := decimal.NewFromFloat(s.Document.InvoiceSummary.ExemptDiscount.GetValue())
+	nonSubjectDiscount := decimal.NewFromFloat(s.Document.InvoiceSummary.NonSubjectDiscount.GetValue())
 
 	if totalDiscount.LessThan(decimal.Zero) {
-		return dte_errors.NewDTEErrorSimple("NegativeDiscount", totalDiscount)
+		return dte_errors.NewDTEErrorSimple("NegativeDiscount", "TotalDiscount", totalDiscount)
+	}
+	if taxedDiscount.LessThan(decimal.Zero) {
+		return dte_errors.NewDTEErrorSimple("NegativeDiscount", "TaxedDiscount", taxedDiscount)
+	}
+	if exemptDiscount.LessThan(decimal.Zero) {
+		return dte_errors.NewDTEErrorSimple("NegativeDiscount", "ExemptDiscount", exemptDiscount)
+	}
+	if nonSubjectDiscount.LessThan(decimal.Zero) {
+		return dte_errors.NewDTEErrorSimple("NegativeDiscount", "NonSubjectDiscount", nonSubjectDiscount)
 	}
 
-	if totalDiscount.GreaterThan(subTotal) {
-		return dte_errors.NewDTEErrorSimple("ExcessiveDiscount", totalDiscount, subTotal)
+	totalTaxed := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalTaxed.GetValue())
+	totalExempt := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalExempt.GetValue())
+	totalNonSubject := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalNonSubject.GetValue())
+
+	if taxedDiscount.GreaterThan(totalTaxed) {
+		return dte_errors.NewDTEErrorSimple("DiscountExceedsBase",
+			"TaxedDiscount",
+			taxedDiscount.InexactFloat64(),
+			totalTaxed.InexactFloat64())
+	}
+
+	if exemptDiscount.GreaterThan(totalExempt) {
+		return dte_errors.NewDTEErrorSimple("DiscountExceedsBase",
+			"ExemptDiscount",
+			exemptDiscount.InexactFloat64(),
+			totalExempt.InexactFloat64())
+	}
+
+	if nonSubjectDiscount.GreaterThan(totalNonSubject) {
+		return dte_errors.NewDTEErrorSimple("DiscountExceedsBase",
+			"NonSubjectDiscount",
+			nonSubjectDiscount.InexactFloat64(),
+			totalNonSubject.InexactFloat64())
+	}
+
+	var itemsDiscountSum decimal.Decimal
+	for _, item := range s.Document.InvoiceItems {
+		itemDiscount := decimal.NewFromFloat(item.GetDiscount()).Mul(decimal.NewFromFloat(item.GetQuantity()).Mul(decimal.NewFromFloat(item.GetUnitPrice())))
+		itemsDiscountSum = itemsDiscountSum.Add(itemDiscount.Div(decimal.NewFromInt(100)))
 	}
 
 	return nil
 }
 
-// validateTotalOperation valida el total de la operación de la invoice electrónica
+// validateTotalOperation validates the total operation amount of the electronic invoice
 func (s *InvoiceTotalsStrategy) validateTotalOperation() *dte_errors.DTEError {
-	// TotalOperation = SubTotal + Impuestos
 	expectedTotal := decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotal.GetValue())
 
-	// Agregar impuestos
 	for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
 		taxValue := decimal.NewFromFloat(tax.GetValue())
 		expectedTotal = expectedTotal.Add(taxValue)
@@ -88,7 +123,7 @@ func (s *InvoiceTotalsStrategy) validateTotalOperation() *dte_errors.DTEError {
 	return nil
 }
 
-// calculateExpectedTotal calcula el total esperado de la operación
+// calculateExpectedTotal calculates the expected total of the operation
 func (s *InvoiceTotalsStrategy) calculateExpectedTotal() decimal.Decimal {
 	subTotalSales := decimal.NewFromFloat(s.Document.InvoiceSummary.SubTotalSales.GetValue())
 
@@ -105,7 +140,7 @@ func (s *InvoiceTotalsStrategy) calculateExpectedTotal() decimal.Decimal {
 	return expectedTotal
 }
 
-// compareTotalsWithTolerance compara dos totales con una tolerancia
+// compareTotalsWithTolerance compares two totals with a given tolerance
 func (s *InvoiceTotalsStrategy) compareTotalsWithTolerance(expected, actual decimal.Decimal, tolerance float64) bool {
 	diff := expected.Sub(actual).Abs()
 	return diff.LessThanOrEqual(decimal.NewFromFloat(tolerance))

@@ -1,17 +1,17 @@
 package document
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/constants"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/dte_errors"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
 
 type Ambient struct {
 	Value string `json:"value"`
 }
 
-// NewAmbient Crea un nuevo objeto de valor Ambient con el valor del ambiente obtenido del entorno
+// NewAmbient Creates a new Ambient value object with the ambient value obtained from the environment
 func NewAmbient() (*Ambient, error) {
 	ambient := &Ambient{
 		Value: config.Server.AmbientCode,
@@ -37,10 +37,7 @@ func NewAmbientCustom(value string) (*Ambient, error) {
 	}
 }
 
-/*
-IsValid Válida que el valor del campo Ambient sea uno de los valores permitidos y en caso contrario lanza un error de validación
-Si un error de validación es lanzado, este se propaga a través de la infraestructura de errores
-*/
+// IsValid validates that the Ambient field value is one of the allowed values.
 func (a *Ambient) IsValid() bool {
 	for _, v := range constants.AllowedAmbientValues {
 		if a.Value == v {
@@ -50,7 +47,7 @@ func (a *Ambient) IsValid() bool {
 	return false
 }
 
-// Equals Compara el valor del campo Ambient con el valor de otro objeto de valor Ambient
+// Equals Compares the Ambient field value with the value of another Ambient value object
 func (a *Ambient) Equals(ambient interfaces.ValueObject[string]) bool {
 	return a.GetValue() == ambient.GetValue()
 }

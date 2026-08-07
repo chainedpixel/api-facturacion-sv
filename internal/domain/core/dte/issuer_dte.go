@@ -1,7 +1,7 @@
 package dte
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
 )
 
 type IssuerDTE struct {

@@ -1,16 +1,16 @@
 package db_models
 
-// BranchOffice representa la estructura de la tabla branch_offices en la base de datos
-// El campo EstablishmentType es un campo de 2 caracteres que representa el tipo de establecimiento exigido por la Hacienda
-// el campo hace referencia a si lugar es una sucursal, casa matriz, etc.
+// BranchOffice represents the structure of the branch_offices table in the database.
+// The EstablishmentType field is a 2-character field representing the establishment type required by Hacienda.
+// The field indicates whether the location is a branch, headquarters, etc.
 //
-// Para mas informacion sobre los tipos de establecimientos ver:
+// For more information about establishment types see:
 // https://factura.gob.sv/informacion-tecnica-y-funcional/
-// en la sección de "Documentos de Sistema de Transmisión DTE", documento: "2. Catálogos- Sistema de Transmisión"
-// página 6 del documento PDF y revisar /internal/domain/dte/common/constants/establishment_type.go
+// in the section "Documentos de Sistema de Transmisión DTE", document: "2. Catálogos- Sistema de Transmisión"
+// page 6 of the PDF document and review /internal/domain/dte/common/constants/establishment_type.go
 //
-// Los campos con terminación MH hacen referencia a los códigos brindados por Hacienda, si no posee dichos códigos de Hacienda
-// dejar los campos en blanco para evitar problemas legales
+// Fields ending in MH refer to codes provided by Hacienda. If you do not have those Hacienda codes,
+// leave the fields blank to avoid legal issues.
 type BranchOffice struct {
 	ID                  uint    `gorm:"column:id;type:uint;primaryKey;autoIncrement;not null"`
 	UserID              uint    `gorm:"column:user_id;type:uint;not null;index:idx_branch_offices_user"`
@@ -25,7 +25,6 @@ type BranchOffice struct {
 	POSCodeMH           *string `gorm:"column:pos_code_mh;type:varchar(4)"`
 	IsActive            bool    `gorm:"column:is_active;type:tinyint(1);not null;index:idx_branch_offices_active"`
 
-	// Relaciones
 	User    *User    `gorm:"foreignKey:UserID;references:ID"`
 	Address *Address `gorm:"foreignKey:BranchID;references:ID"`
 }

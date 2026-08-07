@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-redis/redis/v8"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/auth/models"
-	"github.com/MarlonG1/api-facturacion-sv/internal/domain/ports"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/go-redis/redis/v8"
+
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
 type RedisTokenCache struct {
@@ -20,7 +21,7 @@ type RedisTokenCache struct {
 	ctx          context.Context
 }
 
-// NewRedisTokenCache crea una nueva instancia de RedisTokenCache
+// NewRedisTokenCache creates a new instance of RedisTokenCache
 func NewRedisTokenCache(config *config.RedisConfig, cryptService ports.CryptManager) (ports.CacheManager, error) {
 	opt, err := redis.ParseURL(config.GetURL())
 	if err != nil {
@@ -38,7 +39,6 @@ func NewRedisTokenCache(config *config.RedisConfig, cryptService ports.CryptMana
 
 	client := redis.NewClient(opt)
 
-	// Verificar conexión
 	ctx := context.Background()
 	if err := client.Ping(ctx).Err(); err != nil {
 		logs.Error("Failed to connect to Redis", map[string]interface{}{
@@ -65,7 +65,7 @@ func NewRedisTokenCache(config *config.RedisConfig, cryptService ports.CryptMana
 	}, nil
 }
 
-// Set guarda un token en Redis con un tiempo de vida determinado
+// Set stores a token in Redis with a given time-to-live
 func (c *RedisTokenCache) Set(key string, saveInfo []byte, ttl time.Duration) error {
 	err := c.client.Set(c.ctx, key, saveInfo, ttl).Err()
 	if err != nil {
@@ -88,7 +88,7 @@ func (c *RedisTokenCache) Set(key string, saveInfo []byte, ttl time.Duration) er
 	return nil
 }
 
-// SetCredentials guarda las credenciales de Hacienda en Redis con un tiempo de vida determinado
+// SetCredentials stores Hacienda credentials in Redis with a given time-to-live
 func (c *RedisTokenCache) SetCredentials(token string, creds *models.HaciendaCredentials, ttl time.Duration) error {
 	key := fmt.Sprintf("hacienda:credentials:%s", token)
 
@@ -125,7 +125,7 @@ func (c *RedisTokenCache) SetCredentials(token string, creds *models.HaciendaCre
 	return nil
 }
 
-// Get obtiene un token de Redis y lo convierte en un AuthClaims
+// Get retrieves a token from Redis and converts it into AuthClaims
 func (c *RedisTokenCache) Get(key string) (string, error) {
 	cacheInfo, err := c.client.Get(c.ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
@@ -154,7 +154,7 @@ func (c *RedisTokenCache) Get(key string) (string, error) {
 	return cacheInfo, nil
 }
 
-// GetCredentials obtiene las credenciales de Hacienda de Redis y las convierte en un HaciendaCredentials
+// GetCredentials retrieves Hacienda credentials from Redis and converts them into HaciendaCredentials
 func (c *RedisTokenCache) GetCredentials(token string) (*models.HaciendaCredentials, error) {
 	key := fmt.Sprintf("hacienda:credentials:%s", token)
 
@@ -201,7 +201,7 @@ func (c *RedisTokenCache) GetCredentials(token string) (*models.HaciendaCredenti
 	return &creds, nil
 }
 
-// Delete elimina un token de Redis
+// Delete removes a token from Redis
 func (c *RedisTokenCache) Delete(token string) error {
 	key := "token:" + token
 	err := c.client.Del(c.ctx, key).Err()
@@ -224,7 +224,7 @@ func (c *RedisTokenCache) Delete(token string) error {
 	return nil
 }
 
-// Close cierra la conexión con Redis
+// Close closes the connection to Redis
 func (c *RedisTokenCache) Close() error {
 	err := c.client.Close()
 	if err != nil {
@@ -340,6 +340,55 @@ func (c *RedisTokenCache) LTrim(key string, start, stop int64) error {
 		"key": key,
 	})
 	return nil
+}
+
+// Expire sets a time-to-live on an existing Redis key
+func (c *RedisTokenCache) Expire(key string, ttl time.Duration) error {
+	err := c.client.Expire(c.ctx, key, ttl).Err()
+	if err != nil {
+		logs.Error("Failed to set expiration in Redis", map[string]interface{}{
+			"key":   key,
+			"error": err.Error(),
+		})
+		return shared_error.NewGeneralServiceError(
+			"RedisTokenCache",
+			"Expire",
+			"failed to set expiration in Redis",
+			err,
+		)
+	}
+	return nil
+}
+
+// ScanKeys returns all keys matching the given pattern using cursor-based iteration
+func (c *RedisTokenCache) ScanKeys(pattern string) ([]string, error) {
+	var allKeys []string
+	var cursor uint64
+
+	for {
+		keys, nextCursor, err := c.client.Scan(c.ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			logs.Error("Failed to scan keys in Redis", map[string]interface{}{
+				"pattern": pattern,
+				"error":   err.Error(),
+			})
+			return nil, shared_error.NewGeneralServiceError(
+				"RedisTokenCache",
+				"ScanKeys",
+				"failed to scan keys in Redis",
+				err,
+			)
+		}
+
+		allKeys = append(allKeys, keys...)
+		cursor = nextCursor
+
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return allKeys, nil
 }
 
 func (c *RedisTokenCache) GetRedisClient() *redis.Client {

@@ -2,11 +2,12 @@ package middleware
 
 import (
 	"context"
-	"github.com/MarlonG1/api-facturacion-sv/internal/i18n"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/response"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
 	"net/http"
 	"time"
+
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
 type TimeoutMiddleware struct {
@@ -30,7 +31,6 @@ func (m *TimeoutMiddleware) Handler(next http.Handler) http.Handler {
 			status:         http.StatusOK,
 		}
 
-		// Canal para esperar la finalización de la solicitud
 		done := make(chan struct{})
 		go func() {
 			next.ServeHTTP(rw, r.WithContext(ctx))
@@ -41,8 +41,8 @@ func (m *TimeoutMiddleware) Handler(next http.Handler) http.Handler {
 		case <-done:
 			return
 		case <-ctx.Done():
-			timeoutTitle := i18n.TranslateServiceArgs("RequestTimeOutTitle")
-			timeoutMessage := i18n.TranslateServiceArgs("RequestTimeOut")
+			timeoutTitle := config.TranslateServiceArgs("RequestTimeOutTitle")
+			timeoutMessage := config.TranslateServiceArgs("RequestTimeOut")
 
 			logs.Warn("Request timed out", map[string]interface{}{
 				"method":              r.Method,

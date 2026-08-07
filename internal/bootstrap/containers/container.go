@@ -1,8 +1,9 @@
 package containers
 
 import (
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
 	"sync"
+
+	"github.com/chainedpixel/ordo-factus/config/drivers"
 )
 
 type Container struct {
@@ -21,12 +22,11 @@ func NewContainer(connection *drivers.DbConnection) *Container {
 	}
 }
 
-// Initialize inicializa todos los contenedores de la aplicación
+// Initialize initializes all application containers
 func (c *Container) Initialize() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Inicializar containers en orden de dependencia
 	c.repositories = NewRepositoryContainer(c.connection)
 	c.repositories.Initialize()
 

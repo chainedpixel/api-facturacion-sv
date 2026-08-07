@@ -4,80 +4,74 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"github.com/MarlonG1/api-facturacion-sv/internal/bootstrap/containers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/i18n"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/cmd/setup"
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/config/drivers"
-	errPackage "github.com/MarlonG1/api-facturacion-sv/config/error"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/server"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/database"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/ordo-factus/internal/bootstrap/containers"
+
+	"github.com/chainedpixel/ordo-factus/cmd/setup"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/config/drivers"
+	errPackage "github.com/chainedpixel/ordo-factus/config/error"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/server"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
-// Application representa la aplicación completa
+// Application represents the complete application
 type Application struct {
 	server       *server.Server
 	container    *containers.Container
 	dbConnection *drivers.DbConnection
 }
 
-// SupportedDrivers contiene la configuración de drivers de base de datos soportados
+// SupportedDrivers holds the configuration for supported database drivers
 var SupportedDrivers = map[string]drivers.DriverConfig{
 	"mysql":    drivers.NewMysqlDriver(),
 	"postgres": drivers.NewPostgresDriver(),
 }
 
-// NewApplication crea una nueva instancia de la aplicación
+// NewApplication creates a new instance of the application
 func NewApplication() *Application {
 	return &Application{}
 }
 
-// Initialize inicializa todos los componentes de la aplicación
+// Initialize initializes all application components
 func (app *Application) Initialize() error {
-	// 0. Obtener el root path del proyecto
 	rootPath := utils.FindProjectRoot()
 
-	// 1. Inicializar la configuración del entorno
 	err := config.InitEnvConfig(rootPath)
 	if err != nil {
 		return fmt.Errorf("error initializing environment configuration: %w", err)
 	}
 
-	// 2. Inicializar el logger
 	err = logs.InitLogger(config.Log.Level, config.Log.Path)
 	if err != nil {
 		return fmt.Errorf("error initializing logger: %w", err)
 	}
 	logs.Info("Logger initialized successfully")
 
-	// 3. Inicializar el tiempo global
 	err = utils.TimeInit()
 	if err != nil {
 		logs.Fatal("Failed to initialize global time", map[string]interface{}{"error": err.Error()})
 		return fmt.Errorf("error initializing global time: %w", err)
 	}
 
-	// 4. Inicializar el sistema de traducción
-	if err = i18n.InitTranslations(rootPath+"/internal/i18n", config.Server.AppLang); err != nil {
+	langPath := fmt.Sprintf("%s/%s", rootPath, config.Server.AppLangPath)
+	if err = config.InitTranslations(langPath, config.Server.AppLang); err != nil {
 		log.Fatalf("Failed to initialize translation system: %v", err)
 	}
 
-	// 5. Iniciar la configuración de la base de datos y las migraciones
 	app.dbConnection, err = app.initDatabaseConfigurations()
 	if err != nil {
 		logs.Fatal("Failed to initialize database configurations", map[string]interface{}{"error": err.Error()})
 		return fmt.Errorf("error initializing database configurations: %w", err)
 	}
 
-	// 6. Inicializar el contenedor de dependencias
 	app.container = containers.NewContainer(app.dbConnection)
 	err = app.container.Initialize()
 	if err != nil {
@@ -85,11 +79,16 @@ func (app *Application) Initialize() error {
 		return fmt.Errorf("error initializing container: %w", err)
 	}
 
-	// 7. Inicializar el servidor
 	app.server = server.Initialize(app.container)
 
-	// 8. Inicializar los jobs
-	err = setup.SetupJobs(app.container.Services().ContingencyManager(), config.Server.AmbientCode, app.dbConnection)
+	err = setup.SetupJobs(
+		app.container.Services().ContingencyManager(),
+		app.container.Repositories().ReservedSequenceRepo(),
+		config.Server.AmbientCode,
+		app.dbConnection,
+		app.container.Services().CacheManager(),
+		app.container.Services().EventBus(),
+	)
 	if err != nil {
 		logs.Error("Failed to setup jobs", map[string]interface{}{"error": err.Error()})
 		return fmt.Errorf("error setting up jobs: %w", err)
@@ -98,22 +97,18 @@ func (app *Application) Initialize() error {
 	return nil
 }
 
-// Start inicia la aplicación y maneja señales para un apagado controlado
+// Start starts the application and handles signals for a graceful shutdown
 func (app *Application) Start() error {
-	// Canal para recibir señales del sistema operativo
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	// Canal para errores del servidor
 	serverErrors := make(chan error, 1)
 
-	// Iniciar el servidor en una goroutine
 	go func() {
 		logs.Info("Server started successfully", map[string]interface{}{"port": config.Server.Port})
 		serverErrors <- app.server.Start()
 	}()
 
-	// Esperar por señales o errores
 	select {
 	case err := <-serverErrors:
 		return fmt.Errorf("server error: %w", err)
@@ -121,17 +116,14 @@ func (app *Application) Start() error {
 	case sig := <-signals:
 		logs.Info("Shutdown signal received", map[string]interface{}{"signal": sig.String()})
 
-		// Crear un contexto con timeout para el apagado controlado
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		// Cerrar el servidor HTTP de forma controlada
 		if err := app.server.Shutdown(ctx); err != nil {
 			logs.Error("Server shutdown error", map[string]interface{}{"error": err.Error()})
 			return fmt.Errorf("server shutdown error: %w", err)
 		}
 
-		// Cerrar la conexión a la base de datos
 		if err := app.dbConnection.Close(); err != nil {
 			logs.Error("Database connection close error", map[string]interface{}{"error": err.Error()})
 			return fmt.Errorf("database connection close error: %w", err)
@@ -143,9 +135,8 @@ func (app *Application) Start() error {
 	return nil
 }
 
-// initDatabaseConfigurations inicializa las configuraciones de la base de datos
+// initDatabaseConfigurations initializes the database configurations
 func (app *Application) initDatabaseConfigurations() (*drivers.DbConnection, error) {
-	// 1. Seleccionar el driver de la base de datos
 	driver := app.selectDatabaseDriver()
 	if driver == nil {
 		logs.Fatal("Invalid database driver", nil)
@@ -153,7 +144,6 @@ func (app *Application) initDatabaseConfigurations() (*drivers.DbConnection, err
 	}
 	logs.Info("Database driver initialized successfully")
 
-	// 2. Inicializar la conexión a la base de datos
 	dbConnection := drivers.NewDatabaseConnection(driver)
 	if dbConnection.Err != nil {
 		logs.Fatal("Failed to connect to the database", map[string]interface{}{"error": dbConnection.Err.Error()})
@@ -161,13 +151,11 @@ func (app *Application) initDatabaseConfigurations() (*drivers.DbConnection, err
 	}
 	logs.Info("Database connection initialized successfully")
 
-	// 3. Abrir la conexión a la base de datos
 	if err := dbConnection.Open(); err != nil {
 		logs.Fatal("Failed to open database connection", map[string]interface{}{"error": err.Error()})
 		return nil, err
 	}
 
-	// 4. Iniciar migraciones solo si así está definido en la configuración
 	if config.Server.RunMigration {
 		err := database.RunMigrations(dbConnection.Db)
 		if err != nil {
@@ -179,7 +167,7 @@ func (app *Application) initDatabaseConfigurations() (*drivers.DbConnection, err
 	return dbConnection, nil
 }
 
-// selectDatabaseDriver selecciona el driver de la base de datos según la configuración del entorno
+// selectDatabaseDriver selects the database driver according to the environment configuration
 func (app *Application) selectDatabaseDriver() drivers.DriverConfig {
 	driver, ok := SupportedDrivers[config.Database.Driver]
 	if !ok {

@@ -2,17 +2,17 @@ package db_models
 
 import "time"
 
-// User representa la tabla cuya información será crucial para el proceso de autenticación y autorización de los usuarios
-// que desean utilizar la API de Factura Electrónica. Esta tabla almacenará la información de los usuarios que desean
-// utilizar la API de Factura Electrónica.
+// User represents the table whose information will be crucial for the authentication and authorization process of users
+// who wish to use the Electronic Invoice API. This table will store the information of users who want
+// to use the Electronic Invoice API.
 //
-// El campo PasswordPri la contraseña privada del certificado digital del usuario brindada por el Ministerio de Hacienda,
-// esta contraseña es necesaria para firmar los documentos electrónicos.
+// The PasswordPri field holds the private password of the user's digital certificate provided by the Ministry of Finance,
+// this password is required to sign electronic documents.
 //
-// El campo YearInDTE será un indicativo para determinar si el usuario desea que el año de emisión del documento electrónico
-// se muestre en el número de control. Por ejemplo:
-//  1. Si es true, el número de control será: DTE-01-00000000-202500000000001
-//  2. Si es false, el número de control será: DTE-01-00000000-000000000000001
+// The YearInDTE field is an indicator to determine whether the user wants the year of issuance of the electronic document
+// to appear in the control number. For example:
+//  1. If true, the control number will be: DTE-01-00000000-202500000000001
+//  2. If false, the control number will be: DTE-01-00000000-000000000000001
 type User struct {
 	ID                   uint      `gorm:"column:id;type:uint;primaryKey;autoIncrement;not null"`
 	NIT                  string    `gorm:"column:nit;type:varchar(17);not null;uniqueIndex"`

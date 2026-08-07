@@ -1,13 +1,13 @@
 package constants
 
 const (
-	TaxIVA            = "20" // IVA 13%
-	TaxIVAExport      = "C3" // IVA 0%
-	TaxTourism        = "59" // Turismo 5%
-	TaxTourismAirport = "71" // Turismo sálida del país $7.00
-	TaxFOVIAL         = "D1" // FOVIAL %0.20/galón
-	TaxCOTRANS        = "C8" // COTRANS $0.10/galón
-	TaxSpecialOther   = "D5" // Otras tasas especiales
+	TaxIVA            = "20"
+	TaxIVAExport      = "C3"
+	TaxTourism        = "59"
+	TaxTourismAirport = "71"
+	TaxFOVIAL         = "D1"
+	TaxCOTRANS        = "C8"
+	TaxSpecialOther   = "D5"
 
 	TaxIvaAmount            = 0.13
 	TaxIVAExportAmount      = 0.0
@@ -18,7 +18,6 @@ const (
 )
 
 var (
-	// AllowedTaxTypes contiene los tipos de impuestos permitidos, usado para validaciones
 	AllowedTaxTypes = []string{
 		TaxIVA,
 		TaxIVAExport,
@@ -29,7 +28,6 @@ var (
 		TaxSpecialOther,
 	}
 
-	// MapAllowedTaxTypes contiene los tipos de impuestos permitidos, usado para validaciones
 	MapAllowedTaxTypes = map[string]bool{
 		TaxIVA:            true,
 		TaxIVAExport:      true,

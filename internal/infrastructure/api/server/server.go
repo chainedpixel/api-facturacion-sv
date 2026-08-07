@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/MarlonG1/api-facturacion-sv/config"
-	"github.com/MarlonG1/api-facturacion-sv/internal/bootstrap/containers"
-	"github.com/MarlonG1/api-facturacion-sv/internal/infrastructure/api/routes"
-	"github.com/MarlonG1/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/ordo-factus/internal/bootstrap/containers"
+	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/routes"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 	"github.com/gorilla/mux"
 )
 
@@ -22,7 +22,7 @@ type Server struct {
 	publicPath  string
 }
 
-// Initialize crea una nueva instancia de Server
+// Initialize creates a new instance of Server
 func Initialize(container *containers.Container) *Server {
 	return &Server{
 		router:      mux.NewRouter(),
@@ -36,12 +36,12 @@ func (s *Server) ConfigureRoutes() {
 	s.configureGlobalMiddlewares()
 	s.configureGlobalOptions()
 
-	// Configurar rutas públicas y protegidas
 	public := s.router.PathPrefix(s.publicPath).Subrouter()
 	protected := s.router.PathPrefix(s.privatePath).Subrouter()
 	s.configureProtectedMiddlewares(protected)
 
 	s.router.Use(s.container.Middleware().DBConnectionMiddleware().Handler)
+	s.configureMainPublicRoutes(s.router)
 	s.configurePublicRoutes(public)
 	s.configureProtectedRoutes(protected)
 
@@ -54,6 +54,14 @@ func (s *Server) ConfigureRoutes() {
 func (s *Server) configureProtectedRoutes(protected *mux.Router) {
 	routes.RegisterDTERoutes(protected, s.container.Handlers().DTEHandler())
 	routes.RegisterMetricsRoutes(protected, s.container.Handlers().MetricsHandler())
+	routes.RegisterTestRoutes(protected, s.container.Handlers().TestHandler())
+
+	if config.Server.Debug {
+		routes.RegisterDebugRoutes(protected, s.container.Handlers().DebugNotifyHandler())
+		logs.Info("Debug routes enabled (DEBUG=true)", map[string]interface{}{
+			"endpoint": "POST /api/v1/debug/notify-test",
+		})
+	}
 }
 
 func (s *Server) configureGlobalOptions() {
@@ -64,8 +72,10 @@ func (s *Server) configureGlobalOptions() {
 
 func (s *Server) configurePublicRoutes(public *mux.Router) {
 	routes.RegisterPublicAuthRoutes(public, s.container.Handlers().AuthHandler())
-	routes.RegisterHealthRoutes(public, s.container.Handlers().HealthHandler())
-	routes.RegisterTestRoutes(public, s.container.Handlers().TestHandler())
+}
+
+func (s *Server) configureMainPublicRoutes(main *mux.Router) {
+	routes.RegisterHealthRoutes(s.router, s.container.Handlers().HealthHandler())
 }
 
 func (s *Server) configureGlobalMiddlewares() {
@@ -113,6 +123,5 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		return nil
 	}
 
-	// Shutdown espera a que se completen las conexiones existentes
 	return s.srv.Shutdown(ctx)
 }

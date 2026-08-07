@@ -1,0 +1,26 @@
+[ORDO-FACTUS] Falla consistente de emisión de DTE
+======================================================
+{{- if .ClientName}}
+Cliente: {{.ClientName}}{{end}}
+
+NIT del emisor: {{.NIT}}
+Sucursal: #{{.BranchID}}{{if .BranchAddress}} — {{.BranchAddress}}{{end}}
+Tipo de DTE: {{if .DTETypeLabel}}{{.DTETypeLabel}} ({{.DTEType}}){{else}}{{.DTEType}}{{end}}
+Número de control: {{.ControlNumber}}
+Intentos realizados: {{.Attempts}}
+Código de error: {{.ErrorCode}}
+Hora del último intento: {{.Timestamp}}
+
+Respuesta de Hacienda:
+{{.LastError}}
+{{- if .HaciendaObservations}}
+Observaciones:
+{{range .HaciendaObservations}}- {{.}}
+{{end}}{{- end}}
+El DTE no pudo ser emitido tras varios intentos consecutivos. Revisa la
+configuración del emisor, el firmador y los logs del servicio.
+
+------------------------------------------------------
+Ordo Factus | Ambiente: {{.Environment}} | API v{{.APIVersion}}
+{{.AggregateID}}
+Correo automático del sistema. No responder.
