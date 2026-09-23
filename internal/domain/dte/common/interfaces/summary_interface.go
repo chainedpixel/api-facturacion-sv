@@ -24,6 +24,7 @@ type SummaryGetters interface {
 	GetElectronicPayment() *string
 	GetTotalInWords() string
 	GetTotalToPay() float64
+	GetObservations() *string
 }
 
 // SummarySetters is an interface that defines the setter methods that a summary must implement
@@ -46,6 +47,7 @@ type SummarySetters interface {
 	SetTotalInWords(totalInWords string) error
 	SetTotalToPay(totalToPay float64) error
 	SetForceTotalToPay(totalToPay float64)
+	SetObservations(observations *string) error
 }
 
 // SummaryManager is an interface that combines the getters and setters of Summary

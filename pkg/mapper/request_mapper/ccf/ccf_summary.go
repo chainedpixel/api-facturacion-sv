@@ -32,6 +32,7 @@ func MapCCFRequestSummary(summary *structs.CreditSummaryRequest) (*ccf_models.Cr
 		Taxes:              summary.Taxes,
 		PaymentTypes:       summary.PaymentTypes,
 		TotalInWords:       summary.TotalInWords,
+		Observations:       summary.Observations,
 	})
 
 	if err != nil {

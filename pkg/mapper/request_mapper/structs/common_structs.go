@@ -66,6 +66,7 @@ type SummaryRequest struct {
 	Taxes              []TaxRequest     `json:"taxes,omitempty"`
 	PaymentTypes       []PaymentRequest `json:"payment_types"`
 	TotalInWords       *string          `json:"total_in_words,omitempty"`
+	Observations       *string          `json:"observations,omitempty"`
 }
 
 // TaxRequest structure for mapping a tax of a document

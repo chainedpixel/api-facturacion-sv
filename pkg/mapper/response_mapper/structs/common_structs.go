@@ -9,7 +9,7 @@ type CommonDTEDocument struct {
 	OtrosDocumentos      []DTEOtherDocument   `json:"otrosDocumentos"`
 	VentaTercero         *DTEThirdPartySale   `json:"ventaTercero"`
 	CuerpoDocumento      []DTEItem            `json:"cuerpoDocumento"`
-	Extension            *DTEExtension        `json:"extension"`
+	Extension            *DTEExtension        `json:"extension,omitempty"`
 	Apendice             []DTEApendice        `json:"apendice"`
 }
 
@@ -88,7 +88,7 @@ type DTEItem struct {
 	Tributos        []string `json:"tributos"`
 	PSV             float64  `json:"psv"`
 	NoGravado       float64  `json:"noGravado"`
-	IvaItem         float64  `json:"ivaItem,omitempty"`
+	IvaItem         float64  `json:"ivaItem"`
 }
 
 // DTESummary maps the summary (all fields required according to schema)
@@ -104,8 +104,8 @@ type DTESummary struct {
 	TotalDescu          float64      `json:"totalDescu"`
 	Tributos            []DTETax     `json:"tributos"`
 	SubTotal            float64      `json:"subTotal"`
-	IvaRete1            float64      `json:"ivaRete1"`
-	IvaPerci1           *float64     `json:"ivaPerci1,omitempty"`
+	IvaRete             float64      `json:"ivaRete"`
+	IvaPerci            *float64     `json:"ivaPerci,omitempty"`
 	ReteRenta           float64      `json:"reteRenta"`
 	MontoTotalOperacion float64      `json:"montoTotalOperacion"`
 	TotalNoGravado      float64      `json:"totalNoGravado"`
@@ -116,6 +116,7 @@ type DTESummary struct {
 	CondicionOperacion  int          `json:"condicionOperacion"`
 	Pagos               []DTEPayment `json:"pagos"`
 	NumPagoElectronico  *string      `json:"numPagoElectronico"`
+	Observaciones       *string      `json:"observaciones"`
 }
 
 // DTETax maps a tax

@@ -335,21 +335,6 @@ func TestMapToCCFData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "CCF with invalid extension",
-			req: func() *structs.CreateCreditFiscalRequest {
-				req := fixtures.CreateDefaultCreditFiscalRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "CCF with invalid third party sale",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
@@ -578,25 +563,6 @@ func TestMapToCCFData(t *testing.T) {
 			},
 			wantErr: false,
 		},
-
-		{
-			name: "CCF with valid extension",
-			req: func() *structs.CreateCreditFiscalRequest {
-				req := fixtures.CreateDefaultCreditFiscalRequest()
-				observation := "Observación válida"
-				vehiculePlate := "P123456"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Juan Martínez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "María González",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-					VehiculePlate:    &vehiculePlate,
-				}
-				return req
-			},
-			wantErr: false,
-		},
 		{
 			name: "CCF with valid third party sale",
 			req: func() *structs.CreateCreditFiscalRequest {
@@ -679,16 +645,13 @@ func TestMapToCCFData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 4, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.InputDataCommon.Receiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.CreditSummary)
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.RelatedDocs != nil {

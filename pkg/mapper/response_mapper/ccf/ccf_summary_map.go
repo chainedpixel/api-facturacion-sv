@@ -7,11 +7,11 @@ import (
 )
 
 func MapCCFResponseSummary(summary ccf_models.CreditSummary) *structs.DTESummary {
-	ivaPerci1 := summary.IVAPerception.GetValue()
+	ivaPerci := summary.IVAPerception.GetValue()
 	result := common.MapCommonResponseSummary(summary)
 	result.DescuGravada = summary.TaxedDiscount.GetValue()
-	result.IvaRete1 = summary.IVARetention.GetValue()
-	result.IvaPerci1 = &ivaPerci1
+	result.IvaRete = summary.IVARetention.GetValue()
+	result.IvaPerci = &ivaPerci
 	result.ReteRenta = summary.IncomeRetention.GetValue()
 	result.SaldoFavor = summary.BalanceInFavor.GetValue()
 	return result

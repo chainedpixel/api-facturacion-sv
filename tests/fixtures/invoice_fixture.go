@@ -146,7 +146,6 @@ func CreateInvoiceRequestWithInvalidReceiver() *structs.CreateInvoiceRequest {
 // CreateInvoiceRequestWithAllOptionalFields creates an invoice request with all optional fields
 func CreateInvoiceRequestWithAllOptionalFields() *structs.CreateInvoiceRequest {
 	req := CreateDefaultInvoiceRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	req.RelatedDocs = []structs.RelatedDocRequest{CreateDefaultRelatedDocument()}
 	req.OtherDocs = []structs.OtherDocRequest{CreateDefaultOtherDocument()}
@@ -257,8 +256,8 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		TotalDescu:          0,
 		SubTotal:            100,
 		ReteRenta:           0,
-		IvaRete1:            0,
-		IvaPerci1:           nil,
+		IvaRete:             0,
+		IvaPerci:            nil,
 		MontoTotalOperacion: 100,
 		TotalNoGravado:      0,
 		TotalPagar:          100,

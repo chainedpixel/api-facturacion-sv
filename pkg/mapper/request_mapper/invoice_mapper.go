@@ -36,7 +36,7 @@ func (m *InvoiceMapper) MapToInvoiceData(req *structs.CreateInvoiceRequest, clie
 		return nil, shared_error.NewFormattedGeneralServiceWithError("InvoiceMapper", "MapToInvoiceData", err, "ErrorMapping", "Invoice->Receiver")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 1, constants.FacturaElectronica)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 2, constants.FacturaElectronica)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("InvoiceMapper", "MapToInvoiceData", err, "ErrorMapping", "Invoice->Identification")
 	}
@@ -90,12 +90,10 @@ func validateInvoiceRequest(req *structs.CreateInvoiceRequest) error {
 	return nil
 }
 
-// mapInvoiceOptionalFields maps optional fields (ThirdPartySale, Extension, Payments, etc.)
-// from the request into the result domain model.
+// mapInvoiceOptionalFields maps optional fields from the request into the result domain model.
 func mapInvoiceOptionalFields(req *structs.CreateInvoiceRequest, result *invoice_models.InvoiceData) error {
 	if err := common.MapCommonOptionalToInputData(common.CommonOptionalFields{
 		ThirdPartySale: req.ThirdPartySale,
-		Extension:      req.Extension,
 		OtherDocs:      req.OtherDocs,
 		RelatedDocs:    req.RelatedDocs,
 		Appendixes:     req.Appendixes,

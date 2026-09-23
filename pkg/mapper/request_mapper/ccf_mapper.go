@@ -41,7 +41,7 @@ func (m *CCFMapper) MapToCCFData(req *structs.CreateCreditFiscalRequest, client 
 	}
 	receiver.CommercialName = req.Receiver.CommercialName
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 3, constants.CCFElectronico)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 4, constants.CCFElectronico)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("CCFMapper", "MapToCCFData", err, "ErrorMapping", "CCF->Identification")
 	}
@@ -106,7 +106,6 @@ func validateCCFRequest(req *structs.CreateCreditFiscalRequest) error {
 func mapCCFOptionalFields(req *structs.CreateCreditFiscalRequest, result *ccf_models.CCFData) error {
 	if err := common.MapCommonOptionalToInputData(common.CommonOptionalFields{
 		ThirdPartySale: req.ThirdPartySale,
-		Extension:      req.Extension,
 		OtherDocs:      req.OtherDocs,
 		RelatedDocs:    req.RelatedDocs,
 		Appendixes:     req.Appendixes,

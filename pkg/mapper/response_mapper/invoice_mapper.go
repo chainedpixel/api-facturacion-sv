@@ -9,15 +9,15 @@ import (
 
 // ToMHInvoice converts an ElectronicInvoice to the structure required by the Ministry of Finance
 func ToMHInvoice(doc interface{}) *structs.InvoiceDTEResponse {
-
 	cast := doc.(*invoice_models.ElectronicInvoice)
+	resumen := invoice.MapInvoiceResponseSummary(cast.InvoiceSummary)
+
 	dte := &structs.InvoiceDTEResponse{
 		Identificacion:  common.MapCommonResponseIdentification(cast.Identification),
 		Emisor:          common.MapCommonResponseIssuer(cast.Issuer),
 		Receptor:        invoice.MapInvoiceResponseReceiver(cast.Receiver),
-		Resumen:         invoice.MapInvoiceResponseSummary(cast.InvoiceSummary),
+		Resumen:         resumen,
 		CuerpoDocumento: invoice.MapInvoiceResponseItem(cast.InvoiceItems),
-		Extension:       common.MapCommonResponseExtension(cast.Extension),
 	}
 
 	if len(cast.GetRelatedDocuments()) > 0 {

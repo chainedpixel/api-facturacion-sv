@@ -8,15 +8,15 @@ import (
 )
 
 func ToMHCreditFiscalInvoice(doc interface{}) *structs.CCFDTEResponse {
-
 	cast := doc.(*ccf_models.CreditFiscalDocument)
+	resumen := ccf.MapCCFResponseSummary(cast.CreditSummary)
+
 	dte := &structs.CCFDTEResponse{
 		Identificacion:  common.MapCommonResponseIdentification(cast.Identification),
 		Emisor:          common.MapCommonResponseIssuer(cast.Issuer),
 		Receptor:        common.MapCommonResponseReceiver(cast.Receiver),
-		Resumen:         ccf.MapCCFResponseSummary(cast.CreditSummary),
+		Resumen:         resumen,
 		CuerpoDocumento: ccf.MapCCFResponseItem(cast.CreditItems),
-		Extension:       common.MapCommonResponseExtension(cast.Extension),
 	}
 
 	if len(cast.GetRelatedDocuments()) > 0 {

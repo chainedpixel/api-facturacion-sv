@@ -32,6 +32,7 @@ func MapInvoiceRequestSummary(summary *structs.InvoiceSummaryRequest) (*invoice_
 		Taxes:              summary.Taxes,
 		PaymentTypes:       summary.PaymentTypes,
 		TotalInWords:       summary.TotalInWords,
+		Observations:       summary.Observations,
 	})
 	if err != nil {
 		return nil, err

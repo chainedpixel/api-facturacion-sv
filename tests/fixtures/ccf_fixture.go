@@ -103,7 +103,6 @@ func CreateCreditFiscalWithNonSubjectSale() *structs.CreateCreditFiscalRequest {
 // CreateCCFRequestWithAllOptionalFields creates a CCF request with all optional fields
 func CreateCCFRequestWithAllOptionalFields() *structs.CreateCreditFiscalRequest {
 	req := CreateDefaultCreditFiscalRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	req.RelatedDocs = []structs.RelatedDocRequest{CreateDefaultRelatedDocument()}
 	req.OtherDocs = []structs.OtherDocRequest{CreateDefaultOtherDocument()}

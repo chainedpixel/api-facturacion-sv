@@ -23,6 +23,7 @@ func MapCommonResponseSummary(summary interfaces.Summary) *structs.DTESummary {
 		TotalLetras:         summary.GetTotalInWords(),
 		CondicionOperacion:  summary.GetOperationCondition(),
 		Tributos:            MapTaxes(summary.GetTotalTaxes()),
+		Observaciones:       summary.GetObservations(),
 	}
 
 	if len(summary.GetPaymentTypes()) > 0 {

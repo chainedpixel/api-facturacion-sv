@@ -9,7 +9,6 @@ type InvoiceDTEResponse struct {
 	DocumentoRelacionado []DTERelatedDocument `json:"documentoRelacionado"`
 	OtrosDocumentos      []DTEOtherDocument   `json:"otrosDocumentos"`
 	VentaTercero         *DTEThirdPartySale   `json:"ventaTercero"`
-	Extension            *DTEExtension        `json:"extension"`
 	Apendice             []DTEApendice        `json:"apendice"`
 }
 
@@ -26,8 +25,8 @@ type InvoiceSummary struct {
 	Tributos            []DTETax     `json:"tributos"`
 	SubTotal            float64      `json:"subTotal"`
 	ReteRenta           float64      `json:"reteRenta"`
-	IvaRete1            float64      `json:"ivaRete1"`
-	IvaPerci1           *float64     `json:"ivaPerci1,omitempty"`
+	IvaRete             float64      `json:"ivaRete"`
+	IvaPerci            *float64     `json:"ivaPerci,omitempty"`
 	MontoTotalOperacion float64      `json:"montoTotalOperacion"`
 	TotalNoGravado      float64      `json:"totalNoGravado"`
 	TotalPagar          float64      `json:"totalPagar"`
@@ -37,6 +36,7 @@ type InvoiceSummary struct {
 	CondicionOperacion  int          `json:"condicionOperacion"`
 	Pagos               []DTEPayment `json:"pagos"`
 	NumPagoElectronico  *string      `json:"numPagoElectronico"`
+	Observaciones       *string      `json:"observaciones"`
 }
 
 type InvoiceReceiver struct {

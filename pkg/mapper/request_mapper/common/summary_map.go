@@ -105,6 +105,7 @@ func MapCommonRequestSummary(summary structs.SummaryRequest) (*models.Summary, e
 		TotalTaxes:         taxes,
 		PaymentTypes:       paymentTypes,
 		TotalInWords:       *summary.TotalInWords,
+		Observations:       summary.Observations,
 	}, nil
 }
 
@@ -120,6 +121,9 @@ func validateSummaryFields(summary structs.SummaryRequest) error {
 	}
 	if summary.TotalToPay == 0 {
 		return dte_errors.NewValidationError("RequiredField", "TotalToPay")
+	}
+	if summary.Observations != nil && len(*summary.Observations) > 3000 {
+		return dte_errors.NewValidationError("InvalidLength", "Summary->Observations", 3000)
 	}
 
 	return nil

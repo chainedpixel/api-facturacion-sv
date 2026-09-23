@@ -11,7 +11,7 @@ import (
 func MapInvoiceResponseSummary(summary invoice_models.InvoiceSummary) *structs.InvoiceSummary {
 	result := MapInvoiceSummary(summary)
 	result.DescuGravada = summary.TaxedDiscount.GetValue()
-	result.IvaRete1 = summary.IVARetention.GetValue()
+	result.IvaRete = summary.IVARetention.GetValue()
 	result.TotalIva = summary.TotalIva.GetValue()
 	result.SaldoFavor = summary.BalanceInFavor.GetValue()
 	result.ReteRenta = summary.IncomeRetention.GetValue()
@@ -37,6 +37,7 @@ func MapInvoiceSummary(summary interfaces.Summary) *structs.InvoiceSummary {
 		TotalLetras:         summary.GetTotalInWords(),
 		CondicionOperacion:  summary.GetOperationCondition(),
 		Tributos:            common.MapTaxes(summary.GetTotalTaxes()),
+		Observaciones:       summary.GetObservations(),
 	}
 
 	if len(summary.GetPaymentTypes()) > 0 {
