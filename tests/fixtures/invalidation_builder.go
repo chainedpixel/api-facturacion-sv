@@ -93,6 +93,7 @@ func (b *InvalidationBuilder) AddIssuer() *InvalidationBuilder {
 	address := &models.Address{}
 	b.setError(address.SetDepartment("06"))
 	b.setError(address.SetMunicipality("21"))
+	b.setError(address.SetDistrict("01"))
 	b.setError(address.SetComplement("Calle Principal, Edificio Central #123"))
 
 	if b.err == nil {

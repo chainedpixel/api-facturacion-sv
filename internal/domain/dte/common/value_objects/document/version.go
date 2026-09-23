@@ -16,16 +16,16 @@ func NewVersion(value int) (*Version, error) {
 	if version.IsValid() {
 		return version, nil
 	}
-	return &Version{}, dte_errors.NewValidationError("InvalidLength", "version", "1-3", fmt.Sprintf("%d", value))
+	return &Version{}, dte_errors.NewValidationError("InvalidLength", "version", "1-4", fmt.Sprintf("%d", value))
 }
 
 func NewValidatedVersion(value int) *Version {
 	return &Version{Value: value}
 }
 
-// IsValid validates that the Version value is 1, 2 or 3
+// IsValid validates that the Version value is between 1 and 4
 func (v *Version) IsValid() bool {
-	return v.Value > 0 && v.Value <= 3
+	return v.Value > 0 && v.Value <= 4
 }
 
 func (v *Version) Equals(other interfaces.ValueObject[int]) bool {

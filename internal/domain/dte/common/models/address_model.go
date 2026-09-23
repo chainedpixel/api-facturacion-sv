@@ -2,10 +2,11 @@ package models
 
 import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/location"
 
-// Address is a structure that represents a Department, Municipality and Complement of a DTE
+// Address is a structure that represents a Department, Municipality, District and Complement of a DTE
 type Address struct {
 	Department   location.Department   `json:"department"`
 	Municipality location.Municipality `json:"municipality"`
+	District     location.District     `json:"district"`
 	Complement   location.Address      `json:"complement"`
 }
 
@@ -15,6 +16,10 @@ func (a *Address) GetDepartment() string {
 
 func (a *Address) GetMunicipality() string {
 	return a.Municipality.GetValue()
+}
+
+func (a *Address) GetDistrict() string {
+	return a.District.GetValue()
 }
 
 func (a *Address) GetComplement() string {
@@ -36,6 +41,15 @@ func (a *Address) SetMunicipality(municipality string) error {
 		return err
 	}
 	a.Municipality = *munObj
+	return nil
+}
+
+func (a *Address) SetDistrict(district string) error {
+	distObj, err := location.NewDistrict(district)
+	if err != nil {
+		return err
+	}
+	a.District = *distObj
 	return nil
 }
 

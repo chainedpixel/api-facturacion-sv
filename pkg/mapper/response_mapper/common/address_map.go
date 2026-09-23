@@ -10,6 +10,7 @@ func MapCommonResponseAddress(address interfaces.Address) structs.DTEAddress {
 	return structs.DTEAddress{
 		Departamento: address.GetDepartment(),
 		Municipio:    address.GetMunicipality(),
+		Distrito:     address.GetDistrict(),
 		Complemento:  address.GetComplement(),
 	}
 }

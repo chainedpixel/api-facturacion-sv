@@ -66,6 +66,7 @@ type DTEReceiver struct {
 type DTEAddress struct {
 	Departamento string `json:"departamento"`
 	Municipio    string `json:"municipio"`
+	Distrito     string `json:"distrito"`
 	Complemento  string `json:"complemento"`
 }
 

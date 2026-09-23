@@ -13,6 +13,7 @@ type Address struct {
 	BranchID     uint   `gorm:"column:branch_id;type:uint;not null;index:idx_address_branch"`
 	Municipality string `gorm:"column:municipality;type:varchar(2);not null"`
 	Department   string `gorm:"column:department;type:varchar(2);not null"`
+	District     string `gorm:"column:district;type:varchar(2);not null;default:'01'"`
 	Complement   string `gorm:"column:complement;type:varchar(200);not null"`
 
 	Branch *BranchOffice `gorm:"foreignKey:BranchID;references:ID"`

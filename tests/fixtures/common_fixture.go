@@ -16,6 +16,7 @@ func CreateDefaultAddress() *structs.AddressRequest {
 	return &structs.AddressRequest{
 		Department:   "06",
 		Municipality: "20",
+		District:     "01",
 		Complement:   "Colonia Escalón, Calle La Reforma #123, San Salvador",
 	}
 }
@@ -138,6 +139,7 @@ func CreateDefaultIssuer() *dte.IssuerDTE {
 		Address: &user.Address{
 			Department:   "06",
 			Municipality: "20",
+			District:     "01",
 			Complement:   "BOULEVARD SANTA ELENA SUR, SANTA TECLA",
 		},
 		EstablishmentType:   "02",

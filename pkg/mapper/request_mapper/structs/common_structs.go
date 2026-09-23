@@ -4,6 +4,7 @@ package structs
 type AddressRequest struct {
 	Department   string `json:"department"`
 	Municipality string `json:"municipality"`
+	District     string `json:"district"`
 	Complement   string `json:"complement"`
 }
 

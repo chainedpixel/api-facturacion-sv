@@ -141,6 +141,7 @@ func (r *AuthRepository) GetBranchByBranchApiKey(ctx context.Context, apiKey str
 		localUser.Address = &user.Address{
 			Municipality: branch.Address.Municipality,
 			Department:   branch.Address.Department,
+			District:     branch.Address.District,
 			Complement:   branch.Address.Complement,
 		}
 	}
@@ -241,6 +242,7 @@ func (r *AuthRepository) Create(ctx context.Context, user *user.User) error {
 					BranchID:     dbBranch.ID,
 					Municipality: user.BranchOffices[i].Address.Municipality,
 					Department:   user.BranchOffices[i].Address.Department,
+					District:     user.BranchOffices[i].Address.District,
 					Complement:   user.BranchOffices[i].Address.Complement,
 				}
 
@@ -309,6 +311,7 @@ func (r *AuthRepository) UpdateBranchOffices(ctx context.Context, userID uint, b
 					BranchID:     branch.ID,
 					Municipality: branch.Address.Municipality,
 					Department:   branch.Address.Department,
+					District:     branch.Address.District,
 					Complement:   branch.Address.Complement,
 				}
 
@@ -396,6 +399,7 @@ func (r *AuthRepository) GetBranchByBranchID(ctx context.Context, branchID uint)
 		localBranch.Address = &user.Address{
 			Municipality: branch.Address.Municipality,
 			Department:   branch.Address.Department,
+			District:     branch.Address.District,
 			Complement:   branch.Address.Complement,
 		}
 	}
@@ -501,6 +505,7 @@ func (r *AuthRepository) GetMatrixBranch(ctx context.Context, userID uint) (*use
 		Address: &user.Address{
 			Municipality: branch.Address.Municipality,
 			Department:   branch.Address.Department,
+			District:     branch.Address.District,
 			Complement:   branch.Address.Complement,
 		},
 	}, nil

@@ -147,6 +147,7 @@ func (b *DTEBuilder) AddIssuer() *DTEBuilder {
 	address := &models.Address{}
 	b.setError(address.SetDepartment("06"))
 	b.setError(address.SetMunicipality("21"))
+	b.setError(address.SetDistrict("01"))
 	b.setError(address.SetComplement("Example Street, Central Building #123"))
 
 	if b.err == nil {
@@ -215,6 +216,7 @@ func (b *DTEBuilder) AddReceiver() *DTEBuilder {
 	address := &models.Address{}
 	b.setError(address.SetDepartment("06"))
 	b.setError(address.SetMunicipality("22"))
+	b.setError(address.SetDistrict("01"))
 	b.setError(address.SetComplement("Example Neighborhood, House #456"))
 
 	if b.err == nil {

@@ -10,6 +10,7 @@ type Address struct {
 	BranchID     uint   `json:"-"`
 	Municipality string `json:"municipality"`
 	Department   string `json:"department"`
+	District     string `json:"district"`
 	Complement   string `json:"complement"`
 }
 
@@ -20,7 +21,9 @@ func (a *Address) Validate() error {
 	if a.Department == "" {
 		return dte_errors.NewValidationError("RequiredField", "department")
 	}
-
+	if a.District == "" {
+		return dte_errors.NewValidationError("RequiredField", "district")
+	}
 	if a.Complement == "" {
 		return dte_errors.NewValidationError("RequiredField", "complement")
 	}

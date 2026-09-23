@@ -31,3 +31,8 @@ backup/
 *.out
 *_mock.go
 
+# Private documentation & reports
+private/
+*.docx
+GEMINI.md
+

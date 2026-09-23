@@ -24,6 +24,15 @@ func MapCommonRequestAddress(address structs.AddressRequest) (*models.Address, e
 		return nil, err
 	}
 
+	districtVal := address.District
+	if districtVal == "" {
+		districtVal = "01"
+	}
+	district, err := location.NewDistrict(districtVal)
+	if err != nil {
+		return nil, err
+	}
+
 	complement, err := location.NewAddress(address.Complement)
 	if err != nil {
 		return nil, err
@@ -32,15 +41,21 @@ func MapCommonRequestAddress(address structs.AddressRequest) (*models.Address, e
 	return &models.Address{
 		Department:   *department,
 		Municipality: *municipality,
+		District:     *district,
 		Complement:   *complement,
 	}, nil
 }
 
 // MapClientAddress maps a client address to an address model -> Source: Database
 func MapClientAddress(address *user.Address) (*models.Address, error) {
+	districtVal := address.District
+	if districtVal == "" {
+		districtVal = "01"
+	}
 	return &models.Address{
 		Department:   *location.NewValidatedDepartment(address.Department),
 		Municipality: *location.NewValidatedMunicipality(address.Municipality, address.Department),
+		District:     *location.NewValidatedDistrict(districtVal),
 		Complement:   *location.NewValidatedAddress(address.Complement),
 	}, nil
 }
