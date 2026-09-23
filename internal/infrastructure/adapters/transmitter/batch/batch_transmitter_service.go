@@ -87,8 +87,12 @@ func NewBatchTransmitterService(
 // GetDTEVersion determines the version based on the DTE type
 func (s *BatchTransmitterService) GetDTEVersion(dteType string) int {
 	switch dteType {
-	case constants.FacturaElectronica:
-		return 1
+	case constants.FacturaElectronica, constants.ComprobanteRetencionElectronico, constants.FacturaSujetoExcluidoElectronica:
+		return 2
+	case constants.FacturaExportacionElectronica:
+		return 3
+	case constants.CCFElectronico, constants.NotaRemisionElectronica, constants.NotaCreditoElectronica, constants.NotaDebitoElectronica:
+		return 4
 	default:
 		return 2
 	}

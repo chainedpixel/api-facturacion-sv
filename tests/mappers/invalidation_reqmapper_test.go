@@ -286,6 +286,7 @@ func TestMapToInvalidationData(t *testing.T) {
 			}
 
 			assert.NotNil(t, got.Identification)
+			assert.Equal(t, 3, got.Identification.Version.GetValue())
 			assert.NotNil(t, got.Reason)
 			assert.NotNil(t, got.Issuer)
 			assert.NotNil(t, got.Document)

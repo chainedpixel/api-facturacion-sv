@@ -64,7 +64,7 @@ func (b *InvalidationBuilder) AddIdentification() *InvalidationBuilder {
 		return b
 	}
 
-	b.setError(b.document.Identification.SetVersion(1))
+	b.setError(b.document.Identification.SetVersion(3))
 	b.setError(b.document.Identification.SetAmbient(constants.Testing))
 	b.setError(b.document.Identification.SetDTEType(constants.FacturaElectronica))
 	b.setError(b.document.Identification.SetControlNumber("DTE-05-00000001-000000000000001"))
@@ -105,9 +105,9 @@ func (b *InvalidationBuilder) AddIssuer() *InvalidationBuilder {
 	b.setError(b.document.Issuer.SetCommercialName("EMPRESA TECH"))
 
 	establishmentCode := "001"
-	establishmentMHCode := "EST001"
+	establishmentMHCode := "E001"
 	posCode := "POS01"
-	posMHCode := "POS001"
+	posMHCode := "P001"
 	b.setError(b.document.Issuer.SetEstablishmentCode(&establishmentCode))
 	b.setError(b.document.Issuer.SetEstablishmentMHCode(&establishmentMHCode))
 	b.setError(b.document.Issuer.SetPOSCode(&posCode))

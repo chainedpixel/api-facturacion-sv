@@ -75,7 +75,7 @@ func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Con
 
 	event := &models.ContingencyEvent{
 		Identification: models.ContingencyIdentification{
-			Version:          3,
+			Version:          4,
 			Ambient:          config.Server.AmbientCode,
 			GenerationCode:   strings.ToUpper(uuid.New().String()),
 			TransmissionDate: utils.TimeNow().Format("2006-01-02"),
@@ -124,13 +124,18 @@ func (s *ContingencyEventService) prepareContingencyReason(ctx context.Context, 
 		return models.ContingencyReason{}, shared_error.NewGeneralServiceError("ContingencyEventService", "prepareContingencyReason", "no pending contingency documents found for branch", nil)
 	}
 
+	var contingencyReason *string
+	if doc.Reason != "" {
+		contingencyReason = &doc.Reason
+	}
+
 	return models.ContingencyReason{
 		StartDate:         startTime.Format("2006-01-02"),
 		EndDate:           now.Format("2006-01-02"),
 		StartTime:         startTime.Add(-60 * time.Second).Format("15:04:05"),
 		EndTime:           now.Add(10 * time.Second).Format("15:04:05"),
 		ContingencyType:   doc.ContingencyType,
-		ContingencyReason: doc.Reason,
+		ContingencyReason: contingencyReason,
 	}, nil
 }
 

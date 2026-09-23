@@ -43,7 +43,7 @@ func (i *InvalidationMapper) MapToInvalidationData(req *structs.CreateInvalidati
 		documentType = baseDte.DTEType
 	}
 
-	identification, err := common.MapCommonRequestIdentification(1, 2, documentType)
+	identification, err := common.MapCommonRequestIdentification(1, 3, documentType)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("InvalidationMapper", "MapToInvalidationData", err, "ErrorMapping", "Invalidation->Identification")
 	}

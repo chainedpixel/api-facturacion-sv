@@ -15,9 +15,10 @@ import (
 func TestContingencyEvent_JSONSerialization(t *testing.T) {
 	test.TestMain(t)
 
+	reasonText := "Internet service failure"
 	event := models.ContingencyEvent{
 		Identification: models.ContingencyIdentification{
-			Version:          1,
+			Version:          4,
 			Ambient:          "00",
 			GenerationCode:   "ABCD1234-0000-0000-0000-ABCD12340000",
 			TransmissionDate: "2026-03-09",
@@ -42,7 +43,7 @@ func TestContingencyEvent_JSONSerialization(t *testing.T) {
 			StartTime:         "09:00:00",
 			EndTime:           "10:00:00",
 			ContingencyType:   3,
-			ContingencyReason: "Internet service failure",
+			ContingencyReason: &reasonText,
 		},
 	}
 
@@ -118,7 +119,7 @@ func TestContingencyIssuer_OptionalFields(t *testing.T) {
 
 	// Nil pointer fields should be present as null (they are *string)
 	assert.Contains(t, string(data), "codEstableMH")
-	assert.Contains(t, string(data), "codPuntoVenta")
+	assert.Contains(t, string(data), "codPuntoVentaMH")
 
 	// With values
 	code := "MH-001"
@@ -132,7 +133,7 @@ func TestContingencyIssuer_OptionalFields(t *testing.T) {
 	var raw map[string]interface{}
 	require.NoError(t, json.Unmarshal(data2, &raw))
 	assert.Equal(t, "MH-001", raw["codEstableMH"])
-	assert.Equal(t, "POS-001", raw["codPuntoVenta"])
+	assert.Equal(t, "POS-001", raw["codPuntoVentaMH"])
 }
 
 // TestDTEDetail_JSONFields verifies the DTE detail struct field names.
@@ -160,13 +161,14 @@ func TestDTEDetail_JSONFields(t *testing.T) {
 func TestContingencyReason_JSONFields(t *testing.T) {
 	test.TestMain(t)
 
+	reasonDesc := "System connection failure"
 	reason := models.ContingencyReason{
 		StartDate:         "2026-03-01",
 		EndDate:           "2026-03-09",
 		StartTime:         "08:00:00",
 		EndTime:           "17:00:00",
 		ContingencyType:   2,
-		ContingencyReason: "System connection failure",
+		ContingencyReason: &reasonDesc,
 	}
 
 	data, err := json.Marshal(reason)
@@ -183,8 +185,8 @@ func TestContingencyReason_JSONFields(t *testing.T) {
 	assert.Equal(t, "System connection failure", raw["motivoContingencia"])
 }
 
-// TestContingencyReason_EmptyReason verifies omitempty on ContingencyReason field.
-func TestContingencyReason_EmptyReason(t *testing.T) {
+// TestContingencyReason_NilReason verifies null serialization on ContingencyReason field.
+func TestContingencyReason_NilReason(t *testing.T) {
 	test.TestMain(t)
 
 	reason := models.ContingencyReason{
@@ -193,14 +195,16 @@ func TestContingencyReason_EmptyReason(t *testing.T) {
 		StartTime:         "08:00:00",
 		EndTime:           "17:00:00",
 		ContingencyType:   1,
-		ContingencyReason: "",
+		ContingencyReason: nil,
 	}
 
 	data, err := json.Marshal(reason)
 	require.NoError(t, err)
 
-	// omitempty → field should not appear when empty
-	assert.NotContains(t, string(data), "motivoContingencia")
+	var raw map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &raw))
+	assert.Contains(t, raw, "motivoContingencia")
+	assert.Nil(t, raw["motivoContingencia"])
 }
 
 // TestHaciendaContingencyRequest_JSONFields verifies the Hacienda request wrapper.
@@ -209,7 +213,7 @@ func TestHaciendaContingencyRequest_JSONFields(t *testing.T) {
 
 	req := models.HaciendaContingencyRequest{
 		NIT:      "0614-010101-000-0",
-		Document: `{"identificacion":{"version":3}}`,
+		Document: `{"identificacion":{"version":4}}`,
 	}
 
 	data, err := json.Marshal(req)
@@ -219,5 +223,5 @@ func TestHaciendaContingencyRequest_JSONFields(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &raw))
 
 	assert.Equal(t, "0614-010101-000-0", raw["nit"])
-	assert.Equal(t, `{"identificacion":{"version":3}}`, raw["documento"])
+	assert.Equal(t, `{"identificacion":{"version":4}}`, raw["documento"])
 }
