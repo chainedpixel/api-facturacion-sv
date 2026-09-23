@@ -5,7 +5,6 @@ type CreateFSERequest struct {
 	Items      []FSEItemRequest    `json:"items"`
 	Receiver   *FSEReceiverRequest `json:"excluded_subject"`
 	Summary    *FSESummaryRequest  `json:"summary"`
-	Extension  *ExtensionRequest   `json:"extension,omitempty"`
 	Appendixes []AppendixRequest   `json:"appendixes,omitempty"`
 }
 

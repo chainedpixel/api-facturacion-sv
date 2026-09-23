@@ -25,7 +25,6 @@ func MapFSEResponseSummary(summary fse_models.FSESummary) structs.FSESummaryResp
 		Descu:              summary.GetNonSubjectDiscount(),
 		TotalDescu:         totalDescu,
 		SubTotal:           summary.SubTotal.GetValue(),
-		IvaRete1:           summary.IVARetention.GetValue(),
 		ReteRenta:          summary.IncomeRetention.GetValue(),
 		TotalPagar:         summary.TotalToPay.GetValue(),
 		TotalLetras:        summary.TotalInWords,

@@ -13,13 +13,14 @@ type RetentionItem struct {
 
 type RetentionSummary struct {
 	TotalRetentionAmount float64 `json:"total_retention_amount"`
+	TotalIVA             float64 `json:"total_iva,omitempty"`
 	TotalRetentionIVA    float64 `json:"total_retention_iva"`
+	Observations         *string `json:"observations,omitempty"`
 }
 
 type CreateRetentionRequest struct {
 	Items      []RetentionItem   `json:"items"`
 	Summary    *RetentionSummary `json:"summary,omitempty"`
 	Receiver   *ReceiverRequest  `json:"receiver,omitempty"`
-	Extension  *ExtensionRequest `json:"extension,omitempty"`
 	Appendixes []AppendixRequest `json:"appendixes,omitempty"`
 }

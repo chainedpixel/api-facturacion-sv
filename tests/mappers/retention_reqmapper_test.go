@@ -371,38 +371,6 @@ func TestMapToRetentionData(t *testing.T) {
 		},
 
 		{
-			name: "Retention with invalid extension",
-			req: func() *structs.CreateRetentionRequest {
-				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
-			name: "Retention with extension including vehicle plate (not allowed)",
-			req: func() *structs.CreateRetentionRequest {
-				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				plate := "P123456"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Juan Pérez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-					VehiculePlate:    &plate,
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidFieldValue",
-		},
-		{
 			name: "Retention with invalid appendix",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
@@ -435,22 +403,6 @@ func TestMapToRetentionData(t *testing.T) {
 			errorCode: "InvalidAppendixLabel",
 		},
 
-		{
-			name: "Retention with valid extension",
-			req: func() *structs.CreateRetentionRequest {
-				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				observation := "Observación válida"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Juan Pérez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
-				return req
-			},
-			wantErr: false,
-		},
 		{
 			name: "Retention with valid appendix",
 			req: func() *structs.CreateRetentionRequest {
@@ -489,6 +441,7 @@ func TestMapToRetentionData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 2, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.InputDataCommon.Receiver)
 			assert.NotNil(t, got.RetentionItems)
 			assert.Len(t, got.RetentionItems, len(req.Items))
@@ -505,10 +458,6 @@ func TestMapToRetentionData(t *testing.T) {
 				assert.NotNil(t, got.RetentionSummary)
 				assert.NotZero(t, got.RetentionSummary.TotalSubjectRetention.GetValue())
 				assert.NotZero(t, got.RetentionSummary.TotalIVARetention.GetValue())
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.Appendixes != nil {

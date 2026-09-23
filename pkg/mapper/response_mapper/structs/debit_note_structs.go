@@ -1,15 +1,14 @@
 package structs
 
 type DebitNoteDTEResponse struct {
-	Identificacion       *DTEIdentification     `json:"identificacion"`
-	Emisor               DebitNoteDTEIssuer     `json:"emisor"`
-	Receptor             DTEReceiver            `json:"receptor"`
-	CuerpoDocumento      []DebitNoteDTEItem     `json:"cuerpoDocumento"`
-	Resumen              *DebitNoteDTESummary   `json:"resumen"`
-	DocumentoRelacionado []DTERelatedDocument   `json:"documentoRelacionado"`
-	VentaTercero         *DTEThirdPartySale     `json:"ventaTercero"`
-	Extension            *DebitNoteDTEExtension `json:"extension"`
-	Apendice             []DTEApendice          `json:"apendice"`
+	Identificacion       *DTEIdentification   `json:"identificacion"`
+	Emisor               DebitNoteDTEIssuer   `json:"emisor"`
+	Receptor             DTEReceiver          `json:"receptor"`
+	CuerpoDocumento      []DebitNoteDTEItem   `json:"cuerpoDocumento"`
+	Resumen              *DebitNoteDTESummary `json:"resumen"`
+	DocumentoRelacionado []DTERelatedDocument `json:"documentoRelacionado"`
+	VentaTercero         *DTEThirdPartySale   `json:"ventaTercero"`
+	Apendice             []DTEApendice        `json:"apendice"`
 }
 
 type DebitNoteDTEItem struct {
@@ -27,6 +26,10 @@ type DebitNoteDTEItem struct {
 	VentaExenta     float64  `json:"ventaExenta"`
 	VentaGravada    float64  `json:"ventaGravada"`
 	Tributos        []string `json:"tributos"`
+	NoGravado       float64  `json:"noGravado"`
+	IvaPerci        float64  `json:"ivaPerci"`
+	TotalIva        float64  `json:"totalIva"`
+	IvaRete         float64  `json:"ivaRete"`
 }
 
 type DebitNoteDTESummary struct {
@@ -34,38 +37,29 @@ type DebitNoteDTESummary struct {
 	TotalExenta         float64  `json:"totalExenta"`
 	TotalGravada        float64  `json:"totalGravada"`
 	SubTotalVentas      float64  `json:"subTotalVentas"`
-	DescuNoSuj          float64  `json:"descuNoSuj"`
-	DescuExenta         float64  `json:"descuExenta"`
-	DescuGravada        float64  `json:"descuGravada"`
 	TotalDescu          float64  `json:"totalDescu"`
 	Tributos            []DTETax `json:"tributos"`
-	SubTotal            float64  `json:"subTotal"`
-	IvaRete1            float64  `json:"ivaRete1"`
-	IvaPerci1           float64  `json:"ivaPerci1"`
-	ReteRenta           float64  `json:"reteRenta"`
 	MontoTotalOperacion float64  `json:"montoTotalOperacion"`
+	IvaPerci            float64  `json:"ivaPerci"`
+	TotalIva            float64  `json:"totalIva"`
+	IvaRete             float64  `json:"ivaRete"`
+	TotalNoGravado      float64  `json:"totalNoGravado"`
+	TotalPagar          float64  `json:"totalPagar"`
 	TotalLetras         string   `json:"totalLetras"`
 	CondicionOperacion  int      `json:"condicionOperacion"`
 	NumPagoElectronico  *string  `json:"numPagoElectronico"`
-}
-
-type DebitNoteDTEExtension struct {
-	NombreEntrega    string  `json:"nombEntrega"`
-	DocumentoEntrega string  `json:"docuEntrega"`
-	NombreRecibe     string  `json:"nombRecibe"`
-	DocumentoRecibe  string  `json:"docuRecibe"`
-	Observacion      *string `json:"observaciones"`
+	Observaciones       *string  `json:"observaciones"`
+	CodigoRetencionMH   *string  `json:"codigoRetencionMH"`
 }
 
 type DebitNoteDTEIssuer struct {
-	NIT                 string     `json:"nit,omitempty"`
-	NRC                 string     `json:"nrc"`
-	Nombre              string     `json:"nombre"`
-	CodActividad        string     `json:"codActividad"`
-	DescActividad       string     `json:"descActividad"`
-	TipoEstablecimiento string     `json:"tipoEstablecimiento"`
-	Direccion           DTEAddress `json:"direccion"`
-	Telefono            string     `json:"telefono"`
-	Correo              string     `json:"correo"`
-	NombreComercial     *string    `json:"nombreComercial"`
+	NIT             string     `json:"nit,omitempty"`
+	NRC             string     `json:"nrc"`
+	Nombre          string     `json:"nombre"`
+	CodActividad    string     `json:"codActividad"`
+	DescActividad   string     `json:"descActividad"`
+	Direccion       DTEAddress `json:"direccion"`
+	Telefono        string     `json:"telefono"`
+	Correo          string     `json:"correo"`
+	NombreComercial *string    `json:"nombreComercial"`
 }

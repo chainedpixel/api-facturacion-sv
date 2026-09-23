@@ -89,19 +89,12 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 	}
 
 	observation := "Retención por servicios tecnológicos primer trimestre"
-	extension := &structs.ExtensionRequest{
-		Observation:      &observation,
-		DeliveryName:     "Juan Carlos Martínez",
-		DeliveryDocument: "04567890-1",
-		ReceiverName:     "Ana María López",
-		ReceiverDocument: "12345678-9",
-	}
+	summary.Observations = &observation
 
 	return &structs.CreateRetentionRequest{
-		Items:     items,
-		Receiver:  receiver,
-		Extension: extension,
-		Summary:   summary,
+		Items:    items,
+		Receiver: receiver,
+		Summary:  summary,
 	}
 }
 

@@ -405,21 +405,6 @@ func TestMapToDebitNoteData(t *testing.T) {
 		},
 
 		{
-			name: "Debit note with invalid extension",
-			req: func() *structs.CreateDebitNoteRequest {
-				req := fixtures.CreateDefaultDebitNoteRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "Debit note with invalid third-party sale",
 			req: func() *structs.CreateDebitNoteRequest {
 				req := fixtures.CreateDefaultDebitNoteRequest()
@@ -573,22 +558,6 @@ func TestMapToDebitNoteData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Debit note with valid extension",
-			req: func() *structs.CreateDebitNoteRequest {
-				req := fixtures.CreateDefaultDebitNoteRequest()
-				observation := "Observación válida"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Carlos Martínez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "Laura González",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
-				return req
-			},
-			wantErr: false,
-		},
-		{
 			name: "Debit note with valid payment type",
 			req: func() *structs.CreateDebitNoteRequest {
 				req := fixtures.CreateDefaultDebitNoteRequest()
@@ -634,6 +603,7 @@ func TestMapToDebitNoteData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 4, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.InputDataCommon.Receiver)
 			assert.NotNil(t, got.InputDataCommon.RelatedDocs)
 			assert.Len(t, got.Items, len(req.Items))
@@ -641,10 +611,6 @@ func TestMapToDebitNoteData(t *testing.T) {
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.OtherDocs != nil {

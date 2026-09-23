@@ -153,6 +153,11 @@ func mapBaseSummaryFields(summary *structs.RemissionNoteSummaryRequest, baseSumm
 	if err := baseSummary.SetDiscountPercentage(getFloatValue(summary.DiscountPercent)); err != nil {
 		return err
 	}
+	if summary.Observations != nil {
+		if err := baseSummary.SetObservations(summary.Observations); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }

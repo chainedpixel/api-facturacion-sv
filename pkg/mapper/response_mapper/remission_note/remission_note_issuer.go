@@ -81,15 +81,6 @@ func MapRemissionNoteThirdPartySale(model *remission_note_models.RemissionNoteMo
 	return common.MapCommonResponseThirdPartySale(model.ThirdPartySale)
 }
 
-// MapRemissionNoteExtension converts the domain extension to the Ministry of Finance format
-func MapRemissionNoteExtension(model *remission_note_models.RemissionNoteModel) *structs.DTEExtension {
-	if model.Extension == nil {
-		return nil
-	}
-
-	return common.MapCommonResponseExtension(model.Extension)
-}
-
 // MapRemissionNoteAppendix converts the domain appendixes to the Ministry of Finance format
 func MapRemissionNoteAppendix(model *remission_note_models.RemissionNoteModel) []structs.DTEApendice {
 	if model.Appendix == nil || len(model.Appendix) == 0 {

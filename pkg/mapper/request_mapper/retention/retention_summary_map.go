@@ -1,6 +1,8 @@
 package retention
 
 import (
+	"math"
+
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
@@ -30,8 +32,23 @@ func MapRetentionSummary(req *structs.RetentionSummary) (*retention_models.Reten
 		return nil, err
 	}
 
+	ivaVal := req.TotalIVA
+	if ivaVal == 0 {
+		ivaVal = math.Round(req.TotalRetentionAmount*0.13*100) / 100
+	}
+	totalIVA, err := financial.NewAmountForTotal(ivaVal)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.Observations != nil && len(*req.Observations) > 3000 {
+		return nil, dte_errors.NewValidationError("InvalidLength", "RetentionSummary->Observations", 3000)
+	}
+
 	return &retention_models.RetentionSummary{
 		TotalSubjectRetention: *totalRetention,
+		TotalIVA:              *totalIVA,
 		TotalIVARetention:     *totalIVARetention,
+		Observations:          req.Observations,
 	}, nil
 }

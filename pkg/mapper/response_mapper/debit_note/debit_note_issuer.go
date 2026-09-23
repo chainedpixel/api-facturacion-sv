@@ -8,15 +8,14 @@ import (
 
 func MapDebitNoteIssuer(issuer interfaces.Issuer) structs.DebitNoteDTEIssuer {
 	result := structs.DebitNoteDTEIssuer{
-		NIT:                 issuer.GetNIT(),
-		NRC:                 issuer.GetNRC(),
-		Nombre:              issuer.GetName(),
-		CodActividad:        issuer.GetActivityCode(),
-		DescActividad:       issuer.GetActivityDescription(),
-		TipoEstablecimiento: issuer.GetEstablishmentType(),
-		Direccion:           common.MapCommonResponseAddress(issuer.GetAddress()),
-		Telefono:            issuer.GetPhone(),
-		Correo:              issuer.GetEmail(),
+		NIT:           issuer.GetNIT(),
+		NRC:           issuer.GetNRC(),
+		Nombre:        issuer.GetName(),
+		CodActividad:  issuer.GetActivityCode(),
+		DescActividad: issuer.GetActivityDescription(),
+		Direccion:     common.MapCommonResponseAddress(issuer.GetAddress()),
+		Telefono:      issuer.GetPhone(),
+		Correo:        issuer.GetEmail(),
 	}
 
 	if name := issuer.GetCommercialName(); name != "" {

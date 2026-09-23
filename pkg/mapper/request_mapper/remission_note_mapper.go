@@ -36,7 +36,7 @@ func (m *RemissionNoteMapper) MapToRemissionNoteData(req *structs.CreateRemissio
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->Receiver")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 3, constants.NotaRemisionElectronica)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 4, constants.NotaRemisionElectronica)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->Identification")
 	}
@@ -117,14 +117,6 @@ func mapRemissionNoteOptionalFields(req *structs.CreateRemissionNoteRequest, res
 			return shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->ThirdPartySales")
 		}
 		result.ThirdPartySale = thirdPartySale
-	}
-
-	if req.Extension != nil {
-		extension, err := common.MapCommonRequestExtension(req.Extension)
-		if err != nil {
-			return shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->Extension")
-		}
-		result.Extension = extension
 	}
 
 	if req.Summary.Payments != nil {

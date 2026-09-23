@@ -22,6 +22,7 @@ func MapRemissionNoteSummary(model *remission_note_models.RemissionNoteSummary) 
 		mhSummary.NonSubjectDiscount = model.Summary.GetNonSubjectDiscount()
 		mhSummary.ExemptDiscount = model.Summary.GetExemptDiscount()
 		mhSummary.TotalDiscount = model.Summary.GetTotalDiscount()
+		mhSummary.Observaciones = model.Summary.GetObservations()
 	}
 
 	mhSummary.TaxedDiscount = 0.0

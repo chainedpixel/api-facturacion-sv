@@ -1,6 +1,8 @@
 package debit_note
 
 import (
+	"math"
+
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/debit_note_models"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
@@ -9,6 +11,11 @@ import (
 func MapDebitNoteResponseItem(items []debit_note_models.DebitNoteItem) []structs.DebitNoteDTEItem {
 	result := make([]structs.DebitNoteDTEItem, len(items))
 	for i, item := range items {
+		var totalIva float64
+		if item.TaxedSale.GetValue() > 0 {
+			totalIva = math.Round(item.TaxedSale.GetValue()*0.13*100) / 100
+		}
+
 		result[i] = structs.DebitNoteDTEItem{
 			NumItem:         item.GetNumber(),
 			TipoItem:        item.GetType(),
@@ -24,6 +31,10 @@ func MapDebitNoteResponseItem(items []debit_note_models.DebitNoteItem) []structs
 			VentaExenta:     item.ExemptSale.GetValue(),
 			VentaGravada:    item.TaxedSale.GetValue(),
 			Tributos:        item.GetTaxes(),
+			NoGravado:       0,
+			IvaPerci:        0,
+			TotalIva:        totalIva,
+			IvaRete:         0,
 		}
 	}
 	return result

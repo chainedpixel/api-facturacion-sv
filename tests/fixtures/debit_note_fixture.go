@@ -92,7 +92,6 @@ func CreateDefaultDebitNoteRequest() *structs.CreateDebitNoteRequest {
 // CreateDebitNoteRequestWithAllOptionalFields creates a debit note request with all optional fields populated.
 func CreateDebitNoteRequestWithAllOptionalFields() *structs.CreateDebitNoteRequest {
 	req := CreateDefaultDebitNoteRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	req.OtherDocs = []structs.OtherDocRequest{CreateDefaultOtherDocument()}
 	req.Appendixes = []structs.AppendixRequest{CreateDefaultAppendix()}

@@ -15,7 +15,6 @@ func ToMHDebitNote(doc interface{}) *structs.DebitNoteDTEResponse {
 		Emisor:          debit_note.MapDebitNoteIssuer(cast.Issuer),
 		Resumen:         debit_note.MapDebitNoteResponseSummary(cast.DebitSummary),
 		CuerpoDocumento: debit_note.MapDebitNoteResponseItem(cast.DebitItems),
-		Extension:       debit_note.MapDebitNoteResponseExtension(cast.Extension),
 	}
 
 	dte.DocumentoRelacionado = common.MapCommonResponseRelatedDocuments(cast.GetRelatedDocuments())

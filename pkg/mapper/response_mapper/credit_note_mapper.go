@@ -16,7 +16,6 @@ func ToMHCreditNote(doc interface{}) *structs.CreditNoteDTEResponse {
 		Emisor:          credit_note.MapCreditNoteIssuer(cast.Issuer),
 		Resumen:         credit_note.MapCreditNoteResponseSummary(cast.CreditSummary),
 		CuerpoDocumento: credit_note.MapCreditNoteResponseItem(cast.CreditItems),
-		Extension:       credit_note.MapCreditNoteResponseExtension(cast.Extension),
 	}
 
 	dte.DocumentoRelacionado = common.MapCommonResponseRelatedDocuments(cast.GetRelatedDocuments())

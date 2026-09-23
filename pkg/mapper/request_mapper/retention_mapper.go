@@ -39,7 +39,7 @@ func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Items")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 1, constants.ComprobanteRetencionElectronico)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 2, constants.ComprobanteRetencionElectronico)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Identification")
 	}
@@ -91,18 +91,6 @@ func validateRetentionReceiverRequest(req *structs.CreateRetentionRequest) error
 
 // mapRetentionOptionalFields maps the optional fields of the retention request into the result model.
 func mapRetentionOptionalFields(req *structs.CreateRetentionRequest, result *retention_models.InputRetentionData) error {
-	if req.Extension != nil {
-		if req.Extension.VehiculePlate != nil {
-			return dte_errors.NewValidationError("InvalidFieldValue", "Request->Extension->VehiculePlate")
-		}
-
-		extension, err := common.MapCommonRequestExtension(req.Extension)
-		if err != nil {
-			return shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Extension")
-		}
-		result.Extension = extension
-	}
-
 	if req.Appendixes != nil {
 		appendixes, err := common.MapCommonRequestAppendix(req.Appendixes)
 		if err != nil {

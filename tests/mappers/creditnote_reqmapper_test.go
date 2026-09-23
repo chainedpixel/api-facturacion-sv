@@ -419,21 +419,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "CreditNote with invalid extension",
-			req: func() *structs.CreateCreditNoteRequest {
-				req := fixtures.CreateDefaultCreditNoteRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "CreditNote with invalid third party sale",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
@@ -708,24 +693,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 		},
 
 		{
-			name: "CreditNote with valid extension",
-			req: func() *structs.CreateCreditNoteRequest {
-				req := fixtures.CreateDefaultCreditNoteRequest()
-				observation := "Observación válida"
-				vehiculePlate := "P123456"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Juan Martínez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "María González",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-					VehiculePlate:    &vehiculePlate,
-				}
-				return req
-			},
-			wantErr: false,
-		},
-		{
 			name: "CreditNote with valid third party sale",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
@@ -791,6 +758,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 4, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.InputDataCommon.Receiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.CreditSummary)
@@ -799,10 +767,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.OtherDocs != nil {

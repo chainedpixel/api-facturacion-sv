@@ -27,11 +27,12 @@ func MapCreditNoteRequestSummary(summary *structs.CreditNoteSummaryRequest) (*cr
 		TotalOperation:     summary.TotalOperation,
 		TotalNonTaxed:      summary.TotalNonTaxed,
 		SubTotalSales:      summary.SubTotalSales,
-		TotalToPay:         1,
+		TotalToPay:         summary.TotalToPay,
 		OperationCondition: summary.OperationCondition,
 		Taxes:              summary.Taxes,
 		PaymentTypes:       []structs.PaymentRequest{},
 		TotalInWords:       summary.TotalInWords,
+		Observations:       summary.Observations,
 	})
 
 	if err != nil {

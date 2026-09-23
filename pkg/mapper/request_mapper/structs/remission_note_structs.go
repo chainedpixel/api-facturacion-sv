@@ -5,7 +5,6 @@ type CreateRemissionNoteRequest struct {
 	Receiver       *RemissionNoteReceiverRequest `json:"receiver" validate:"required"`
 	Items          []*RemissionNoteItemRequest   `json:"items" validate:"required,min=1,dive"`
 	Summary        *RemissionNoteSummaryRequest  `json:"summary" validate:"required"`
-	Extension      *ExtensionRequest             `json:"extension,omitempty"`
 	Appendixes     []*AppendixRequest            `json:"appendixes,omitempty"`
 	ThirdPartySale *ThirdPartySaleRequest        `json:"third_party_sale,omitempty"`
 	RelatedDocs    []*RelatedDocRequest          `json:"related_docs,omitempty"`
@@ -51,4 +50,5 @@ type RemissionNoteSummaryRequest struct {
 	TotalAmount        *float64          `json:"total_amount" validate:"required,gte=0"`
 	AmountInWords      *string           `json:"amount_in_words" validate:"required,max=200"`
 	Payments           []*PaymentRequest `json:"payments,omitempty"`
+	Observations       *string           `json:"observations,omitempty" validate:"omitempty,max=3000"`
 }

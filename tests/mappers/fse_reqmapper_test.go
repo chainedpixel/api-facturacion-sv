@@ -249,21 +249,6 @@ func TestMapToFSEData(t *testing.T) {
 		},
 
 		{
-			name: "FSE with invalid extension (empty deliverer name)",
-			req: func() *structs.CreateFSERequest {
-				req := fixtures.CreateDefaultFSERequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "FSE with invalid appendix (empty field)",
 			req: func() *structs.CreateFSERequest {
 				req := fixtures.CreateDefaultFSERequest()
@@ -340,22 +325,6 @@ func TestMapToFSEData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "FSE with valid extension",
-			req: func() *structs.CreateFSERequest {
-				req := fixtures.CreateDefaultFSERequest()
-				observation := "Observación válida"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Pedro González",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "María Flores",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
-				return req
-			},
-			wantErr: false,
-		},
-		{
 			name: "FSE with valid appendix",
 			req: func() *structs.CreateFSERequest {
 				req := fixtures.CreateDefaultFSERequest()
@@ -389,13 +358,10 @@ func TestMapToFSEData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 2, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.FSEReceiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.FSESummary)
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
-			}
 
 			if req.Appendixes != nil {
 				assert.NotNil(t, got.Appendixes)

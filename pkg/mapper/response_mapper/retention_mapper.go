@@ -16,7 +16,6 @@ func ToMHRetention(doc interface{}) *structs.RetentionDTEResponse {
 		Receptor:        common.MapCommonResponseReceiver(cast.Receiver),
 		Resumen:         retention.MapRetentionResponseSummary(cast.RetentionSummary),
 		CuerpoDocumento: retention.MapRetentionResponseItem(cast.RetentionItems),
-		Extension:       retention.MapRetentionResponseExtension(cast.Extension),
 	}
 
 	if cast.Appendix != nil {

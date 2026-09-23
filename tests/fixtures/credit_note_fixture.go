@@ -84,28 +84,6 @@ func CreateDefaultCreditNoteRequest() *structs.CreateCreditNoteRequest {
 	}
 }
 
-// CreateDefaultCreditNoteExtension creates a valid default extension
-func CreateDefaultCreditNoteExtension() *structs.ExtensionRequest {
-	observation := "Observación de prueba"
-
-	return &structs.ExtensionRequest{
-		DeliveryName:     "Juan Pérez",
-		DeliveryDocument: "12345678-9",
-		ReceiverName:     "Ana López",
-		ReceiverDocument: "98765432-1",
-		Observation:      &observation,
-	}
-}
-
-// CreateCreditNoteWithInvalidItems creates a credit note request with invalid items
-func CreateCreditNoteWithInvalidItems() *structs.CreateCreditNoteRequest {
-	req := CreateDefaultCreditNoteRequest()
-	item := CreateDefaultCreditNoteItem(0)
-	item.Type = 99
-	req.Items = []structs.CreditNoteItemRequest{item}
-	return req
-}
-
 // CreateCreditNoteWithoutRelatedDocs creates a credit note request without related documents
 func CreateCreditNoteWithoutRelatedDocs() *structs.CreateCreditNoteRequest {
 	req := CreateDefaultCreditNoteRequest()
@@ -116,7 +94,6 @@ func CreateCreditNoteWithoutRelatedDocs() *structs.CreateCreditNoteRequest {
 // CreateCreditNoteRequestWithAllOptionalFields creates a credit note request with all optional fields
 func CreateCreditNoteRequestWithAllOptionalFields() *structs.CreateCreditNoteRequest {
 	req := CreateDefaultCreditNoteRequest()
-	req.Extension = CreateDefaultCreditNoteExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	req.RelatedDocs = []structs.RelatedDocRequest{CreateDefaultRelatedDocument()}
 	req.OtherDocs = []structs.OtherDocRequest{CreateDefaultOtherDocument()}

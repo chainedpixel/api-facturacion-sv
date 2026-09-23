@@ -14,7 +14,7 @@ func ToMHFSE(doc interface{}) *structs.FSEDTEResponse {
 	fseResponse := &structs.FSEDTEResponse{
 		Identificacion:  *common.MapCommonResponseIdentification(fseDoc.Identification),
 		Emisor:          fse.MapFSEResponseIssuer(fseDoc.Issuer),
-		SujetoExcluido:  fse.MapFSEResponseReceiver(fseDoc.FSEReceiver),
+		Receptor:        fse.MapFSEResponseReceiver(fseDoc.FSEReceiver),
 		Resumen:         fse.MapFSEResponseSummary(fseDoc.FSESummary),
 		CuerpoDocumento: fse.MapFSEResponseItems(fseDoc.FSEItems),
 	}

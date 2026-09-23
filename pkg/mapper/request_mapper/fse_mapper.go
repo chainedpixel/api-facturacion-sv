@@ -42,7 +42,7 @@ func (m *FSEMapper) MapToFSEData(req *structs.CreateFSERequest, client *dte.Issu
 		return nil, shared_error.NewFormattedGeneralServiceWithError("FSEMapper", "MapToFSEData", err, "ErrorMapping", "FSE->Summary")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(1, 1, constants.FacturaSujetoExcluidoElectronica)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 2, constants.FacturaSujetoExcluidoElectronica)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("FSEMapper", "MapToFSEData", err, "ErrorMapping", "FSE->Identification")
 	}
@@ -94,14 +94,6 @@ func validateFSERequest(req *structs.CreateFSERequest) error {
 
 // mapFSEOptionalFields maps the optional fields of the FSE request into the result model.
 func mapFSEOptionalFields(req *structs.CreateFSERequest, result *fse_models.FSEData) error {
-	if req.Extension != nil {
-		extension, err := common.MapCommonRequestExtension(req.Extension)
-		if err != nil {
-			return err
-		}
-		result.Extension = extension
-	}
-
 	if len(req.Appendixes) > 0 {
 		appendixes, err := common.MapCommonRequestAppendix(req.Appendixes)
 		if err != nil {

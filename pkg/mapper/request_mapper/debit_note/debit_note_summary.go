@@ -31,6 +31,7 @@ func MapDebitNoteRequestSummary(summary *structs.DebitNoteSummaryRequest) (*debi
 		Taxes:              summary.Taxes,
 		PaymentTypes:       []structs.PaymentRequest{},
 		TotalInWords:       summary.TotalInWords,
+		Observations:       summary.Observations,
 	})
 
 	if err != nil {

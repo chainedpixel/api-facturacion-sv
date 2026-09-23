@@ -32,7 +32,11 @@ func MapFSEResponseReceiver(receiver fse_models.FSEReceiver) structs.FSESubjectE
 		correo = &email
 	}
 
-	direccion := common.MapCommonResponseAddress(receiver.Address)
+	var direccion *structs.DTEAddress
+	if receiver.Address != nil {
+		d := common.MapCommonResponseAddress(receiver.Address)
+		direccion = &d
+	}
 
 	nombre := ""
 	if receiver.Name != nil {
@@ -47,7 +51,7 @@ func MapFSEResponseReceiver(receiver fse_models.FSEReceiver) structs.FSESubjectE
 		Nombre:        nombre,
 		CodActividad:  codActividad,
 		DescActividad: descActividad,
-		Direccion:     &direccion,
+		Direccion:     direccion,
 		Telefono:      telefono,
 		Correo:        correo,
 	}

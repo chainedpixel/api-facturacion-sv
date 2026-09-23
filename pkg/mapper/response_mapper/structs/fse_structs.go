@@ -4,7 +4,7 @@ package structs
 type FSEDTEResponse struct {
 	Identificacion  DTEIdentification  `json:"identificacion"`
 	Emisor          FSEIssuer          `json:"emisor"`
-	SujetoExcluido  FSESubjectExcluded `json:"sujetoExcluido"`
+	Receptor        FSESubjectExcluded `json:"receptor"`
 	CuerpoDocumento []FSEItemResponse  `json:"cuerpoDocumento"`
 	Resumen         FSESummaryResponse `json:"resumen"`
 	Apendice        *[]DTEApendice     `json:"apendice"`
@@ -57,7 +57,6 @@ type FSESummaryResponse struct {
 	Descu              float64       `json:"descu"`
 	TotalDescu         float64       `json:"totalDescu"`
 	SubTotal           float64       `json:"subTotal"`
-	IvaRete1           float64       `json:"ivaRete1"`
 	ReteRenta          float64       `json:"reteRenta"`
 	TotalPagar         float64       `json:"totalPagar"`
 	TotalLetras        string        `json:"totalLetras"`

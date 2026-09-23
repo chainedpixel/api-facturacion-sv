@@ -92,7 +92,6 @@ func CreateDefaultRemissionNoteRequest() *structs.CreateRemissionNoteRequest {
 // CreateRemissionNoteRequestWithAllOptionalFields creates a remission note request with all optional fields populated.
 func CreateRemissionNoteRequestWithAllOptionalFields() *structs.CreateRemissionNoteRequest {
 	req := CreateDefaultRemissionNoteRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	relatedDoc := CreateDefaultRelatedDocument()
 	req.RelatedDocs = []*structs.RelatedDocRequest{&relatedDoc}

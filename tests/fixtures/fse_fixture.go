@@ -88,7 +88,6 @@ func CreateDefaultFSERequest() *structs.CreateFSERequest {
 // CreateFSERequestWithAllOptionalFields creates an FSE request with all optional fields populated.
 func CreateFSERequestWithAllOptionalFields() *structs.CreateFSERequest {
 	req := CreateDefaultFSERequest()
-	req.Extension = CreateDefaultExtension()
 	req.Appendixes = []structs.AppendixRequest{CreateDefaultAppendix()}
 	return req
 }

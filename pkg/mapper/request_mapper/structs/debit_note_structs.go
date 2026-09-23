@@ -6,7 +6,6 @@ type CreateDebitNoteRequest struct {
 	ModelType      int                      `json:"model_type"`
 	Summary        *DebitNoteSummaryRequest `json:"summary"`
 	ThirdPartySale *ThirdPartySaleRequest   `json:"third_party_sale,omitempty"`
-	Extension      *ExtensionRequest        `json:"extension,omitempty"`
 	Payments       []PaymentRequest         `json:"payments,omitempty"`
 	OtherDocs      []OtherDocRequest        `json:"other_docs,omitempty"`
 	RelatedDocs    []RelatedDocRequest      `json:"related_docs,omitempty"`

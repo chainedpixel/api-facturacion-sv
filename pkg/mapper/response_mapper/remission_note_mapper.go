@@ -21,7 +21,6 @@ func ToMHRemissionNote(domain interface{}) interface{} {
 		ThirdPartySale:   remission_note.MapRemissionNoteThirdPartySale(remissionNoteModel),
 		DocumentBody:     remission_note.MapRemissionNoteItems(remissionNoteModel),
 		Summary:          remission_note.MapRemissionNoteSummary(remissionNoteModel.Summary),
-		Extension:        remission_note.MapRemissionNoteExtension(remissionNoteModel),
 		Appendix:         remission_note.MapRemissionNoteAppendix(remissionNoteModel),
 	}
 }

@@ -36,7 +36,7 @@ func (m *DebitNoteMapper) MapToDebitNoteData(req *structs.CreateDebitNoteRequest
 		return nil, shared_error.NewFormattedGeneralServiceWithError("DebitNoteMapper", "MapToDebitNoteData", err, "ErrorMapping", "DebitNote->Receiver")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 3, constants.NotaDebitoElectronica)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 4, constants.NotaDebitoElectronica)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("DebitNoteMapper", "MapToDebitNoteData", err, "ErrorMapping", "DebitNote->Identification")
 	}
@@ -98,7 +98,6 @@ func validateDebitNoteRequest(req *structs.CreateDebitNoteRequest) error {
 func mapDebitNoteOptionalFields(req *structs.CreateDebitNoteRequest, result *debit_note_models.DebitNoteInput) error {
 	if err := common.MapCommonOptionalToInputData(common.CommonOptionalFields{
 		ThirdPartySale: req.ThirdPartySale,
-		Extension:      req.Extension,
 		OtherDocs:      req.OtherDocs,
 		Appendixes:     req.Appendixes,
 	}, result.InputDataCommon); err != nil {

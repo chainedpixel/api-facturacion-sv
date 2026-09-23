@@ -344,21 +344,6 @@ func TestMapToRemissionNoteData(t *testing.T) {
 		},
 
 		{
-			name: "Remission note with invalid extension",
-			req: func() *structs.CreateRemissionNoteRequest {
-				req := fixtures.CreateDefaultRemissionNoteRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "Remission note with invalid third-party sale",
 			req: func() *structs.CreateRemissionNoteRequest {
 				req := fixtures.CreateDefaultRemissionNoteRequest()
@@ -448,22 +433,6 @@ func TestMapToRemissionNoteData(t *testing.T) {
 					EmissionDate:   "2023-01-15",
 				}
 				req.RelatedDocs = []*structs.RelatedDocRequest{&relDoc}
-				return req
-			},
-			wantErr: false,
-		},
-		{
-			name: "Remission note with valid extension",
-			req: func() *structs.CreateRemissionNoteRequest {
-				req := fixtures.CreateDefaultRemissionNoteRequest()
-				observation := "Entrega parcial del pedido"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Roberto Sánchez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "Ana Flores",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
 				return req
 			},
 			wantErr: false,
@@ -666,16 +635,13 @@ func TestMapToRemissionNoteData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 4, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.Receiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.RemissionSummary)
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.RelatedDocs != nil {
