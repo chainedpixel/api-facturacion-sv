@@ -40,7 +40,7 @@ func NewMHTransmitter(haciendaAuth ports.HaciendaAuthManager, failedSequenceRepo
 		haciendaAuth:       haciendaAuth,
 		failedSequenceRepo: failedSequenceRepo,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 8 * time.Second,
 		},
 		processors: make(map[string]DocumentProcessor),
 	}
@@ -48,6 +48,11 @@ func NewMHTransmitter(haciendaAuth ports.HaciendaAuthManager, failedSequenceRepo
 	t.processors["invalidation"] = &processors.InvalidationProcessor{}
 	t.processors["dte"] = &processors.DTEProcessor{}
 	return t
+}
+
+// GetTimeout returns the configured timeout duration for the HTTP client.
+func (t *MHTransmitter) GetTimeout() time.Duration {
+	return t.httpClient.Timeout
 }
 
 func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, signedDoc string, systemToken string) (*models2.TransmitResult, error) {
@@ -114,7 +119,7 @@ func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interf
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		logs.Error("Failed to check document status", map[string]interface{}{
 			"status": resp.Status,
 		})

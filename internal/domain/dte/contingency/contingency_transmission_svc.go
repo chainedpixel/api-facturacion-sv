@@ -211,14 +211,14 @@ func (s *contingencyTransmissionSvc) queryHaciendaStatus(ctx context.Context, ge
 	req.Header.Set("Authorization", haciendaToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	httpClient := &http.Client{Timeout: 30 * time.Second}
+	httpClient := &http.Client{Timeout: 8 * time.Second}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
