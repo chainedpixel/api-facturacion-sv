@@ -44,9 +44,16 @@ type haciendaAuthResponse struct {
 func NewHaciendaAuthService(cache ports.CacheManager, authService auth.AuthManager) ports2.HaciendaAuthManager {
 	return &HaciendaAuthService{
 		authService: authService,
-		client:      &http.Client{},
-		cache:       cache,
+		client: &http.Client{
+			Timeout: 8 * time.Second,
+		},
+		cache: cache,
 	}
+}
+
+// GetTimeout returns the configured timeout duration for the HTTP client.
+func (s *HaciendaAuthService) GetTimeout() time.Duration {
+	return s.client.Timeout
 }
 
 // GetOrCreateHaciendaToken retrieves a Hacienda token, first checking the cache.

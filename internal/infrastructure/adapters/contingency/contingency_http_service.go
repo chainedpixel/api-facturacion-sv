@@ -42,7 +42,7 @@ func newContingencyHTTPService(
 		signer:       signer,
 		cache:        cache,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 8 * time.Second,
 			Transport: &http.Transport{
 				MaxIdleConns:       100,
 				IdleConnTimeout:    90 * time.Second,

@@ -51,6 +51,11 @@ func NewContingencyEventService(
 	}
 }
 
+// GetHTTPTimeout returns the configured timeout duration for the HTTP client.
+func (s *ContingencyEventService) GetHTTPTimeout() time.Duration {
+	return s.httpSvc.httpClient.Timeout
+}
+
 // PrepareAndSendContingencyEvent builds a contingency event from the given documents and sends it to Hacienda.
 func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Context, docs []dte.ContingencyDocument) error {
 	if len(docs) == 0 {

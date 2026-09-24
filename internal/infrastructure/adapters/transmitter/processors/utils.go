@@ -35,7 +35,11 @@ func GetDocumentRequestData(document interface{}) (int, string, string, int, err
 
 	dteType, ok := identification["tipoDte"].(string)
 	if !ok {
-		documento := docMap["documento"].(map[string]interface{})
+		documento, docOk := docMap["documento"].(map[string]interface{})
+		if !docOk || documento == nil {
+			logs.Error("Missing or invalid tipoDte field")
+			return 0, "", "", 0, fmt.Errorf("missing or invalid tipoDte field")
+		}
 		dteType, ok = documento["tipoDte"].(string)
 		if !ok {
 			logs.Error("Missing or invalid tipoDte field")
@@ -43,13 +47,12 @@ func GetDocumentRequestData(document interface{}) (int, string, string, int, err
 		}
 	}
 
-	controlNumber, ok := identification["numeroControl"].(string)
-	if !ok {
-		documento := docMap["documento"].(map[string]interface{})
-		controlNumber, ok = documento["numeroControl"].(string)
-		if !ok {
-			logs.Error("Missing or invalid numeroControl field")
-			return 0, "", "", 0, fmt.Errorf("missing or invalid numeroControl field")
+	var controlNumber string
+	if cn, okCn := identification["numeroControl"].(string); okCn {
+		controlNumber = cn
+	} else if documento, docOk := docMap["documento"].(map[string]interface{}); docOk && documento != nil {
+		if cn, okCn := documento["numeroControl"].(string); okCn {
+			controlNumber = cn
 		}
 	}
 
@@ -59,13 +62,11 @@ func GetDocumentRequestData(document interface{}) (int, string, string, int, err
 		return 0, "", "", 0, fmt.Errorf("missing or invalid codigoGeneracion field")
 	}
 
-	sequenceNumber, err := extractCorrelativo(controlNumber)
-	if err != nil {
-		logs.Error("Failed to extract correlativo", map[string]interface{}{
-			"numeroControl": controlNumber,
-			"error":         err.Error(),
-		})
-		return 0, "", "", 0, fmt.Errorf("failed to extract correlativo: %w", err)
+	sequenceNumber := 1
+	if controlNumber != "" {
+		if seq, err := extractCorrelativo(controlNumber); err == nil {
+			sequenceNumber = seq
+		}
 	}
 
 	return int(version), dteType, generationCode, sequenceNumber, nil

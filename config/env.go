@@ -90,6 +90,7 @@ func InitEnvConfig(rootPath string) error {
 	Log = &EnvConfig.Log
 	Signer = &EnvConfig.Signer
 	MHPaths = &EnvConfig.MHPaths
+	SanitizeMHPaths(MHPaths)
 	SMTP = &EnvConfig.SMTP
 
 	if Server.APIVersion == "" {
@@ -100,6 +101,20 @@ func InitEnvConfig(rootPath string) error {
 	}
 
 	return nil
+}
+
+// SanitizeMHPaths strips trailing slashes from all MH service endpoint URLs.
+func SanitizeMHPaths(paths *mhPaths) {
+	if paths == nil {
+		return
+	}
+	paths.AuthURL = strings.TrimRight(paths.AuthURL, "/")
+	paths.ReceptionURL = strings.TrimRight(paths.ReceptionURL, "/")
+	paths.LoteReceptionURL = strings.TrimRight(paths.LoteReceptionURL, "/")
+	paths.ReceptionConsultURL = strings.TrimRight(paths.ReceptionConsultURL, "/")
+	paths.LoteReceptionConsultURL = strings.TrimRight(paths.LoteReceptionConsultURL, "/")
+	paths.ContingencyURL = strings.TrimRight(paths.ContingencyURL, "/")
+	paths.NullifyURL = strings.TrimRight(paths.NullifyURL, "/")
 }
 
 // ValidateConfig validates every field of the .env file configuration
