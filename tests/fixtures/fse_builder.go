@@ -136,6 +136,15 @@ func (b *FSEBuilder) AddFSEReceiver() *FSEBuilder {
 	b.setError(baseReceiver.SetName(&name))
 	b.setError(baseReceiver.SetPhone(&phone))
 	b.setError(baseReceiver.SetEmail(&email))
+
+	// El schema fe-fse-v2 exige la direccion del sujeto excluido
+	address := &models.Address{}
+	b.setError(address.SetDepartment("06"))
+	b.setError(address.SetMunicipality("22"))
+	b.setError(address.SetDistrict("01"))
+	b.setError(address.SetComplement("Colonia Escalon, Calle El Mirador #123"))
+	b.setError(baseReceiver.SetAddress(address))
+
 	actDesc := "Servicios profesionales"
 	b.document.FSEReceiver = fse_models.FSEReceiver{
 		Receiver:            baseReceiver,

@@ -339,8 +339,9 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},
@@ -568,8 +569,9 @@ func TestMapToCCFData(t *testing.T) {
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "06141804941035",
-					Name: "Tercero Válido, S.A. de C.V.",
+					FiscalDomicile: 1,
+					NIT:            "06141804941035",
+					Name:           "Tercero Válido, S.A. de C.V.",
 				}
 				return req
 			},

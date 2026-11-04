@@ -1,14 +1,14 @@
 package structs
 
 type CreditNoteDTEResponse struct {
-	Identificacion       *DTEIdentification    `json:"identificacion"`
-	Emisor               CreditNoteDTEIssuer   `json:"emisor"`
-	Receptor             DTEReceiver           `json:"receptor"`
-	CuerpoDocumento      []CreditNoteDTEItem   `json:"cuerpoDocumento"`
-	Resumen              *CreditNoteDTESummary `json:"resumen"`
-	DocumentoRelacionado []DTERelatedDocument  `json:"documentoRelacionado"`
-	VentaTercero         *DTEThirdPartySale    `json:"ventaTercero"`
-	Apendice             []DTEApendice         `json:"apendice"`
+	Identificacion       *DTEAdjustmentIdentification `json:"identificacion"`
+	Emisor               CreditNoteDTEIssuer          `json:"emisor"`
+	Receptor             DTEDocumentReceiver          `json:"receptor"`
+	CuerpoDocumento      []CreditNoteDTEItem          `json:"cuerpoDocumento"`
+	Resumen              *CreditNoteDTESummary        `json:"resumen"`
+	DocumentoRelacionado []DTERelatedDocument         `json:"documentoRelacionado"`
+	VentaTercero         *DTEThirdPartySale           `json:"ventaTercero"`
+	Apendice             []DTEApendice                `json:"apendice"`
 }
 
 type CreditNoteDTEItem struct {

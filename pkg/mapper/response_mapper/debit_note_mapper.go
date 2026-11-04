@@ -10,8 +10,8 @@ import (
 func ToMHDebitNote(doc interface{}) *structs.DebitNoteDTEResponse {
 	cast := doc.(*debit_note_models.DebitNoteModel)
 	dte := &structs.DebitNoteDTEResponse{
-		Identificacion:  common.MapCommonResponseIdentification(cast.Identification),
-		Receptor:        common.MapCommonResponseReceiver(cast.Receiver),
+		Identificacion:  &structs.DTEAdjustmentIdentification{DTEIdentification: common.MapCommonResponseIdentification(cast.Identification)},
+		Receptor:        common.MapCommonResponseDocumentReceiver(cast.Receiver),
 		Emisor:          debit_note.MapDebitNoteIssuer(cast.Issuer),
 		Resumen:         debit_note.MapDebitNoteResponseSummary(cast.DebitSummary),
 		CuerpoDocumento: debit_note.MapDebitNoteResponseItem(cast.DebitItems),

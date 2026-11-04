@@ -151,7 +151,45 @@ func TestInvoiceServiceCreate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid Invoice with IVA and income retentions",
+			name: "Valid Invoice with IVA retention",
+			setupInvoiceData: func() (*invoice_models.InvoiceData, error) {
+				invoice, err := fixtures.BuildValidInvoice()
+				if err != nil {
+					return nil, err
+				}
+
+				taxedAmount := invoice.InvoiceSummary.Summary.GetTotalTaxed()
+				ivaRetention := financial.NewValidatedAmount(math.Round(taxedAmount * 0.01))
+
+				invoice.InvoiceSummary.IVARetention = *ivaRetention
+
+				totalOperation := invoice.InvoiceSummary.Summary.GetTotalOperation()
+				newTotalToPay := totalOperation - ivaRetention.GetValue()
+				newTotalToPay = decimal.NewFromFloat(newTotalToPay).Round(2).InexactFloat64()
+				invoice.InvoiceSummary.Summary.SetTotalToPay(newTotalToPay)
+
+				payments := invoice.InvoiceSummary.Summary.GetPaymentTypes()
+				for i, payment := range payments {
+					if i == 0 {
+						payment.SetAmount(newTotalToPay)
+					}
+				}
+
+				return fixtures.BuildAsInvoiceData(invoice), nil
+			},
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {
+				mock.EXPECT().GetNextControlNumber(
+					gomock.Any(),
+					constants.FacturaElectronica,
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return("DTE-01-F0010001-000000000012345", nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error - Invoice with income retention (removed in v2.0)",
 			setupInvoiceData: func() (*invoice_models.InvoiceData, error) {
 				invoice, err := fixtures.BuildValidInvoice()
 				if err != nil {
@@ -179,16 +217,9 @@ func TestInvoiceServiceCreate(t *testing.T) {
 
 				return fixtures.BuildAsInvoiceData(invoice), nil
 			},
-			setupMock: func(mock *mocks.MockSequentialNumberManager) {
-				mock.EXPECT().GetNextControlNumber(
-					gomock.Any(),
-					constants.FacturaElectronica,
-					gomock.Any(),
-					gomock.Any(),
-					gomock.Any(),
-				).Return("DTE-01-F0010001-000000000012345", nil)
-			},
-			wantErr: false,
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
+			wantErr:   true,
+			errorCode: "IncomeRetentionNotAllowed",
 		},
 		{
 			name: "Valid Invoice with related documents",

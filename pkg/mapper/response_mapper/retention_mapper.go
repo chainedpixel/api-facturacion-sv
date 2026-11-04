@@ -13,7 +13,7 @@ func ToMHRetention(doc interface{}) *structs.RetentionDTEResponse {
 	dte := &structs.RetentionDTEResponse{
 		Identificacion:  common.MapCommonResponseIdentification(cast.Identification),
 		Emisor:          retention.MapRetentionResponseIssuer(cast.Issuer),
-		Receptor:        common.MapCommonResponseReceiver(cast.Receiver),
+		Receptor:        common.MapCommonResponseDocumentReceiver(cast.Receiver),
 		Resumen:         retention.MapRetentionResponseSummary(cast.RetentionSummary),
 		CuerpoDocumento: retention.MapRetentionResponseItem(cast.RetentionItems),
 	}

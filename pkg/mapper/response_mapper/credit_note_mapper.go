@@ -11,8 +11,8 @@ func ToMHCreditNote(doc interface{}) *structs.CreditNoteDTEResponse {
 
 	cast := doc.(*credit_note_models.CreditNoteModel)
 	dte := &structs.CreditNoteDTEResponse{
-		Identificacion:  common.MapCommonResponseIdentification(cast.Identification),
-		Receptor:        common.MapCommonResponseReceiver(cast.Receiver),
+		Identificacion:  &structs.DTEAdjustmentIdentification{DTEIdentification: common.MapCommonResponseIdentification(cast.Identification)},
+		Receptor:        common.MapCommonResponseDocumentReceiver(cast.Receiver),
 		Emisor:          credit_note.MapCreditNoteIssuer(cast.Issuer),
 		Resumen:         credit_note.MapCreditNoteResponseSummary(cast.CreditSummary),
 		CuerpoDocumento: credit_note.MapCreditNoteResponseItem(cast.CreditItems),

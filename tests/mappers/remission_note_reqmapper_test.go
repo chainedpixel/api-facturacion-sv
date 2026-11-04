@@ -348,8 +348,9 @@ func TestMapToRemissionNoteData(t *testing.T) {
 			req: func() *structs.CreateRemissionNoteRequest {
 				req := fixtures.CreateDefaultRemissionNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},
@@ -442,8 +443,9 @@ func TestMapToRemissionNoteData(t *testing.T) {
 			req: func() *structs.CreateRemissionNoteRequest {
 				req := fixtures.CreateDefaultRemissionNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "06141804941035",
-					Name: "Empresa Tercero S.A. de C.V.",
+					FiscalDomicile: 1,
+					NIT:            "06141804941035",
+					Name:           "Empresa Tercero S.A. de C.V.",
 				}
 				return req
 			},

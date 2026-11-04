@@ -106,13 +106,15 @@ func TestMapToFSEData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 		{
+			// Anexo IV, campos 47-48 (p107): la direccion solo puede ser null en FE; en FSEE es requerida
 			name: "FSE without receiver address",
 			req: func() *structs.CreateFSERequest {
 				req := fixtures.CreateDefaultFSERequest()
 				req.Receiver.Address = nil
 				return req
 			},
-			wantErr: false,
+			wantErr:   true,
+			errorCode: "RequiredField",
 		},
 		{
 			name: "FSE with invalid email in receiver",

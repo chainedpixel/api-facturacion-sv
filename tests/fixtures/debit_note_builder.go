@@ -81,7 +81,7 @@ func (b *DebitNoteBuilder) AddIdentification() *DebitNoteBuilder {
 	b.setError(baseIdentification.SetDTEType(constants.NotaDebitoElectronica))
 	controlNumber := baseIdentification.GetControlNumber()
 	if len(controlNumber) > 4 {
-		newControlNumber := "DTE-05" + controlNumber[6:]
+		newControlNumber := "DTE-06" + controlNumber[6:]
 		b.setError(baseIdentification.SetControlNumber(newControlNumber))
 	}
 	return b

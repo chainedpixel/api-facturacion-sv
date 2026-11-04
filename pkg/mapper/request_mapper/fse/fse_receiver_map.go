@@ -74,6 +74,11 @@ func validateFSEReceiver(receiverReq *structs.FSEReceiverRequest) error {
 		return dte_errors.NewValidationError("RequiredField", "Receiver->Name")
 	}
 
+	// El schema fe-fse-v2 exige receptor.direccion como objeto (no admite null)
+	if receiverReq.Address == nil {
+		return dte_errors.NewValidationError("RequiredField", "Receiver->Address")
+	}
+
 	validDocumentTypes := map[string]bool{
 		constants.NIT:             true,
 		constants.DUI:             true,

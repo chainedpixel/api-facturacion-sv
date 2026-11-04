@@ -117,14 +117,12 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		}
 	}
 
-	totalToPay := totalOperation
-
-	if taxedAmount.GreaterThan(decimal.Zero) {
-		ivaRetention := decimal.NewFromFloat(s.Document.InvoiceSummary.IVARetention.GetValue())
-		totalToPay = totalToPay.Sub(ivaRetention)
-
-		incomeRetention := decimal.NewFromFloat(s.Document.InvoiceSummary.IncomeRetention.GetValue())
-		totalToPay = totalToPay.Sub(incomeRetention)
+	// Normativa v2.0 (Anexo VI): se elimino "Retencion renta" para FE
+	if s.Document.InvoiceSummary.IncomeRetention.GetValue() != 0 {
+		logs.Error("Income retention is not allowed in invoice", map[string]interface{}{
+			"incomeRetention": s.Document.InvoiceSummary.IncomeRetention.GetValue(),
+		})
+		return dte_errors.NewDTEErrorSimple("IncomeRetentionNotAllowed")
 	}
 
 	if s.Document.InvoiceSummary.IVARetention.GetValue() > 0 && taxedAmount.IsZero() {
@@ -134,13 +132,9 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		})
 		return dte_errors.NewDTEErrorSimple("InvalidIVARetentionWithoutTaxedAmount")
 	}
-	if s.Document.InvoiceSummary.IncomeRetention.GetValue() > 0 && taxedAmount.IsZero() {
-		logs.Error("Income retention without taxed amount", map[string]interface{}{
-			"incomeRetention": s.Document.InvoiceSummary.IncomeRetention.GetValue(),
-			"taxedAmount":     taxedAmount,
-		})
-		return dte_errors.NewDTEErrorSimple("InvalidIncomeRetentionWithoutTaxedAmount")
-	}
+
+	// Anexo IV, campo 153 (FE): Monto total de la operacion - IVA retenido +/- cargos/abonos
+	totalToPay := totalOperation.Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.IVARetention.GetValue()))
 
 	var nonTaxed decimal.Decimal
 	for _, item := range s.Document.InvoiceItems {
@@ -158,20 +152,22 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			nonTaxed.InexactFloat64())
 	}
 
-	if totalNonTaxed.GreaterThan(decimal.Zero) {
-		totalToPay = totalToPay.Add(totalNonTaxed)
+	totalToPay = totalToPay.Add(totalNonTaxed)
+
+	// Regla 7: cuando existan abonos a favor del receptor y el resultado sea negativo, se ingresa 0.00
+	if totalToPay.IsNegative() {
+		totalToPay = decimal.Zero
 	}
 
 	actualTotalToPay := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalToPay.GetValue())
 
 	if !s.CompareTaxWithTolerance(totalToPay, actualTotalToPay, 0.01) {
 		logs.Error("Invalid total to pay", map[string]interface{}{
-			"calculated":      totalToPay,
-			"declared":        actualTotalToPay,
-			"difference":      diff,
-			"operation":       totalOperation,
-			"ivaRetention":    s.Document.InvoiceSummary.IVARetention.GetValue(),
-			"incomeRetention": s.Document.InvoiceSummary.IncomeRetention.GetValue(),
+			"calculated":    totalToPay,
+			"declared":      actualTotalToPay,
+			"operation":     totalOperation,
+			"ivaRetention":  s.Document.InvoiceSummary.IVARetention.GetValue(),
+			"totalNonTaxed": totalNonTaxed,
 		})
 		return dte_errors.NewDTEErrorSimple("InvalidTotalToPayCalculation",
 			totalToPay.InexactFloat64(),

@@ -46,12 +46,12 @@ func createMockResponseForType(dteType string) interface{} {
 		}
 	case constants.NotaCreditoElectronica:
 		return &structs.CreditNoteDTEResponse{
-			Identificacion: &structs.DTEIdentification{TipoDte: dteType},
+			Identificacion: &structs.DTEAdjustmentIdentification{DTEIdentification: &structs.DTEIdentification{TipoDte: dteType}},
 			Apendice:       []structs.DTEApendice{},
 		}
 	case constants.NotaDebitoElectronica:
 		return &structs.DebitNoteDTEResponse{
-			Identificacion: &structs.DTEIdentification{TipoDte: dteType},
+			Identificacion: &structs.DTEAdjustmentIdentification{DTEIdentification: &structs.DTEIdentification{TipoDte: dteType}},
 			Apendice:       []structs.DTEApendice{},
 		}
 	case constants.ComprobanteRetencionElectronico:

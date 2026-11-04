@@ -5,22 +5,35 @@ import (
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
-// MapCommonResponseReceiver maps a receiver to a receiver model -> Source: Response
+// MapCommonResponseReceiver maps the receiver of a CCFE (identified by NIT) -> Source: Response
 func MapCommonResponseReceiver(receiver interfaces.Receiver) structs.DTEReceiver {
-	result := structs.DTEReceiver{
+	return structs.DTEReceiver{
+		NIT:             receiver.GetNIT(),
+		DTEReceiverBase: mapReceiverBase(receiver),
+	}
+}
+
+// MapCommonResponseDocumentReceiver maps the receiver of NCE, NDE and CRE (identified by document type and number) -> Source: Response
+func MapCommonResponseDocumentReceiver(receiver interfaces.Receiver) structs.DTEDocumentReceiver {
+	return structs.DTEDocumentReceiver{
 		TipoDocumento:   receiver.GetDocumentType(),
 		NumDocumento:    receiver.GetDocumentNumber(),
+		DTEReceiverBase: mapReceiverBase(receiver),
+	}
+}
+
+// mapReceiverBase se encarga de los campos comunes a todos los receptores
+func mapReceiverBase(receiver interfaces.Receiver) structs.DTEReceiverBase {
+	return structs.DTEReceiverBase{
 		Nombre:          receiver.GetName(),
 		NRC:             receiver.GetNRC(),
-		NIT:             receiver.GetNIT(),
-		Direccion:       addressToPointer(MapCommonResponseAddress(receiver.GetAddress())),
-		Correo:          receiver.GetEmail(),
-		Telefono:        receiver.GetPhone(),
 		CodActividad:    receiver.GetActivityCode(),
 		DescActividad:   receiver.GetActivityDescription(),
 		NombreComercial: receiver.GetCommercialName(),
+		Direccion:       addressToPointer(MapCommonResponseAddress(receiver.GetAddress())),
+		Telefono:        receiver.GetPhone(),
+		Correo:          receiver.GetEmail(),
 	}
-	return result
 }
 
 func addressToPointer(address structs.DTEAddress) *structs.DTEAddress {

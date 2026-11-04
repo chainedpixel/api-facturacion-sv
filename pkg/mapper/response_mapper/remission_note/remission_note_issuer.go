@@ -12,34 +12,8 @@ func MapRemissionNoteIssuer(model *remission_note_models.RemissionNoteModel) *st
 		return nil
 	}
 
-	result := structs.DTEIssuer{
-		NIT:                 model.Issuer.GetNIT(),
-		NRC:                 model.Issuer.GetNRC(),
-		Nombre:              model.Issuer.GetName(),
-		CodActividad:        model.Issuer.GetActivityCode(),
-		DescActividad:       model.Issuer.GetActivityDescription(),
-		TipoEstablecimiento: model.Issuer.GetEstablishmentType(),
-		Direccion:           common.MapCommonResponseAddress(model.Issuer.GetAddress()),
-		Telefono:            model.Issuer.GetPhone(),
-		Correo:              model.Issuer.GetEmail(),
-	}
-
-	if name := model.Issuer.GetCommercialName(); name != "" {
-		result.NombreComercial = &name
-	}
-	if code := model.Issuer.GetEstablishmentCode(); code != nil {
-		result.CodEstable = code
-	}
-	if code := model.Issuer.GetEstablishmentMHCode(); code != nil {
-		result.CodEstableMH = code
-	}
-	if code := model.Issuer.GetPOSCode(); code != nil {
-		result.CodPuntoVenta = code
-	}
-	if code := model.Issuer.GetPOSMHCode(); code != nil {
-		result.CodPuntoVentaMH = code
-	}
-
+	// Se reutiliza el mapper comun: el emisor de NRE tiene la misma estructura que el de FE y CCFE
+	result := common.MapCommonResponseIssuer(model.Issuer)
 	return &result
 }
 

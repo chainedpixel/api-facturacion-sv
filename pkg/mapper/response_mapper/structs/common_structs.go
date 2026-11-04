@@ -29,37 +29,55 @@ type DTEIdentification struct {
 	TipoMoneda       string  `json:"tipoMoneda"`
 }
 
-// DTEIssuer maps the "emisor" section of the JSON Schema
-type DTEIssuer struct {
-	NIT                 string     `json:"nit,omitempty"`
-	NRC                 string     `json:"nrc"`
-	Nombre              string     `json:"nombre"`
-	CodActividad        string     `json:"codActividad"`
-	DescActividad       string     `json:"descActividad"`
-	TipoEstablecimiento string     `json:"tipoEstablecimiento"`
-	Direccion           DTEAddress `json:"direccion"`
-	Telefono            string     `json:"telefono"`
-	Correo              string     `json:"correo"`
-	NombreComercial     *string    `json:"nombreComercial"`
-	CodEstableMH        *string    `json:"codEstableMH"`
-	CodEstable          *string    `json:"codEstable"`
-	CodPuntoVentaMH     *string    `json:"codPuntoVentaMH"`
-	CodPuntoVenta       *string    `json:"codPuntoVenta"`
+// DTEAdjustmentIdentification maps the "identificacion" section of NCE and NDE (v4), que agregan
+// el campo requerido "fusion" (Fusiones y otros). Va null salvo operaciones por fusion.
+type DTEAdjustmentIdentification struct {
+	*DTEIdentification
+	Fusion *string `json:"fusion"`
 }
 
-// DTEReceiver maps the "receptor" section of the JSON Schema
-type DTEReceiver struct {
+// DTEIssuer maps the "emisor" section of the JSON Schema
+type DTEIssuer struct {
+	NIT             string     `json:"nit"`
+	NRC             string     `json:"nrc"`
+	Nombre          string     `json:"nombre"`
+	CodActividad    string     `json:"codActividad"`
+	DescActividad   string     `json:"descActividad"`
+	Direccion       DTEAddress `json:"direccion"`
+	Telefono        string     `json:"telefono"`
+	Correo          string     `json:"correo"`
+	NombreComercial *string    `json:"nombreComercial"`
+	// Normativa v2.0 (Anexo IV): solo se informan los codigos asignados por el contribuyente.
+	// tipoEstablecimiento, codEstableMH y codPuntoVentaMH ya no existen en los schemas de DTE.
+	CodEstable    *string `json:"codEstable"`
+	CodPuntoVenta *string `json:"codPuntoVenta"`
+}
+
+// DTEReceiverBase contiene los campos del "receptor" comunes a CCFE, NCE, NDE y CRE.
+// Ningun campo lleva omitempty: los schemas los marcan como requeridos y se envian null cuando no aplican.
+type DTEReceiverBase struct {
 	Nombre          *string     `json:"nombre"`
-	TipoDocumento   *string     `json:"tipoDocumento,omitempty"`
-	NumDocumento    *string     `json:"numDocumento,omitempty"`
 	NRC             *string     `json:"nrc"`
-	NIT             *string     `json:"nit,omitempty"`
 	CodActividad    *string     `json:"codActividad"`
 	DescActividad   *string     `json:"descActividad"`
+	NombreComercial *string     `json:"nombreComercial"`
 	Direccion       *DTEAddress `json:"direccion"`
 	Telefono        *string     `json:"telefono"`
 	Correo          *string     `json:"correo"`
-	NombreComercial *string     `json:"nombreComercial,omitempty"`
+}
+
+// DTEReceiver maps the "receptor" section of CCFE (fe-ccf-v4): se identifica por NIT
+type DTEReceiver struct {
+	NIT *string `json:"nit"`
+	DTEReceiverBase
+}
+
+// DTEDocumentReceiver maps the "receptor" section of NCE, NDE (v4) y CRE (v2): se identifica por
+// tipo y numero de documento. Normativa v2.0 (Anexo VI): se elimino "NIT (Receptor)" para NCE y NDE.
+type DTEDocumentReceiver struct {
+	TipoDocumento *string `json:"tipoDocumento"`
+	NumDocumento  *string `json:"numDocumento"`
+	DTEReceiverBase
 }
 
 // DTEAddress maps the address according to the Schema
@@ -88,10 +106,10 @@ type DTEItem struct {
 	Tributos        []string `json:"tributos"`
 	PSV             float64  `json:"psv"`
 	NoGravado       float64  `json:"noGravado"`
-	IvaItem         float64  `json:"ivaItem"`
 }
 
-// DTESummary maps the summary (all fields required according to schema)
+// DTESummary maps the CCF summary (all fields required according to schema fe-ccf-v4).
+// Normativa v2.0 (Anexo VI): se elimino "Retencion renta" para CCFE; el schema tampoco define totalIva.
 type DTESummary struct {
 	TotalNoSuj          float64      `json:"totalNoSuj"`
 	TotalExenta         float64      `json:"totalExenta"`
@@ -105,13 +123,11 @@ type DTESummary struct {
 	Tributos            []DTETax     `json:"tributos"`
 	SubTotal            float64      `json:"subTotal"`
 	IvaRete             float64      `json:"ivaRete"`
-	IvaPerci            *float64     `json:"ivaPerci,omitempty"`
-	ReteRenta           float64      `json:"reteRenta"`
+	IvaPerci            float64      `json:"ivaPerci"`
 	MontoTotalOperacion float64      `json:"montoTotalOperacion"`
 	TotalNoGravado      float64      `json:"totalNoGravado"`
 	TotalPagar          float64      `json:"totalPagar"`
 	TotalLetras         string       `json:"totalLetras"`
-	TotalIva            float64      `json:"totalIva,omitempty"`
 	SaldoFavor          float64      `json:"saldoFavor"`
 	CondicionOperacion  int          `json:"condicionOperacion"`
 	Pagos               []DTEPayment `json:"pagos"`
@@ -172,6 +188,7 @@ type DTEDoctor struct {
 }
 
 type DTEThirdPartySale struct {
-	NIT    string `json:"nit"`
-	Nombre string `json:"nombre"`
+	NIT            string `json:"nit"`
+	Nombre         string `json:"nombre"`
+	CodDomiciliado *int   `json:"codDomiciliado"` // CAT-032 Domicilio Fiscal
 }

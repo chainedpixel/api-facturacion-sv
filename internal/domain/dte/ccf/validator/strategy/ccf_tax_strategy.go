@@ -309,22 +309,23 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		}
 	}
 
-	totalToPay := totalOperation
-
-	if taxedAmount.GreaterThan(decimal.Zero) {
-		perception := decimal.NewFromFloat(s.Document.CreditSummary.IVAPerception.GetValue())
-		totalToPay = totalToPay.Add(perception)
-
-		ivaRetention := decimal.NewFromFloat(s.Document.CreditSummary.IVARetention.GetValue())
-		totalToPay = totalToPay.Sub(ivaRetention)
-
-		incomeRetention := decimal.NewFromFloat(s.Document.CreditSummary.IncomeRetention.GetValue())
-		totalToPay = totalToPay.Sub(incomeRetention)
+	// Normativa v2.0 (Anexo VI): se elimino "Retencion renta" para CCFE
+	if s.Document.CreditSummary.IncomeRetention.GetValue() != 0 {
+		logs.Error("Income retention is not allowed in CCF", map[string]interface{}{
+			"incomeRetention": s.Document.CreditSummary.IncomeRetention.GetValue(),
+		})
+		return dte_errors.NewDTEErrorSimple("IncomeRetentionNotAllowed")
 	}
 
-	totalNonTaxed := decimal.NewFromFloat(s.Document.CreditSummary.TotalNonTaxed.GetValue())
-	if totalNonTaxed.GreaterThan(decimal.Zero) {
-		totalToPay = totalToPay.Add(totalNonTaxed)
+	// Anexo IV, campo 153 (CCFE): Monto total de la operacion + IVA percibido - IVA retenido +/- cargos/abonos
+	totalToPay := totalOperation.
+		Add(decimal.NewFromFloat(s.Document.CreditSummary.IVAPerception.GetValue())).
+		Sub(decimal.NewFromFloat(s.Document.CreditSummary.IVARetention.GetValue())).
+		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalNonTaxed.GetValue()))
+
+	// Regla 7: cuando existan abonos a favor del receptor y el resultado sea negativo, se ingresa 0.00
+	if totalToPay.IsNegative() {
+		totalToPay = decimal.Zero
 	}
 
 	actualTotalToPay := decimal.NewFromFloat(s.Document.CreditSummary.TotalToPay.GetValue())
@@ -332,13 +333,13 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	diff = totalToPay.Sub(actualTotalToPay).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		logs.Error("Invalid total to pay", map[string]interface{}{
-			"calculated":      totalToPay,
-			"declared":        actualTotalToPay,
-			"difference":      diff,
-			"operation":       totalOperation,
-			"perception":      s.Document.CreditSummary.IVAPerception.GetValue(),
-			"ivaRetention":    s.Document.CreditSummary.IVARetention.GetValue(),
-			"incomeRetention": s.Document.CreditSummary.IncomeRetention.GetValue(),
+			"calculated":    totalToPay,
+			"declared":      actualTotalToPay,
+			"difference":    diff,
+			"operation":     totalOperation,
+			"perception":    s.Document.CreditSummary.IVAPerception.GetValue(),
+			"ivaRetention":  s.Document.CreditSummary.IVARetention.GetValue(),
+			"totalNonTaxed": s.Document.CreditSummary.TotalNonTaxed.GetValue(),
 		})
 		return dte_errors.NewDTEErrorSimple("InvalidTotalToPayCalculation",
 			actualTotalToPay.InexactFloat64(),

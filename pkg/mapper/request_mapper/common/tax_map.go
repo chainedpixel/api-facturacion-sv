@@ -26,7 +26,8 @@ func MapCommonRequestSummaryTaxes(taxes []structs.TaxRequest) ([]interfaces.Tax,
 		if err != nil {
 			return nil, err
 		}
-		taxAmount, err := financial.NewAmount(tax.Value)
+		// Los tributos del resumen se expresan con 2 decimales (Regla 7.2 y multipleOf 0.01 en los schemas)
+		taxAmount, err := financial.NewAmountForTotal(tax.Value)
 		if err != nil {
 			return nil, err
 		}

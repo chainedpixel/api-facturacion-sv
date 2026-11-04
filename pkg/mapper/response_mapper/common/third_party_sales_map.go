@@ -11,8 +11,10 @@ func MapCommonResponseThirdPartySale(sale interfaces.ThirdPartySale) *structs.DT
 		return nil
 	}
 
+	fiscalDomicile := sale.GetFiscalDomicile()
 	return &structs.DTEThirdPartySale{
-		NIT:    sale.GetNIT(),
-		Nombre: sale.GetName(),
+		NIT:            sale.GetNIT(),
+		Nombre:         sale.GetName(),
+		CodDomiciliado: &fiscalDomicile,
 	}
 }

@@ -409,8 +409,9 @@ func TestMapToDebitNoteData(t *testing.T) {
 			req: func() *structs.CreateDebitNoteRequest {
 				req := fixtures.CreateDefaultDebitNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},

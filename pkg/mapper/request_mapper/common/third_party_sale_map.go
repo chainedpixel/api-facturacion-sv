@@ -22,8 +22,15 @@ func MapCommonRequestThirdPartySale(sale *structs.ThirdPartySaleRequest) (*model
 		return nil, err
 	}
 
-	return &models.ThirdPartySale{
+	thirdPartySale := &models.ThirdPartySale{
 		Name: sale.Name,
 		NIT:  *nit,
-	}, nil
+	}
+
+	// Anexo IV: cuando se detalla el nombre del tercero, el Domicilio Fiscal (CAT-032) es requerido
+	if err := thirdPartySale.SetFiscalDomicile(sale.FiscalDomicile); err != nil {
+		return nil, err
+	}
+
+	return thirdPartySale, nil
 }

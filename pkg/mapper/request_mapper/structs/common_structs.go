@@ -118,6 +118,7 @@ type DoctorRequest struct {
 
 // ThirdPartySaleRequest structure for mapping a third-party sale of an invoice
 type ThirdPartySaleRequest struct {
-	NIT  string `json:"nit"`
-	Name string `json:"name"`
+	NIT            string `json:"nit"`
+	Name           string `json:"name"`
+	FiscalDomicile int    `json:"fiscal_domicile"` // CAT-032: 1 Domiciliado, 2 No Domiciliado
 }

@@ -423,8 +423,9 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},
@@ -697,8 +698,9 @@ func TestMapToCreditNoteData(t *testing.T) {
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "06141804941035",
-					Name: "Tercero Válido, S.A. de C.V.",
+					FiscalDomicile: 1,
+					NIT:            "06141804941035",
+					Name:           "Tercero Válido, S.A. de C.V.",
 				}
 				return req
 			},

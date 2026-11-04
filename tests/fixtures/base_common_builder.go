@@ -89,7 +89,7 @@ func (b *DTEBuilder) AddIdentification() *DTEBuilder {
 	b.setError(identification.SetVersion(1))
 	b.setError(identification.SetAmbient(constants.Testing))
 	b.setError(identification.SetDTEType(constants.FacturaElectronica))
-	b.setError(identification.SetControlNumber("DTE-01-12345678-123456789012345"))
+	b.setError(identification.SetControlNumber("DTE-01-M001P001-000000000000001"))
 	b.setError(identification.GenerateCode())
 	b.setError(identification.SetModelType(constants.ModeloFacturacionPrevio))
 	b.setError(identification.SetOperationType(1))
@@ -158,7 +158,7 @@ func (b *DTEBuilder) AddIssuer() *DTEBuilder {
 	b.setError(issuer.SetEmail("info@google.com"))
 	b.setError(issuer.SetCommercialName("ELECTRO STORE"))
 
-	establishmentCode := "001"
+	establishmentCode := "0001"
 	establishmentMHCode := "EST001"
 	posCode := "POS01"
 	posMHCode := "POS001"
@@ -418,7 +418,7 @@ func (b *DTEBuilder) AddSummary() *DTEBuilder {
 	tax := &models.Tax{}
 	b.setError(tax.SetCode(constants.TaxIVA))
 	b.setError(tax.SetDescription("IVA 13%"))
-	b.setError(tax.SetValue(iva))
+	b.setError(tax.SetValue(math.Round(iva*100) / 100))
 
 	var taxes []interfaces.Tax
 	if b.err == nil {
@@ -720,6 +720,7 @@ func (b *DTEBuilder) AddThirdPartySale() *DTEBuilder {
 
 	b.setError(thirdPartySale.SetNIT("98765432101234"))
 	b.setError(thirdPartySale.SetName("Third Party Company, Inc."))
+	b.setError(thirdPartySale.SetFiscalDomicile(constants.Domiciled))
 
 	if b.err == nil {
 		b.setError(b.document.SetThirdPartySale(thirdPartySale))
@@ -748,6 +749,7 @@ func (b *DTEBuilder) AddInvalidThirdPartySale() *DTEBuilder {
 
 	b.setError(thirdPartySale.SetNIT("98765432101234"))
 	b.setError(thirdPartySale.SetName("Third Party Company, Inc."))
+	b.setError(thirdPartySale.SetFiscalDomicile(constants.Domiciled))
 
 	if b.err == nil {
 		b.setError(b.document.SetThirdPartySale(thirdPartySale))

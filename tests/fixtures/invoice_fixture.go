@@ -171,24 +171,21 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 	}
 
 	emisor := respStructs.DTEIssuer{
-		NIT:                 "11111111111111",
-		NRC:                 "1111111",
-		Nombre:              "EMPRESA DE PRUEBAS SA DE CV",
-		CodActividad:        "11111",
-		DescActividad:       "Venta al por mayor de otros productos",
-		NombreComercial:     utils.ToStringPointer("EJEMPLO SA"),
-		TipoEstablecimiento: "02",
+		NIT:             "11111111111111",
+		NRC:             "1111111",
+		Nombre:          "EMPRESA DE PRUEBAS SA DE CV",
+		CodActividad:    "11111",
+		DescActividad:   "Venta al por mayor de otros productos",
+		NombreComercial: utils.ToStringPointer("EJEMPLO SA"),
 		Direccion: respStructs.DTEAddress{
 			Departamento: "06",
 			Municipio:    "20",
 			Complemento:  "BOULEVARD SANTA ELENA SUR, SANTA TECLA",
 		},
-		Telefono:        "22567890",
-		Correo:          "email@gmail.com",
-		CodEstableMH:    nil,
-		CodEstable:      utils.ToStringPointer("C001"),
-		CodPuntoVentaMH: nil,
-		CodPuntoVenta:   nil,
+		Telefono:      "22567890",
+		Correo:        "email@gmail.com",
+		CodEstable:    utils.ToStringPointer("C001"),
+		CodPuntoVenta: nil,
 	}
 
 	receptor := respStructs.InvoiceReceiver{
@@ -255,9 +252,7 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		PorcentajeDescuento: 0,
 		TotalDescu:          0,
 		SubTotal:            100,
-		ReteRenta:           0,
 		IvaRete:             0,
-		IvaPerci:            nil,
 		MontoTotalOperacion: 100,
 		TotalNoGravado:      0,
 		TotalPagar:          100,

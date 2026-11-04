@@ -1,14 +1,14 @@
 package structs
 
 type DebitNoteDTEResponse struct {
-	Identificacion       *DTEIdentification   `json:"identificacion"`
-	Emisor               DebitNoteDTEIssuer   `json:"emisor"`
-	Receptor             DTEReceiver          `json:"receptor"`
-	CuerpoDocumento      []DebitNoteDTEItem   `json:"cuerpoDocumento"`
-	Resumen              *DebitNoteDTESummary `json:"resumen"`
-	DocumentoRelacionado []DTERelatedDocument `json:"documentoRelacionado"`
-	VentaTercero         *DTEThirdPartySale   `json:"ventaTercero"`
-	Apendice             []DTEApendice        `json:"apendice"`
+	Identificacion       *DTEAdjustmentIdentification `json:"identificacion"`
+	Emisor               DebitNoteDTEIssuer           `json:"emisor"`
+	Receptor             DTEDocumentReceiver          `json:"receptor"`
+	CuerpoDocumento      []DebitNoteDTEItem           `json:"cuerpoDocumento"`
+	Resumen              *DebitNoteDTESummary         `json:"resumen"`
+	DocumentoRelacionado []DTERelatedDocument         `json:"documentoRelacionado"`
+	VentaTercero         *DTEThirdPartySale           `json:"ventaTercero"`
+	Apendice             []DTEApendice                `json:"apendice"`
 }
 
 type DebitNoteDTEItem struct {

@@ -185,7 +185,7 @@ validation_errors:
   InvalidTaxCodeOnly20: "The tax code %s is not valid for type %d items, it must be 20 (IVA)"
   InvalidRelatedDocDTEType: "The related document type %s is not valid, it must be %s"
   InvalidIVARetentionWithoutTaxedAmount: "IVA retention is present but there is no taxable sale, there cannot be IVA retention without a taxable sale"
-  InvalidIncomeRetentionWithoutTaxedAmount: "Income retention is present but there is no taxable sale, there cannot be income retention without a taxable sale"
+  IncomeRetentionNotAllowed: "Income retention does not apply to Electronic Invoice or Tax Credit Voucher (removed in DTE Regulation v2.0); income_retention must be 0"
   InvalidNonTaxedAmountCalculation: "The calculation of the untaxed sale is incorrect. Total in summary: %f, Total declared in items: %f"
   InvalidDateForFEFX: "The document cannot be invalidated because the issue date is more than 3 months ago"
   InvalidDateForAllDTE: "The document cannot be invalidated because the issue date is greater than 1 day"

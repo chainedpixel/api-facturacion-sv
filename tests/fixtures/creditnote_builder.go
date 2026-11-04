@@ -104,7 +104,7 @@ func (b *CreditNoteBuilder) AddIdentification() *CreditNoteBuilder {
 
 	controlNumber := baseIdentification.GetControlNumber()
 	if len(controlNumber) > 4 {
-		newControlNumber := "DTE-04" + controlNumber[6:]
+		newControlNumber := "DTE-05" + controlNumber[6:]
 		b.setError(baseIdentification.SetControlNumber(newControlNumber))
 	}
 

@@ -96,7 +96,7 @@ func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Con
 			Phone:                *client.Phone,
 			Email:                *client.Email,
 			EstablishmentCodeMH:  client.EstablishmentCodeMH,
-			POSCode:              client.POSCode,
+			POSCode:              client.POSCodeMH, // codPuntoVentaMH: codigo asignado por el MH (4 caracteres), no el interno
 		},
 		DTEDetails: s.prepareDTEDetails(docs),
 		Reason:     reason,

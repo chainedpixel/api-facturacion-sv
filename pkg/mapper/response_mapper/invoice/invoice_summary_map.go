@@ -14,7 +14,6 @@ func MapInvoiceResponseSummary(summary invoice_models.InvoiceSummary) *structs.I
 	result.IvaRete = summary.IVARetention.GetValue()
 	result.TotalIva = summary.TotalIva.GetValue()
 	result.SaldoFavor = summary.BalanceInFavor.GetValue()
-	result.ReteRenta = summary.IncomeRetention.GetValue()
 
 	return result
 }

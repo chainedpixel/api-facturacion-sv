@@ -24,9 +24,7 @@ type InvoiceSummary struct {
 	TotalDescu          float64      `json:"totalDescu"`
 	Tributos            []DTETax     `json:"tributos"`
 	SubTotal            float64      `json:"subTotal"`
-	ReteRenta           float64      `json:"reteRenta"`
 	IvaRete             float64      `json:"ivaRete"`
-	IvaPerci            *float64     `json:"ivaPerci,omitempty"`
 	MontoTotalOperacion float64      `json:"montoTotalOperacion"`
 	TotalNoGravado      float64      `json:"totalNoGravado"`
 	TotalPagar          float64      `json:"totalPagar"`

@@ -95,7 +95,7 @@ func (b *RetentionBuilder) AddIdentification() *RetentionBuilder {
 
 	controlNumber := baseIdentification.GetControlNumber()
 	if len(controlNumber) > 4 {
-		newControlNumber := "DTE-06" + controlNumber[6:]
+		newControlNumber := "DTE-07" + controlNumber[6:]
 		b.setError(baseIdentification.SetControlNumber(newControlNumber))
 	}
 
@@ -128,9 +128,14 @@ func (b *RetentionBuilder) AddReceiver() *RetentionBuilder {
 
 	nrc := "987654"
 	commercialName := "CLIENT COMPANY INC."
+	// El receptor de un CRE es contribuyente: el schema exige su actividad economica
+	activityCode := "46900"
+	activityDescription := "Venta al por mayor de otros productos"
 
 	b.setError(baseReceiver.SetNRC(&nrc))
 	b.setError(baseReceiver.SetCommercialName(&commercialName))
+	b.setError(baseReceiver.SetActivityCode(&activityCode))
+	b.setError(baseReceiver.SetActivityDescription(&activityDescription))
 
 	return b
 }

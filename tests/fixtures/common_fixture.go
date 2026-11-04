@@ -109,8 +109,9 @@ func CreateDefaultPayment() structs.PaymentRequest {
 // CreateDefaultThirdPartySale creates a valid default third-party sale
 func CreateDefaultThirdPartySale() *structs.ThirdPartySaleRequest {
 	return &structs.ThirdPartySaleRequest{
-		NIT:  "06141804941035",
-		Name: "Empresa Tercero S.A. de C.V.",
+		FiscalDomicile: 1,
+		NIT:            "06141804941035",
+		Name:           "Empresa Tercero S.A. de C.V.",
 	}
 }
 

@@ -27,19 +27,8 @@ func MapFSEResponseIssuer(issuer interfaces.Issuer) structs.FSEIssuer {
 		Direccion:     common.MapCommonResponseAddress(issuer.GetAddress()),
 		Telefono:      issuer.GetPhone(),
 		Correo:        issuer.GetEmail(),
-	}
-
-	if code := issuer.GetEstablishmentCode(); code != nil {
-		result.CodEstable = code
-	}
-	if code := issuer.GetEstablishmentMHCode(); code != nil {
-		result.CodEstableMH = code
-	}
-	if code := issuer.GetPOSCode(); code != nil {
-		result.CodPuntoVenta = code
-	}
-	if code := issuer.GetPOSMHCode(); code != nil {
-		result.CodPuntoVentaMH = code
+		CodEstable:    issuer.GetEstablishmentCode(),
+		CodPuntoVenta: issuer.GetPOSCode(),
 	}
 
 	return result

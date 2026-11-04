@@ -143,7 +143,45 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid CCF with IVA and income retentions",
+			name: "Valid CCF with IVA retention",
+			setupCCFData: func() (*ccf_models.CCFData, error) {
+				ccf, err := fixtures.BuildCCF()
+				if err != nil {
+					return nil, err
+				}
+
+				taxedAmount := ccf.CreditSummary.Summary.GetTotalTaxed()
+				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)
+
+				ccf.CreditSummary.IVARetention = *ivaRetention
+
+				totalOperation := ccf.CreditSummary.Summary.GetTotalOperation()
+				newTotalToPay := totalOperation - ivaRetention.GetValue()
+				newTotalToPay = math.Round(newTotalToPay*100) / 100
+				ccf.CreditSummary.Summary.SetTotalToPay(newTotalToPay)
+
+				payments := ccf.CreditSummary.Summary.GetPaymentTypes()
+				for i, payment := range payments {
+					if i == 0 {
+						payment.SetAmount(newTotalToPay)
+					}
+				}
+
+				return fixtures.BuildAsCCFData(ccf), nil
+			},
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {
+				mock.EXPECT().GetNextControlNumber(
+					gomock.Any(),
+					constants.CCFElectronico,
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return("DTE-03-C0010001-000000000012345", nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error - CCF with income retention (removed in v2.0)",
 			setupCCFData: func() (*ccf_models.CCFData, error) {
 				ccf, err := fixtures.BuildCCF()
 				if err != nil {
@@ -171,16 +209,9 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
-			setupMock: func(mock *mocks.MockSequentialNumberManager) {
-				mock.EXPECT().GetNextControlNumber(
-					gomock.Any(),
-					constants.CCFElectronico,
-					gomock.Any(),
-					gomock.Any(),
-					gomock.Any(),
-				).Return("DTE-03-C0010001-000000000012345", nil)
-			},
-			wantErr: false,
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
+			wantErr:   true,
+			errorCode: "IncomeRetentionNotAllowed",
 		},
 		{
 			name: "Valid CCF with related documents",

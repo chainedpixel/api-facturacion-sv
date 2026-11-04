@@ -185,7 +185,7 @@ validation_errors:
   InvalidPaymentTermsOF: "Cuando la condición de operación es 1, los terminos 'term' y plazo 'period' NO DEBEN ENVIARSE"
   InvalidTaxCodeOnly20: "El código de impuesto %s no es válido para artículos de tipo %d, debe ser 20 (IVA)"
   InvalidIVARetentionWithoutTaxedAmount: "Retention de IVA esta presente pero no tiene venta gravada, no puede haber IVA retenido sin venta gravada"
-  InvalidIncomeRetentionWithoutTaxedAmount: "Renta retenida esta presente pero no tiene venta gravada, no puede haber renta retenida sin venta gravada"
+  IncomeRetentionNotAllowed: "La retención de renta no aplica para Factura Electrónica ni Comprobante de Crédito Fiscal (eliminada en la Normativa DTE v2.0); income_retention debe ser 0"
   InvalidNonTaxedAmountCalculation: "El cálculo de la venta no gravada es incorrecto. Total en resumen: %f, Total declarado en items: %f"
   InvalidDateForFEFX: "El documento no se puede invalidar porque la fecha de emisión es mayor a 3 meses"
   InvalidDateForAllDTE: "El documento no se puede invalidar porque la fecha de emisión es mayor a 1 un día"
