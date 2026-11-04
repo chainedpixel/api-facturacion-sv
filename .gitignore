@@ -36,3 +36,7 @@ private/
 *.docx
 GEMINI.md
 
+# SDD
+AI_RULES.md
+specs/
+
