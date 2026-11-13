@@ -1,6 +1,7 @@
 package remission_note
 
 import (
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/remission_note_models"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
@@ -43,7 +44,8 @@ func mapSingleRemissionNoteItem(item *remission_note_models.RemissionNoteItem) *
 		mhItem.Code = &code
 	}
 
-	if taxes := item.Item.GetTaxes(); len(taxes) > 0 {
+	// codTributo solo aplica a items tipo 4 (impuesto sujeto a calculo de IVA); en los demas va null
+	if taxes := item.Item.GetTaxes(); len(taxes) > 0 && item.Item.GetType() == constants.Impuesto {
 		tributeCode := taxes[0]
 		mhItem.TributeCode = &tributeCode
 	}

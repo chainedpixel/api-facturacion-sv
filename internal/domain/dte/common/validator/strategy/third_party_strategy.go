@@ -15,26 +15,12 @@ func (s *ThirdPartyStrategy) Validate() *dte_errors.DTEError {
 		return nil
 	}
 
-	for _, item := range s.Document.GetItems() {
-		if err := s.validateThirdPartyItem(item); err != nil {
-			return err
-		}
-	}
-
+	// Anexo IV, seccion 6: las ventas por cuenta de terceros van en documentos separados de las propias;
+	// al informarse ventaTercero, todo el documento corresponde al tercero
 	if err := s.validateSingleThirdParty(); err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// validateThirdPartyItem validates each DTE item to ensure all are related to a third-party sale
-func (s *ThirdPartyStrategy) validateThirdPartyItem(item interfaces.Item) *dte_errors.DTEError {
-	if s.Document.GetThirdPartySale() != nil {
-		if item.GetRelatedDoc() == nil {
-			return dte_errors.NewDTEErrorSimple("MixedSalesNotAllowed")
-		}
-	}
 	return nil
 }
 

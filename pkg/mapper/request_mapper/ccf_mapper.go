@@ -36,9 +36,7 @@ func (m *CCFMapper) MapToCCFData(req *structs.CreateCreditFiscalRequest, client 
 		return nil, shared_error.NewFormattedGeneralServiceWithError("CCFMapper", "MapToCCFData", err, "ErrorMapping", "CCF->Receiver")
 	}
 
-	if req.Receiver.CommercialName == nil {
-		return nil, dte_errors.NewValidationError("RequiredField", "Request->Receiver->CommercialName")
-	}
+	// Anexo IV, campo 45: el nombre comercial del receptor es opcional (se envia null si no viene)
 	receiver.CommercialName = req.Receiver.CommercialName
 
 	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 4, constants.CCFElectronico)
@@ -86,9 +84,6 @@ func validateCCFRequest(req *structs.CreateCreditFiscalRequest) error {
 	}
 	if req.Receiver == nil {
 		return dte_errors.NewValidationError("RequiredField", "Request->Receiver")
-	}
-	if req.Receiver.CommercialName == nil {
-		return dte_errors.NewValidationError("RequiredField", "Request->Receiver->CommercialName")
 	}
 	if req.Summary.TotalIVA != 0 {
 		return dte_errors.NewValidationError("InvalidField", "Request->Summary->TotalIVA")

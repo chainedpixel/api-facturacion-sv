@@ -32,6 +32,7 @@ func MapInvoiceItem(item interfaces.Item) structs.InvoiceItem {
 		MontoDescu:      item.GetDiscount(),
 		NumeroDocumento: item.GetRelatedDoc(),
 	}
+	result.Codigo, result.CodTributo = common.MapItemCodes(item)
 
 	if item.GetTaxes() != nil {
 		common.MapTaxCodes(item.GetTaxes())

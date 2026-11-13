@@ -1,7 +1,10 @@
 package strategy
 
 import (
+	"github.com/shopspring/decimal"
+
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	commonStrategy "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
 )
 
@@ -60,20 +63,20 @@ func (v *FSETaxStrategy) validateRetentions() []*dte_errors.DTEError {
 func (v *FSETaxStrategy) validateTotals() *dte_errors.DTEError {
 	summary := v.Document.FSESummary
 
-	var expectedTotal float64
-	for _, item := range v.Document.FSEItems {
-		expectedTotal += item.Purchase.GetValue()
+	// Normativa v2.0 (Anexo VI): se elimino "IVA Retenido" para FSEE
+	if summary.IVARetention.GetValue() != 0 {
+		return dte_errors.NewDTEErrorSimple("IVARetentionNotAllowedInFSE")
 	}
 
-	if summary.TotalPurchase.GetValue() != expectedTotal {
-	}
+	// Anexo IV, campo 153 (FSEE): totalPagar = subTotal - reteRenta.
+	// El total de compras y el subtotal se validan en FSEDiscountStrategy.
+	expectedTotalToPay := decimal.NewFromFloat(summary.SubTotal.GetValue()).
+		Sub(decimal.NewFromFloat(summary.IncomeRetention.GetValue()))
+	actualTotalToPay := decimal.NewFromFloat(summary.TotalToPay.GetValue())
 
-	expectedTotalToPay := summary.TotalPurchase.GetValue() -
-		summary.IVARetention.GetValue() -
-		summary.IncomeRetention.GetValue()
-
-	if summary.TotalToPay.GetValue() != expectedTotalToPay {
-		return dte_errors.NewDTEErrorSimple("FSETaxInvalidTotalToPay")
+	if !commonStrategy.WithinTolerance(expectedTotalToPay, actualTotalToPay) {
+		return dte_errors.NewDTEErrorSimple("FSETaxInvalidTotalToPay",
+			actualTotalToPay.InexactFloat64(), expectedTotalToPay.InexactFloat64())
 	}
 
 	return nil

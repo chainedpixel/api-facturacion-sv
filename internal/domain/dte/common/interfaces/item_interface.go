@@ -4,6 +4,7 @@ package interfaces
 type ItemGetter interface {
 	GetQuantity() float64
 	GetItemCode() string
+	GetTaxCode() string
 	GetDescription() string
 	GetType() int
 	GetUnitPrice() float64

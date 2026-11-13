@@ -93,11 +93,11 @@ func (s *contingencyDocumentSvc) updateStatus(ctx context.Context, branchID uint
 
 // markContingencyBatchVerified marks a batch of contingency records with the verified status
 // and their reception stamps so that the records are not left without tracking information.
-func (s *contingencyDocumentSvc) markContingencyBatchVerified(ctx context.Context, ids []string, stamps map[string]string, status string) {
+func (s *contingencyDocumentSvc) markContingencyBatchVerified(ctx context.Context, ids []string, results map[string]dte.ReceptionResult, status string) {
 	if len(ids) == 0 {
 		return
 	}
-	if err := s.repo.UpdateBatch(ctx, ids, nil, stamps, "verified", "", status); err != nil {
+	if err := s.repo.UpdateBatch(ctx, ids, nil, results, "verified", "", status); err != nil {
 		logs.Warn("Failed to mark contingency records as verified", map[string]interface{}{
 			"error": err.Error(),
 			"count": len(ids),

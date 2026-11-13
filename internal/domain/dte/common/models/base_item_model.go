@@ -34,6 +34,15 @@ func (i *Item) GetQuantity() float64 {
 func (i *Item) GetItemCode() string {
 	return i.Code.GetValue()
 }
+
+// GetTaxCode devuelve el codigo del tributo sujeto a calculo de IVA (codTributo), usado en items tipo 4
+func (i *Item) GetTaxCode() string {
+	if i.TaxCode == nil {
+		return ""
+	}
+	return i.TaxCode.GetValue()
+}
+
 func (i *Item) GetDescription() string {
 	return i.Description
 }

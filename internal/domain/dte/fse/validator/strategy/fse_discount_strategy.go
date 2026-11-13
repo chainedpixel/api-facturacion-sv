@@ -1,10 +1,10 @@
 package strategy
 
 import (
-	"fmt"
-	"math"
+	"github.com/shopspring/decimal"
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	commonStrategy "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
 )
 
@@ -44,85 +44,64 @@ func (v *FSEDiscountStrategy) Validate() *dte_errors.DTEError {
 	return nil
 }
 
-// validateItemDiscounts validates that the per-item discounts are consistent
+// validateItemDiscounts valida cada item: el descuento no excede el monto del item y
+// compra = (precioUni x cantidad) - montoDescu (regla compartida con FE y CCF)
 func (v *FSEDiscountStrategy) validateItemDiscounts() *dte_errors.DTEError {
 	for i, item := range v.Document.FSEItems {
-		expectedPurchase := (item.Quantity.GetValue() * item.UnitPrice.GetValue()) - item.Discount.GetValue()
-		actualPurchase := item.Purchase.GetValue()
-
-		if math.Abs(expectedPurchase-actualPurchase) > 0.01 {
-			return dte_errors.NewDTEErrorSimple("InvalidItemPurchase",
-				formatItemError(i+1, expectedPurchase, actualPurchase))
+		grossValue := decimal.NewFromFloat(item.Quantity.GetValue()).Mul(decimal.NewFromFloat(item.UnitPrice.GetValue()))
+		discount := decimal.NewFromFloat(item.Discount.GetValue())
+		if discount.GreaterThan(grossValue) {
+			return dte_errors.NewDTEErrorSimple("ExcessiveItemDiscount",
+				i+1, discount.InexactFloat64(), grossValue.InexactFloat64())
 		}
 
-		grossValue := item.Quantity.GetValue() * item.UnitPrice.GetValue()
-		if item.Discount.GetValue() > grossValue {
-			return dte_errors.NewDTEErrorSimple("ExcessiveItemDiscount",
-				formatItemDiscountError(i+1, item.Discount.GetValue(), grossValue))
+		if err := commonStrategy.ValidateItemSaleAmount(i+1, item.UnitPrice.GetValue(), item.Quantity.GetValue(),
+			item.Discount.GetValue(), item.Purchase.GetValue()); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-// validateSummaryDiscounts validates that the summary discounts are consistent
+// validateSummaryDiscounts valida totalCompra = suma de compras y subTotal = totalCompra - descu (campo 139)
 func (v *FSEDiscountStrategy) validateSummaryDiscounts() *dte_errors.DTEError {
 	summary := v.Document.FSESummary
 
-	var calculatedTotalPurchase float64
+	var calculatedTotalPurchase decimal.Decimal
 	for _, item := range v.Document.FSEItems {
-		calculatedTotalPurchase += item.Purchase.GetValue()
+		calculatedTotalPurchase = calculatedTotalPurchase.Add(decimal.NewFromFloat(item.Purchase.GetValue()))
 	}
 
-	if math.Abs(calculatedTotalPurchase-summary.TotalPurchase.GetValue()) > 0.01 {
+	declaredTotalPurchase := decimal.NewFromFloat(summary.TotalPurchase.GetValue())
+	if !commonStrategy.WithinTolerance(calculatedTotalPurchase, declaredTotalPurchase) {
 		return dte_errors.NewDTEErrorSimple("InvalidTotalPurchase",
-			formatTotalPurchaseError(calculatedTotalPurchase, summary.TotalPurchase.GetValue()))
+			declaredTotalPurchase.InexactFloat64(), calculatedTotalPurchase.InexactFloat64())
 	}
 
-	expectedSubTotal := summary.TotalPurchase.GetValue() - summary.GetNonSubjectDiscount()
-	actualSubTotal := summary.SubTotal.GetValue()
-
-	if math.Abs(expectedSubTotal-actualSubTotal) > 0.01 {
+	expectedSubTotal := declaredTotalPurchase.Sub(decimal.NewFromFloat(summary.GetNonSubjectDiscount()))
+	actualSubTotal := decimal.NewFromFloat(summary.SubTotal.GetValue())
+	if !commonStrategy.WithinTolerance(expectedSubTotal, actualSubTotal) {
 		return dte_errors.NewDTEErrorSimple("InvalidSubTotal",
-			formatSubTotalError(expectedSubTotal, actualSubTotal))
+			actualSubTotal.InexactFloat64(), expectedSubTotal.InexactFloat64())
 	}
 
 	return nil
 }
 
-// validateTotalConsistency validates that total_discount is the sum of discounts
+// validateTotalConsistency valida totalDescu = descuentos por item + descu (campo 135, informativo)
 func (v *FSEDiscountStrategy) validateTotalConsistency() *dte_errors.DTEError {
-	var itemDiscountsTotal float64
+	var itemDiscountsTotal decimal.Decimal
 	for _, item := range v.Document.FSEItems {
-		itemDiscountsTotal += item.Discount.GetValue()
+		itemDiscountsTotal = itemDiscountsTotal.Add(decimal.NewFromFloat(item.Discount.GetValue()))
 	}
 
-	expectedTotalDiscount := itemDiscountsTotal + v.Document.FSESummary.GetNonSubjectDiscount()
-	actualTotalDiscount := v.Document.FSESummary.TotalDiscount.GetValue()
+	expectedTotalDiscount := itemDiscountsTotal.Add(decimal.NewFromFloat(v.Document.FSESummary.GetNonSubjectDiscount()))
+	actualTotalDiscount := decimal.NewFromFloat(v.Document.FSESummary.TotalDiscount.GetValue())
 
-	if math.Abs(expectedTotalDiscount-actualTotalDiscount) > 0.01 {
+	if !commonStrategy.WithinTolerance(expectedTotalDiscount, actualTotalDiscount) {
 		return dte_errors.NewDTEErrorSimple("InvalidTotalDiscount",
-			formatTotalDiscountError(expectedTotalDiscount, actualTotalDiscount))
+			actualTotalDiscount.InexactFloat64(), expectedTotalDiscount.InexactFloat64())
 	}
 
 	return nil
-}
-
-func formatItemError(itemNumber int, expected, actual float64) string {
-	return fmt.Sprintf("Item %d: purchase esperado %.2f, actual %.2f", itemNumber, expected, actual)
-}
-
-func formatItemDiscountError(itemNumber int, discount, grossValue float64) string {
-	return fmt.Sprintf("Item %d: descuento %.2f excede valor bruto %.2f", itemNumber, discount, grossValue)
-}
-
-func formatTotalPurchaseError(expected, actual float64) string {
-	return fmt.Sprintf("TotalPurchase esperado %.2f, actual %.2f", expected, actual)
-}
-
-func formatSubTotalError(expected, actual float64) string {
-	return fmt.Sprintf("SubTotal esperado %.2f, actual %.2f", expected, actual)
-}
-
-func formatTotalDiscountError(expected, actual float64) string {
-	return fmt.Sprintf("TotalDiscount esperado %.2f, actual %.2f", expected, actual)
 }

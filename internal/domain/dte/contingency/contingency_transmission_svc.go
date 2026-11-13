@@ -16,6 +16,7 @@ import (
 	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	batch "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
 	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
 	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
@@ -31,6 +32,7 @@ type contingencyTransmissionSvc struct {
 	tokenService     ports.TokenManager
 	signer           appPorts.SignerManager
 	batchTransmitter batch.BatchTransmitterPort
+	dteManager       dte_documents.DTEManager
 	config           *transmitterModels.TransmissionConfig
 }
 
@@ -41,6 +43,7 @@ func newContingencyTransmissionSvc(
 	tokenService ports.TokenManager,
 	signer appPorts.SignerManager,
 	batchTransmitter batch.BatchTransmitterPort,
+	dteManager dte_documents.DTEManager,
 	config *transmitterModels.TransmissionConfig,
 ) *contingencyTransmissionSvc {
 	return &contingencyTransmissionSvc{
@@ -50,6 +53,7 @@ func newContingencyTransmissionSvc(
 		tokenService:     tokenService,
 		signer:           signer,
 		batchTransmitter: batchTransmitter,
+		dteManager:       dteManager,
 		config:           config,
 	}
 }
@@ -148,6 +152,10 @@ func (s *contingencyTransmissionSvc) signDocuments(ctx context.Context, docs []d
 				"id":    doc.ID,
 			})
 			continue
+		}
+		// Se guarda el JWS que se transmite: es la firmaElectronica del Archivo DTE (Anexo I, regla 4.1)
+		if err := s.dteManager.UpdateDTE(ctx, doc.BranchID, dte.DTEDetails{ID: doc.Document.ID, SignedDocument: signedDoc}); err != nil {
+			logs.Warn("Failed to store signed document", map[string]interface{}{"error": err.Error(), "id": doc.Document.ID})
 		}
 		docsMap[doc.Document.ID] = doc
 		signedDocs = append(signedDocs, signedDoc)

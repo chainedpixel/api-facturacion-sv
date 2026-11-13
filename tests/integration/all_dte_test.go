@@ -3,6 +3,7 @@ package integration_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/chainedpixel/ordo-factus/config"
 	"github.com/chainedpixel/ordo-factus/internal/application/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	coreDTE "github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
@@ -161,10 +163,8 @@ func TestAllDTETypes(t *testing.T) {
 					).
 					Return(mockDTE, nil)
 
-				transmitResponse := &transmitterModels.TransmitResult{
-					Status:         "PROCESADO",
-					ReceptionStamp: utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
-				}
+				// El JWS simulado lleva como payload la estructura transmitida, igual que el firmador real
+				var signedDocument string
 				mockTransmitter.EXPECT().
 					RetryTransmission(
 						gomock.Any(),
@@ -172,7 +172,17 @@ func TestAllDTETypes(t *testing.T) {
 						"test-token",
 						"11111111111111",
 					).
-					Return(transmitResponse, nil)
+					DoAndReturn(func(_ context.Context, document interface{}, _ string, _ string) (*transmitterModels.TransmitResult, error) {
+						payload, _ := json.Marshal(document)
+						signedDocument = "eyJhbGciOiJSUzUxMiJ9." + base64.RawURLEncoding.EncodeToString(payload) + ".firma"
+						return &transmitterModels.TransmitResult{
+							Status:           "PROCESADO",
+							ReceptionStamp:   utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
+							SignedDocument:   signedDocument,
+							ProcessingDate:   "04/11/2026 19:26:17",
+							HaciendaResponse: `{"estado":"PROCESADO"}`,
+						}, nil
+					})
 
 				mockSeqNumberManager.EXPECT().
 					ConfirmReservation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -184,9 +194,16 @@ func TestAllDTETypes(t *testing.T) {
 						gomock.Any(),
 						constants.TransmissionNormal,
 						constants.DocumentReceived,
-						utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
+						gomock.Any(),
 					).
-					Return(nil)
+					DoAndReturn(func(_ context.Context, _ interface{}, _ string, _ string, evidence *coreDTE.TransmissionEvidence) error {
+						// la evidencia completa de Hacienda llega al guardado (Archivo DTE, Anexo I regla 4.1)
+						assert.Equal(t, "2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM", *evidence.ReceptionStamp)
+						assert.Equal(t, signedDocument, evidence.SignedDocument)
+						assert.Equal(t, "04/11/2026 19:26:17", evidence.ProcessingDate)
+						assert.Equal(t, `{"estado":"PROCESADO"}`, evidence.HaciendaResponse)
+						return nil
+					})
 
 				mockContingency.EXPECT().
 					StoreDocumentInContingency(
@@ -257,6 +274,15 @@ func TestAllDTETypes(t *testing.T) {
 				assert.Equal(t, constants.TransmisionNormal, identification.Identificacion.TipoOperacion)
 				assert.Equal(t, constants.ModeloFacturacionPrevio, identification.Identificacion.TipoModelo)
 				assert.NotEmpty(t, identification.Identificacion.NumeroControl)
+
+				// La respuesta es el Archivo DTE: estructura + firmaElectronica + selloRecibido
+				var archive struct {
+					FirmaElectronica string `json:"firmaElectronica"`
+					SelloRecibido    string `json:"selloRecibido"`
+				}
+				require.NoError(t, json.Unmarshal(response.Data, &archive))
+				assert.NotEmpty(t, archive.FirmaElectronica)
+				assert.Equal(t, "2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM", archive.SelloRecibido)
 			},
 			handleContingency: false,
 		},

@@ -309,9 +309,8 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 			if len(status.Processed) > 0 {
 				var processedContingencyIDs []string
 				var processedDocumentIDs []string
-				var processedStamps map[string]string
 				var proccesedObservations []string
-				processedStamps = make(map[string]string)
+				processedResults := make(map[string]dte.ReceptionResult)
 				for _, processed := range status.Processed {
 					if doc, exists := docsMap[processed.GenerationCode]; exists {
 						logs.Info("Document processed", map[string]interface{}{
@@ -323,14 +322,17 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 							"contingencyID":   doc.ID,
 							"documentID":      doc.DocumentID,
 						})
-						processedStamps[doc.ID] = processed.ReceptionStamp
+						processedResults[doc.ID] = dte.ReceptionResult{
+							ReceptionStamp: processed.ReceptionStamp,
+							ProcessingDate: processed.ProcessingDate,
+						}
 						proccesedObservations = append(proccesedObservations, processed.DescriptionMessage)
 						processedContingencyIDs = append(processedContingencyIDs, doc.ID)
 						processedDocumentIDs = append(processedDocumentIDs, doc.DocumentID)
 					}
 				}
 
-				if err := s.contingencyRepo.UpdateBatch(ctx, processedContingencyIDs, proccesedObservations, processedStamps, batchID, mhBatchID, constants.DocumentReceived); err != nil {
+				if err := s.contingencyRepo.UpdateBatch(ctx, processedContingencyIDs, proccesedObservations, processedResults, batchID, mhBatchID, constants.DocumentReceived); err != nil {
 					logs.Error("Failed to update processed documents", map[string]interface{}{
 						"error":   err.Error(),
 						"batchID": batchID,

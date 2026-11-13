@@ -6,6 +6,7 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	commonStrategy "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
 
@@ -139,12 +140,6 @@ func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 			"NonSubjectDiscount",
 			nonSubjectDiscount.InexactFloat64(),
 			totalNonSubject.InexactFloat64())
-	}
-
-	var itemsDiscountSum decimal.Decimal
-	for _, item := range s.Document.CreditItems {
-		itemDiscount := decimal.NewFromFloat(item.GetDiscount()).Mul(decimal.NewFromFloat(item.GetQuantity()).Mul(decimal.NewFromFloat(item.GetUnitPrice())))
-		itemsDiscountSum = itemsDiscountSum.Add(itemDiscount.Div(decimal.NewFromInt(100)))
 	}
 
 	if !totalNonSubject.Equal(summaryNonSubject) {
@@ -307,6 +302,16 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			})
 			return dte_errors.NewDTEErrorSimple("MissingIVAForTaxedAmount")
 		}
+	}
+
+	// Anexo IV, campo 150: montoTotalOperacion = subTotal + tributos del resumen
+	if err := commonStrategy.ValidateTotalOperation(s.Document.CreditSummary.SubTotal.GetValue(),
+		s.Document.CreditSummary.TotalTaxes, s.Document.CreditSummary.TotalOperation.GetValue()); err != nil {
+		logs.Error("Invalid total operation", map[string]interface{}{
+			"subTotal":       s.Document.CreditSummary.SubTotal.GetValue(),
+			"totalOperation": s.Document.CreditSummary.TotalOperation.GetValue(),
+		})
+		return err
 	}
 
 	// Normativa v2.0 (Anexo VI): se elimino "Retencion renta" para CCFE

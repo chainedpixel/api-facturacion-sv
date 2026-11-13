@@ -1,7 +1,9 @@
 package remission_note
 
 import (
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/remission_note_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 )
 
@@ -55,12 +57,10 @@ func mapFromRemissionReceiver(receiver *remission_note_models.RemissionNoteRecei
 		mhReceiver.Phone = phone
 	}
 
+	// Se reutiliza el mapper comun de direccion, que incluye el distrito (CAT-008)
 	if address := receiver.GetAddress(); address != nil {
-		mhReceiver.Address = &structs.DTEAddress{
-			Departamento: address.GetDepartment(),
-			Municipio:    address.GetMunicipality(),
-			Complemento:  address.GetComplement(),
-		}
+		mapped := common.MapCommonResponseAddress(address)
+		mhReceiver.Address = &mapped
 	}
 
 	return mhReceiver
@@ -119,18 +119,9 @@ func mapFromBaseReceiver(receiver interface{}) *structs.MHRemissionNoteReceiver 
 		mhReceiver.Phone = phone
 	}
 
-	if address := receiverGetter.GetAddress(); address != nil {
-		if addressInterface, ok := address.(interface {
-			GetDepartment() string
-			GetMunicipality() string
-			GetComplement() string
-		}); ok {
-			mhReceiver.Address = &structs.DTEAddress{
-				Departamento: addressInterface.GetDepartment(),
-				Municipio:    addressInterface.GetMunicipality(),
-				Complemento:  addressInterface.GetComplement(),
-			}
-		}
+	if address, ok := receiverGetter.GetAddress().(interfaces.Address); ok && address != nil {
+		mapped := common.MapCommonResponseAddress(address)
+		mhReceiver.Address = &mapped
 	}
 
 	return mhReceiver

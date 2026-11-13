@@ -53,7 +53,7 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	result, err := bt.transmitter.Transmit(ctx, document, signedDoc, token)
 	if err == nil && result.Status == ReceivedStatus {
 		logs.Info("Document received on first attempt")
-		return result, nil
+		return withSignedDocument(result, signedDoc), nil
 	}
 
 	if err != nil {
@@ -67,7 +67,7 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	statusResult, err := bt.CheckStatus(ctx, document, nit)
 	if err == nil && statusResult.Status == ReceivedStatus {
 		logs.Info("Document already received")
-		return statusResult, nil
+		return withSignedDocument(statusResult, signedDoc), nil
 	}
 
 	logs.Info("Starting retries because document was not received")
@@ -77,7 +77,7 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 		result, err = bt.transmitter.Transmit(ctx, document, signedDoc, token)
 		if err == nil && result.Status == ReceivedStatus {
 			logs.Info("Document received on retry")
-			return result, nil
+			return withSignedDocument(result, signedDoc), nil
 		}
 
 		retryCount++
@@ -86,6 +86,12 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 
 	logs.Info("Document was not received")
 	return result, err
+}
+
+// withSignedDocument adjunta el JWS transmitido al resultado para que se guarde como firmaElectronica
+func withSignedDocument(result *models.TransmitResult, signedDoc string) *models.TransmitResult {
+	result.SignedDocument = signedDoc
+	return result
 }
 
 func (bt *BaseTransmitter) CheckStatus(ctx context.Context, document interface{}, nit string) (*models.TransmitResult, error) {

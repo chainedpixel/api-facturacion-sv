@@ -49,7 +49,10 @@ func (s *RelatedDocsStrategy) Validate() *dte_errors.DTEError {
 // validateRelatedDoc validates a related document
 func (s *RelatedDocsStrategy) validateRelatedDoc(doc interfaces.RelatedDocument) *dte_errors.DTEError {
 
-	if doc.GetEmissionDate().After(utils.TimeNow()) {
+	// La normativa compara fechas (dia), no horas: se evita rechazar por diferencias de reloj entre la BD y la API
+	now := utils.TimeNow()
+	docDay := doc.GetEmissionDate().In(now.Location()).Format("2006-01-02")
+	if docDay > now.Format("2006-01-02") {
 		return dte_errors.NewDTEErrorSimple("InvalidRelatedDocDate",
 			doc.GetEmissionDate().Format("2006-01-02"))
 	}

@@ -17,8 +17,18 @@ type AuxiliarIdentificationExtractor struct {
 
 type AuxiliarReceiverExtractor struct {
 	Receiver struct {
-		NIT string `json:"nit"`
+		NIT          string `json:"nit"`
+		NumDocumento string `json:"numDocumento"`
 	} `json:"receptor"`
+}
+
+// ReceiverID devuelve el NIT del receptor del documento relacionado. El CCF lo informa en "nit"; el CR
+// identifica al receptor con tipo y numero de documento (36-NIT), por lo que se usa "numDocumento".
+func (a AuxiliarReceiverExtractor) ReceiverID() string {
+	if a.Receiver.NIT != "" {
+		return a.Receiver.NIT
+	}
+	return a.Receiver.NumDocumento
 }
 
 type AuxiliarTotalAmountsExtractor struct {

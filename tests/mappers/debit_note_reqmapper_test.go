@@ -166,14 +166,14 @@ func TestMapToDebitNoteData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 		{
-			name: "Debit note without receiver trade name",
+			// Anexo IV, campo 45: el nombre comercial del receptor es opcional
+			name: "Debit note without receiver trade name is allowed",
 			req: func() *structs.CreateDebitNoteRequest {
 				req := fixtures.CreateDefaultDebitNoteRequest()
 				req.Receiver.CommercialName = nil
 				return req
 			},
-			wantErr:   true,
-			errorCode: "RequiredField",
+			wantErr: false,
 		},
 		{
 			name: "Debit note with invalid NIT",

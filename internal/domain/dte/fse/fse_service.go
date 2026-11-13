@@ -66,7 +66,16 @@ func (s *fseService) Create(ctx context.Context, input interface{}, branchID uin
 
 // validate performs the FSE-specific validations
 func (s *fseService) validate(fse *fse_models.FSEModel) error {
-
+	// Se ejecutan las estrategias propias de FSE (items, tributos, sujeto excluido y descuentos)
+	s.validator = validator.NewFSERulesValidator(fse)
+	if err := s.validator.Validate(); err != nil {
+		return shared_error.NewFormattedGeneralServiceWithError(
+			"FSEService",
+			"Validate",
+			err,
+			"ValidationFailed",
+		)
+	}
 	return nil
 }
 

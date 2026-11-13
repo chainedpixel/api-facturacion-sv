@@ -16,6 +16,7 @@ func MapCommonItems(item interfaces.Item) structs.DTEItem {
 		MontoDescu:      item.GetDiscount(),
 		NumeroDocumento: item.GetRelatedDoc(),
 	}
+	result.Codigo, result.CodTributo = MapItemCodes(item)
 
 	if item.GetTaxes() != nil {
 		MapTaxCodes(item.GetTaxes())

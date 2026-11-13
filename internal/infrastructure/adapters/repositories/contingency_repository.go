@@ -9,7 +9,6 @@ import (
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -73,7 +72,7 @@ func (r *ContingencyRepository) GetPending(ctx context.Context, limit int) ([]dt
 	return docs, nil
 }
 
-func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, observations []string, stamps map[string]string, batchID string, mhBatchID string, status string) (returnErr error) {
+func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, observations []string, results map[string]dte.ReceptionResult, batchID string, mhBatchID string, status string) (returnErr error) {
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return tx.Error
@@ -114,37 +113,12 @@ func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, o
 			"status": status,
 		}
 
-		if stamps != nil {
-			if stamp, exists := stamps[id]; exists && stamp != "" {
-				dteUpdate["reception_stamp"] = stamp
-
-				var dteDoc db_models.DTEDetails
-				if err := tx.Where("id = ?", contingencyDoc.DocumentID).First(&dteDoc).Error; err != nil {
-					logs.Error("Failed to get user", map[string]interface{}{
-						"error": err.Error(),
-					})
-					tx.Rollback()
-					return fmt.Errorf("failed to get DTE for appendix update %s: %w", contingencyDoc.DocumentID, err)
-				}
-
-				updatedJSON, err := utils.SetReceptionStampIntoAppendix(dteDoc.JSONData, &stamp)
-				if err != nil {
-					logs.Error("Failed to set reception stamp into appendix", map[string]interface{}{
-						"error": err.Error(),
-					})
-					tx.Rollback()
-					return fmt.Errorf("failed to update appendix: %w", err)
-				}
-
-				if err := tx.Model(&db_models.DTEDetails{}).
-					Where("id = ?", contingencyDoc.DocumentID).
-					Update("json_data", updatedJSON).Error; err != nil {
-					logs.Error("Failed to update DTE json_data", map[string]interface{}{
-						"error": err.Error(),
-					})
-					tx.Rollback()
-					return fmt.Errorf("failed to update DTE json_data %s: %w", contingencyDoc.DocumentID, err)
-				}
+		// Normativa v2.0 (Anexo I, regla 4.1): la estructura firmada no se altera; el sello se guarda aparte
+		// y se agrega como selloRecibido al armar el Archivo DTE
+		if result, exists := results[id]; exists && result.ReceptionStamp != "" {
+			dteUpdate["reception_stamp"] = result.ReceptionStamp
+			if result.ProcessingDate != "" {
+				dteUpdate["processing_date"] = result.ProcessingDate
 			}
 		}
 

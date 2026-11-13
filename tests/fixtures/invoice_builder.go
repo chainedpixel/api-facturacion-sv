@@ -172,11 +172,15 @@ func (b *InvoiceBuilder) AddItems() *InvoiceBuilder {
 			return b
 		}
 
+		// En FE el IVA va incluido en el precio: los items no llevan el tributo 20 (Anexo IV, campo 84)
+		item.Taxes = nil
+
 		invoiceItem := invoice_models.InvoiceItem{
 			Item: item,
 		}
 
-		taxedAmount := item.GetQuantity() * item.GetUnitPrice() * (1 - item.GetDiscount()/100)
+		// ventaGravada = (precioUni x cantidad) - montoDescu; montoDescu es un monto, no un porcentaje
+		taxedAmount := item.GetQuantity()*item.GetUnitPrice() - item.GetDiscount()
 		ivaAmount := (taxedAmount / 1.13) * 0.13
 
 		taxedSaleObj, err := financial.NewAmount(taxedAmount)

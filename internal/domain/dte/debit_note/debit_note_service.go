@@ -113,7 +113,7 @@ func (s *debitNoteService) validateRelatedDocs(ctx context.Context, data *debit_
 			return err
 		}
 
-		if data.Receiver.NIT.GetValue() != extractor.Receiver.NIT {
+		if data.Receiver.NIT.GetValue() != extractor.ReceiverID() {
 			return shared_error.NewFormattedGeneralServiceError(
 				"DebitNoteService",
 				"validateRelatedDocs",

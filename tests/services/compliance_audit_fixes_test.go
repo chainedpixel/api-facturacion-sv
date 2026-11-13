@@ -119,7 +119,7 @@ func TestHaciendaAuthService_TimeoutConfiguration(t *testing.T) {
 func TestContingencyEventService_TimeoutConfiguration(t *testing.T) {
 	test.TestMain(t)
 
-	eventSvc := contingency.NewContingencyEventService(nil, nil, nil, nil, nil, nil, nil, nil)
+	eventSvc := contingency.NewContingencyEventService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	require.NotNil(t, eventSvc)
 	assert.Equal(t, 8*time.Second, eventSvc.GetHTTPTimeout())
 }

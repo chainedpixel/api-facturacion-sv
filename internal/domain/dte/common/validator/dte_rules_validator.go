@@ -24,7 +24,6 @@ func NewDTERulesValidator(doc interfaces.DTEDocument) *DTERulesValidator {
 			&strategy.TaxCalculationStrategy{Document: doc},
 			&strategy.PaymentTotalStrategy{Document: doc},
 			&strategy.ItemValidationStrategy{Document: doc},
-			&strategy.ExtensionStrategy{Document: doc},
 			&strategy.DocumentTypeStrategy{Document: doc},
 			&strategy.RelatedDocsStrategy{Document: doc},
 			&strategy.ThirdPartyStrategy{Document: doc},

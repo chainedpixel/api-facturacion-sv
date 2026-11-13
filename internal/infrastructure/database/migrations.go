@@ -26,6 +26,7 @@ var modelsToMigrate = []schema.Tabler{
 	&db_models.NotifiableUser{},
 	&db_models.DTEBalanceControl{},
 	&db_models.DTEBalanceTransaction{},
+	&db_models.DTEEvent{},
 }
 
 // RunMigrations runs all database migrations

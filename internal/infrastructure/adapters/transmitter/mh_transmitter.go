@@ -86,7 +86,23 @@ func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, sign
 		return nil, err
 	}
 
-	return processor.ProcessResponse(resp)
+	result, err := processor.ProcessResponse(resp)
+	if result != nil {
+		result.HaciendaResponse = marshalHaciendaResponse(resp)
+	}
+	return result, err
+}
+
+// marshalHaciendaResponse serializa la respuesta de Hacienda para guardarla junto al documento o evento
+func marshalHaciendaResponse(resp *models2.HaciendaResponse) string {
+	if resp == nil {
+		return ""
+	}
+	raw, err := json.Marshal(resp)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }
 
 func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interface{}, nit string) (*models2.TransmitResult, error) {
@@ -132,12 +148,13 @@ func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interf
 	}
 
 	return &models2.TransmitResult{
-		Status:         haciendaResp.Status,
-		ReceptionStamp: &haciendaResp.ReceptionStamp,
-		ProcessingDate: haciendaResp.ProcessingDate,
-		MessageCode:    haciendaResp.MessageCode,
-		MessageDesc:    haciendaResp.DescriptionMessage,
-		Observations:   haciendaResp.Observations,
+		Status:           haciendaResp.Status,
+		ReceptionStamp:   &haciendaResp.ReceptionStamp,
+		ProcessingDate:   haciendaResp.ProcessingDate,
+		MessageCode:      haciendaResp.MessageCode,
+		MessageDesc:      haciendaResp.DescriptionMessage,
+		Observations:     haciendaResp.Observations,
+		HaciendaResponse: marshalHaciendaResponse(&haciendaResp),
 	}, nil
 }
 

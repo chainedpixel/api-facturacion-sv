@@ -67,14 +67,14 @@ func TestMapToCCFData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 		{
-			name: "CCF without commercial name",
+			// Anexo IV, campo 45: el nombre comercial del receptor es opcional
+			name: "CCF without commercial name is allowed",
 			req: func() *structs.CreateCreditFiscalRequest {
 				req := fixtures.CreateDefaultCreditFiscalRequest()
 				req.Receiver.CommercialName = nil
 				return req
 			},
-			wantErr:   true,
-			errorCode: "RequiredField",
+			wantErr: false,
 		},
 		{
 			name: "CCF with TotalIVA not zero",

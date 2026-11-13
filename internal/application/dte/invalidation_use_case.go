@@ -2,20 +2,25 @@ package dte
 
 import (
 	"context"
+	"encoding/json"
 
 	structs2 "github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 
 	"github.com/chainedpixel/ordo-factus/internal/application/ports"
 	authManager "github.com/chainedpixel/ordo-factus/internal/domain/auth"
 	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	dteInterfaces "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
+	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type InvalidationUseCase struct {
@@ -36,7 +41,10 @@ func NewInvalidationUseCase(dteManager dteInterfaces.DTEManager, invalidationMan
 	}
 }
 
-func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request structs.CreateInvalidationRequest) (*structs2.InvalidationResponse, error) {
+// InvalidateDocument transmite el evento de invalidacion y lo registra con su evidencia (estructura firmada,
+// sello, fecha y respuesta de Hacienda). Normativa v2.0, regla 11: el evento se entrega al receptor como
+// Archivo DTE, que se devuelve en la respuesta y queda disponible en GET /dte/{id}/eventos.
+func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request structs.CreateInvalidationRequest) (*dte.EventArchiveResponse, error) {
 	claims := ctx.Value("claims").(*models.AuthClaims)
 	token := ctx.Value("token").(string)
 
@@ -90,5 +98,43 @@ func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request st
 		return nil, err
 	}
 
-	return mhInvalidation, nil
+	event, err := buildInvalidationEvent(mhInvalidation, request, claims.BranchID, result)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.dteManager.RegisterEvent(ctx, event); err != nil {
+		logs.Error("Failed to register invalidation event", map[string]interface{}{
+			"error": err.Error(),
+			"code":  event.GenerationCode,
+		})
+		return nil, err
+	}
+
+	response := dteInterfaces.ToEventArchiveResponse(*event)
+	return &response, nil
+}
+
+// buildInvalidationEvent arma el registro del evento con la evidencia devuelta por Hacienda
+func buildInvalidationEvent(mhInvalidation *structs2.InvalidationResponse, request structs.CreateInvalidationRequest,
+	branchID uint, result *transmitterModels.TransmitResult) (*dte.DTEEvent, error) {
+	jsonData, err := json.Marshal(mhInvalidation)
+	if err != nil {
+		return nil, err
+	}
+
+	relatedDTE := request.GenerationCode
+	return &dte.DTEEvent{
+		GenerationCode:   mhInvalidation.Identificacion.CodigoGeneracion,
+		BranchID:         branchID,
+		EventType:        dte.EventInvalidation,
+		RelatedDTEID:     &relatedDTE,
+		ReplacementDTEID: request.ReplacementGenerationCode,
+		JSONData:         string(jsonData),
+		SignedDocument:   result.SignedDocument,
+		ReceptionStamp:   result.ReceptionStamp,
+		ProcessingDate:   result.ProcessingDate,
+		HaciendaResponse: result.HaciendaResponse,
+		Status:           constants.DocumentReceived,
+		CreatedAt:        utils.TimeNow(),
+	}, nil
 }

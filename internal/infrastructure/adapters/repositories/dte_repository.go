@@ -28,7 +28,7 @@ func NewDTERepository(db *gorm.DB) dte_documents.DTERepositoryPort {
 	}
 }
 
-func (D *DTERepository) Create(ctx context.Context, document interface{}, transmission, status string, receptionStamp *string) error {
+func (D *DTERepository) Create(ctx context.Context, document interface{}, transmission, status string, evidence *dte.TransmissionEvidence) error {
 	claims := ctx.Value("claims").(*models.AuthClaims)
 	var dteResponse utils.AuxiliarIdentificationExtractor
 
@@ -51,15 +51,15 @@ func (D *DTERepository) Create(ctx context.Context, document interface{}, transm
 		CreatedAt: utils.TimeNow(),
 		UpdatedAt: utils.TimeNow(),
 		Document: &db_models.DTEDetails{
-			ID:             dteResponse.Identification.GenerationCode,
-			Transmission:   transmission,
-			Status:         status,
-			DTEType:        dteResponse.Identification.DTEType,
-			ControlNumber:  dteResponse.Identification.ControlNumber,
-			ReceptionStamp: receptionStamp,
-			JSONData:       string(jsonData),
+			ID:            dteResponse.Identification.GenerationCode,
+			Transmission:  transmission,
+			Status:        status,
+			DTEType:       dteResponse.Identification.DTEType,
+			ControlNumber: dteResponse.Identification.ControlNumber,
+			JSONData:      string(jsonData),
 		},
 	}
+	applyEvidence(dteDocument.Document, evidence)
 
 	result := D.db.WithContext(ctx).Create(dteDocument)
 	if result.Error != nil {
@@ -67,6 +67,24 @@ func (D *DTERepository) Create(ctx context.Context, document interface{}, transm
 	}
 
 	return nil
+}
+
+// applyEvidence copia la evidencia de transmision (sello, JWS, fecha y respuesta de Hacienda) al modelo
+func applyEvidence(details *db_models.DTEDetails, evidence *dte.TransmissionEvidence) {
+	if evidence == nil {
+		return
+	}
+	details.ReceptionStamp = evidence.ReceptionStamp
+	details.SignedDocument = optionalString(evidence.SignedDocument)
+	details.ProcessingDate = optionalString(evidence.ProcessingDate)
+	details.HaciendaResponse = optionalString(evidence.HaciendaResponse)
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 func (D *DTERepository) GetDTEBalanceControl(ctx context.Context, branchID uint, id string) (*dte.BalanceControl, error) {
@@ -132,6 +150,9 @@ func (D *DTERepository) Update(ctx context.Context, branchID uint, document dte.
 		ReceptionStamp: document.ReceptionStamp,
 		JSONData:       document.JSONData,
 	}
+	dbModel.SignedDocument = optionalString(document.SignedDocument)
+	dbModel.ProcessingDate = optionalString(document.ProcessingDate)
+	dbModel.HaciendaResponse = optionalString(document.HaciendaResponse)
 
 	if err := D.db.WithContext(ctx).
 		Model(&db_models.DTEDocument{}).
@@ -300,13 +321,16 @@ func (D *DTERepository) GetByGenerationCode(ctx context.Context, branchID uint, 
 		CreatedAt:  document.CreatedAt,
 		UpdatedAt:  document.UpdatedAt,
 		Details: &dte.DTEDetails{
-			ID:             document.Document.ID,
-			DTEType:        document.Document.DTEType,
-			ControlNumber:  document.Document.ControlNumber,
-			Transmission:   document.Document.Transmission,
-			Status:         document.Document.Status,
-			ReceptionStamp: document.Document.ReceptionStamp,
-			JSONData:       document.Document.JSONData,
+			ID:               document.Document.ID,
+			DTEType:          document.Document.DTEType,
+			ControlNumber:    document.Document.ControlNumber,
+			Transmission:     document.Document.Transmission,
+			Status:           document.Document.Status,
+			ReceptionStamp:   document.Document.ReceptionStamp,
+			JSONData:         document.Document.JSONData,
+			SignedDocument:   valueOrEmpty(document.Document.SignedDocument),
+			ProcessingDate:   valueOrEmpty(document.Document.ProcessingDate),
+			HaciendaResponse: valueOrEmpty(document.Document.HaciendaResponse),
 		},
 	}, nil
 }

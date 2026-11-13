@@ -9,8 +9,10 @@ import (
 	appPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
 	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
 	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	transmissionPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
 	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
@@ -154,7 +156,12 @@ func (u *GenericDTEUseCase) Create(ctx context.Context, req interface{}) (interf
 		return mhModel, options, confirmErr
 	}
 
-	err = u.dteService.Create(ctx, mhModel, constants.TransmissionNormal, constants.DocumentReceived, transmitResult.ReceptionStamp)
+	err = u.dteService.Create(ctx, mhModel, constants.TransmissionNormal, constants.DocumentReceived, &dte.TransmissionEvidence{
+		ReceptionStamp:   transmitResult.ReceptionStamp,
+		SignedDocument:   transmitResult.SignedDocument,
+		ProcessingDate:   transmitResult.ProcessingDate,
+		HaciendaResponse: transmitResult.HaciendaResponse,
+	})
 	if err != nil {
 		logs.Error("Error saving document in database", map[string]interface{}{"error": err.Error()})
 		return mhModel, options, err
@@ -168,7 +175,15 @@ func (u *GenericDTEUseCase) Create(ctx context.Context, req interface{}) (interf
 		}
 	}
 
-	return mhModel, options, nil
+	// Normativa v2.0 (Anexo I, regla 4.1): se responde el Archivo DTE listo para entregar al receptor
+	// (estructura firmada + firmaElectronica + selloRecibido). Si no se pudiera armar, se responde la estructura.
+	archive, archiveErr := dte_documents.BuildArchive(transmitResult.SignedDocument, transmitResult.ReceptionStamp)
+	if archiveErr != nil {
+		logs.Warn("Could not build DTE archive for response", map[string]interface{}{"error": archiveErr.Error()})
+		return mhModel, options, nil
+	}
+
+	return archive, options, nil
 }
 
 // extractGenerationCode extracts the generation code using reflection

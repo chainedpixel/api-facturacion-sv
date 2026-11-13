@@ -9,8 +9,12 @@ import (
 )
 
 // MapTaxes maps the taxes of an invoice
+// MapTaxes mapea los tributos del resumen. Sin tributos devuelve nil (se envia null): Anexo IV, campos 136-138.
 func MapTaxes(taxes []interfaces.Tax) []structs.DTETax {
-	result := make([]structs.DTETax, 0)
+	if len(taxes) == 0 {
+		return nil
+	}
+	result := make([]structs.DTETax, 0, len(taxes))
 
 	for _, tax := range taxes {
 		valor := decimal.NewFromFloat(tax.GetValue())

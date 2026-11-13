@@ -276,14 +276,25 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 
 				ccf.CreditItems = append(ccf.CreditItems, taxItem)
 
+				ivaValue := math.Round(totalTaxedSummary*0.13*100) / 100
 				taxes := models.Tax{}
 				taxes.SetCode(constants.TaxIVA)
-				taxes.SetValue(totalTaxedSummary * 0.13)
+				taxes.SetValue(ivaValue)
 				taxes.SetDescription("IVA 13%")
 
 				var taxInterfaces []interfaces.Tax
 				taxInterfaces = append(taxInterfaces, &taxes)
 				ccf.Summary.SetTotalTaxes(taxInterfaces)
+
+				// Campo 150: montoTotalOperacion = subTotal + tributos; el total a pagar y el pago se recalculan
+				totalOperation := math.Round((totalTaxedSummary+ivaValue)*100) / 100
+				ccf.CreditSummary.Summary.SetTotalOperation(totalOperation)
+				ccf.CreditSummary.Summary.SetTotalToPay(totalOperation)
+				for i, payment := range ccf.CreditSummary.Summary.GetPaymentTypes() {
+					if i == 0 {
+						payment.SetAmount(totalOperation)
+					}
+				}
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},

@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	commonStrategy "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
 	"github.com/shopspring/decimal"
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
@@ -57,7 +58,8 @@ func (s *InvoiceItemsStrategy) validateItem(item invoice_models.InvoiceItem) *dt
 			item.GetNumber())
 	}
 
-	if item.IVAItem.GetValue() > 0 {
+	// Anexo IV (FE): ivaItem = (ventaGravada / 1.13) x 13%; se valida siempre que exista venta gravada
+	if item.TaxedSale.GetValue() > 0 {
 		baseGravable := decimal.NewFromFloat(item.TaxedSale.GetValue()).
 			Div(decimal.NewFromFloat(1.13))
 
@@ -108,39 +110,17 @@ func (s *InvoiceItemsStrategy) validateItem(item invoice_models.InvoiceItem) *dt
 		}
 	}
 
-	if totalSales.GreaterThan(maxPossible) {
-		return dte_errors.NewDTEErrorSimple("ExcessiveItemTotal",
-			totalSales.InexactFloat64(),
-			maxPossible.InexactFloat64())
+	// Anexo IV, campos 89-91: venta del item = (precioUni x cantidad) - montoDescu
+	if err := commonStrategy.ValidateItemSaleAmount(item.GetNumber(), item.GetUnitPrice(), item.GetQuantity(),
+		item.GetDiscount(), totalSales.InexactFloat64()); err != nil {
+		return err
 	}
 
-	if item.TaxedSale.GetValue() > 0 {
-		expectedTaxed := decimal.NewFromFloat(item.GetUnitPrice()).
-			Mul(decimal.NewFromFloat(item.GetQuantity())).
-			Sub(decimal.NewFromFloat(item.GetDiscount()))
-
-		diff := decimal.NewFromFloat(item.TaxedSale.GetValue()).
-			Sub(expectedTaxed).
-			Abs()
-
-		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
-			return dte_errors.NewDTEErrorSimple("InvalidTaxedAmount",
-				item.TaxedSale.GetValue(),
-				expectedTaxed.InexactFloat64())
-		}
-	}
-
+	// Anexo IV, campo 84 (FE): solo tributos de las secciones 1 y 3 de CAT-015, excepto 20 y C3.
+	// En FE el IVA va incluido en el precio y se informa en ivaItem, no como tributo.
 	for _, tax := range item.Taxes {
-		if tax == constants.TaxIVA && item.GetType() == constants.Producto {
-			return dte_errors.NewDTEErrorSimple("InvalidTaxForProduct", item.GetNumber())
-		}
-	}
-
-	if item.GetType() == constants.Producto {
-		for _, summaryTax := range s.Document.InvoiceSummary.TotalTaxes {
-			if summaryTax.GetCode() == constants.TaxIVA {
-				return dte_errors.NewDTEErrorSimple("InvalidSummaryTaxForProduct")
-			}
+		if tax == constants.TaxIVA || tax == constants.TaxIVAExport {
+			return dte_errors.NewDTEErrorSimple("TaxNotAllowedInInvoice", tax, item.GetNumber())
 		}
 	}
 

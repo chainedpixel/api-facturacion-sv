@@ -25,7 +25,9 @@ func MapRemissionNoteSummary(model *remission_note_models.RemissionNoteSummary) 
 		mhSummary.Observaciones = model.Summary.GetObservations()
 	}
 
-	mhSummary.TaxedDiscount = 0.0
+	if model.TaxedDiscount != nil {
+		mhSummary.TaxedDiscount = model.TaxedDiscount.GetValue()
+	}
 
 	if model.DiscountPercent != nil {
 		mhSummary.DiscountPercent = model.DiscountPercent
@@ -40,7 +42,8 @@ func MapRemissionNoteSummary(model *remission_note_models.RemissionNoteSummary) 
 		mhSummary.AmountInWords = "CERO"
 	}
 
-	if model.Summary != nil && model.Summary.GetTotalTaxes() != nil {
+	// Sin tributos se envia null (el schema admite array con elementos o null)
+	if model.Summary != nil && len(model.Summary.GetTotalTaxes()) > 0 {
 		taxes := make([]structs.DTETax, len(model.Summary.GetTotalTaxes()))
 		for i, tax := range model.Summary.GetTotalTaxes() {
 			taxes[i] = structs.DTETax{
@@ -50,8 +53,6 @@ func MapRemissionNoteSummary(model *remission_note_models.RemissionNoteSummary) 
 			}
 		}
 		mhSummary.Tributes = taxes
-	} else {
-		mhSummary.Tributes = []structs.DTETax{}
 	}
 
 	return mhSummary

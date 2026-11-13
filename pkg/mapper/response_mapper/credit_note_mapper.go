@@ -20,6 +20,18 @@ func ToMHCreditNote(doc interface{}) *structs.CreditNoteDTEResponse {
 
 	dte.DocumentoRelacionado = common.MapCommonResponseRelatedDocuments(cast.GetRelatedDocuments())
 
+	for i := range dte.CuerpoDocumento {
+		dte.CuerpoDocumento[i].IvaPerci = common.AdjustmentItemIVA(dte.CuerpoDocumento[i].VentaGravada, dte.Resumen.IvaPerci)
+		dte.CuerpoDocumento[i].IvaRete = common.AdjustmentItemIVA(dte.CuerpoDocumento[i].VentaGravada, dte.Resumen.IvaRete)
+	}
+
+	if !common.AdjustsRetentionVoucher(cast.GetRelatedDocuments()) {
+		dte.Resumen.TotalIva = 0
+		for i := range dte.CuerpoDocumento {
+			dte.CuerpoDocumento[i].TotalIva = 0
+		}
+	}
+
 	if cast.GetThirdPartySale() != nil {
 		dte.VentaTercero = common.MapCommonResponseThirdPartySale(cast.GetThirdPartySale())
 	}

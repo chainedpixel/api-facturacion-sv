@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
 	"github.com/shopspring/decimal"
@@ -17,6 +18,7 @@ func (s *RetentionTotalStrategy) Validate() *dte_errors.DTEError {
 
 	validations := []func() *dte_errors.DTEError{
 		s.validateTotalAmounts,
+		s.validateTotalIVA,
 	}
 
 	for _, validate := range validations {
@@ -53,4 +55,24 @@ func (s *RetentionTotalStrategy) validateTotalAmounts() *dte_errors.DTEError {
 func (s *RetentionTotalStrategy) compareTotalsWithTolerance(expected, actual decimal.Decimal, tolerance float64) bool {
 	diff := expected.Sub(actual).Abs()
 	return diff.LessThanOrEqual(decimal.NewFromFloat(tolerance))
+}
+
+// validateTotalIVA valida el IVA 13% del CRE (Anexo IV, campo 157) con retention_models.ExpectedTotalIVA
+func (s *RetentionTotalStrategy) validateTotalIVA() *dte_errors.DTEError {
+	code := ""
+	allElectronic := len(s.Document.RetentionItems) > 0
+	for _, item := range s.Document.RetentionItems {
+		code = item.ReceptionCodeMH.GetValue()
+		if item.DocumentType.GetValue() != constants.ElectronicDocument {
+			allElectronic = false
+		}
+	}
+	expected := decimal.NewFromFloat(retention_models.ExpectedTotalIVA(
+		s.Document.RetentionSummary.TotalSubjectRetention.GetValue(), code, allElectronic))
+	actual := s.Document.RetentionSummary.TotalIVA.GetValueAsDecimal()
+
+	if !s.compareTotalsWithTolerance(expected, actual, 0.01) {
+		return dte_errors.NewDTEErrorSimple("InvalidTotalIVA", actual.InexactFloat64(), expected.InexactFloat64())
+	}
+	return nil
 }

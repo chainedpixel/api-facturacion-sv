@@ -97,25 +97,8 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			actualSubTotal.InexactFloat64())
 	}
 
-	if taxedAmount.GreaterThan(decimal.Zero) {
-		if len(s.Document.InvoiceSummary.TotalTaxes) > 0 {
-			hasIVA := false
-			for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
-				if tax.GetCode() == constants.TaxIVA {
-					hasIVA = true
-					break
-				}
-			}
-
-			if !hasIVA {
-				logs.Error("Missing IVA tax in TotalTaxes", map[string]interface{}{
-					"taxedAmount": taxedAmount,
-					"totalTaxes":  len(s.Document.InvoiceSummary.TotalTaxes),
-				})
-				return dte_errors.NewDTEErrorSimple("MissingIVAInTaxes")
-			}
-		}
-	}
+	// En FE el IVA va incluido en el precio: los tributos del resumen son solo los adicionales
+	// (secciones 1 y 3 de CAT-015, excepto 20 y C3), por lo que no se exige el tributo 20
 
 	// Normativa v2.0 (Anexo VI): se elimino "Retencion renta" para FE
 	if s.Document.InvoiceSummary.IncomeRetention.GetValue() != 0 {
@@ -322,6 +305,28 @@ func (s *InvoiceTaxStrategy) validateSummaryTaxes() *dte_errors.DTEError {
 			"summaryIVA":  summaryIVA.InexactFloat64(),
 		})
 		return dte_errors.NewDTEErrorSimple("MissingIVAForTaxedAmount")
+	}
+
+	// Anexo IV, campo 157 (FE): totalIva = suma de ivaItem - IVA del descuento global a ventas gravadas.
+	// El precio de la FE incluye IVA, por lo que el IVA del descuento es descuGravada / 1.13 x 13%.
+	var sumItemsIVA decimal.Decimal
+	for _, item := range s.Document.InvoiceItems {
+		sumItemsIVA = sumItemsIVA.Add(decimal.NewFromFloat(item.IVAItem.GetValue()))
+	}
+	taxedDiscountIVA := decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue()).
+		Div(decimal.NewFromFloat(1.13)).
+		Mul(decimal.NewFromFloat(constants.TaxIvaAmount))
+	expectedIVA := sumItemsIVA.Sub(taxedDiscountIVA)
+
+	if !strategy.WithinTolerance(expectedIVA, summaryIVA) {
+		logs.Error("Invalid total IVA", map[string]interface{}{
+			"expected":         expectedIVA,
+			"declared":         summaryIVA,
+			"sumItemsIVA":      sumItemsIVA,
+			"taxedDiscountIVA": taxedDiscountIVA,
+		})
+		return dte_errors.NewDTEErrorSimple("InvalidTotalIVA",
+			summaryIVA.InexactFloat64(), expectedIVA.InexactFloat64())
 	}
 
 	return nil

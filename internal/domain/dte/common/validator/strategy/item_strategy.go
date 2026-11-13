@@ -59,11 +59,12 @@ func (s *ItemValidationStrategy) validateItem(item interfaces.Item) *dte_errors.
 		return dte_errors.NewDTEErrorSimple("InvalidItemType", itemType)
 	}
 
-	if len(item.GetDescription()) == 0 || len(item.GetDescription()) > 1000 {
+	// Normativa v2.0 (Anexo VI): se amplio la longitud del campo Descripcion a 1500 caracteres
+	if len(item.GetDescription()) == 0 || len(item.GetDescription()) > 1500 {
 		logs.Error("Invalid description length", map[string]interface{}{
 			"length": len(item.GetDescription()),
 		})
-		return dte_errors.NewDTEErrorSimple("InvalidLength", "Item description", "1-1000", item.GetDescription())
+		return dte_errors.NewDTEErrorSimple("InvalidLength", "Item description", "1-1500", item.GetDescription())
 	}
 
 	if item.GetUnitMeasure() < 1 || item.GetUnitMeasure() > 99 {

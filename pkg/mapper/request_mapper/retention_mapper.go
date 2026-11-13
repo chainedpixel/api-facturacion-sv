@@ -39,6 +39,12 @@ func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Items")
 	}
 
+	// Hacienda no permite codigos de retencion distintos dentro de un mismo CRE
+	retentionCode, err := retention.SingleRetentionCode(req.Items)
+	if err != nil {
+		return nil, err
+	}
+
 	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 2, constants.ComprobanteRetencionElectronico)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Identification")
@@ -53,7 +59,7 @@ func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Receiver")
 	}
 
-	summary, err := retention.MapRetentionSummary(req.Summary)
+	summary, err := retention.MapRetentionSummary(req.Summary, retentionCode, retention.AllElectronic(req.Items))
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Summary")
 	}

@@ -302,8 +302,11 @@ func TestMapToRetentionData(t *testing.T) {
 		{
 			name: "Item with valid retention code 22 (IVA 1%)",
 			req: func() *structs.CreateRetentionRequest {
+				// Un CRE admite un solo codigo de retencion: se aplica a todos los items
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Items[0].RetentionCode = "22"
+				for i := range req.Items {
+					req.Items[i].RetentionCode = "22"
+				}
 				return req
 			},
 			wantErr: false,
@@ -321,7 +324,9 @@ func TestMapToRetentionData(t *testing.T) {
 			name: "Item with valid retention code C9 (Otros casos)",
 			req: func() *structs.CreateRetentionRequest {
 				req := fixtures.CreatePhysicalDocumentsRetentionRequest()
-				req.Items[0].RetentionCode = "C9"
+				for i := range req.Items {
+					req.Items[i].RetentionCode = "C9"
+				}
 				return req
 			},
 			wantErr: false,

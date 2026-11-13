@@ -5,6 +5,7 @@ import (
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	commonStrategy "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/debit_note_models"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 )
@@ -227,7 +228,6 @@ func (s *DebitNoteTaxStrategy) validatePerception() *dte_errors.DTEError {
 }
 
 func (s *DebitNoteTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
-	totalOperation := decimal.NewFromFloat(s.Document.DebitSummary.TotalOperation.GetValue())
 	taxedAmount := decimal.NewFromFloat(s.Document.DebitSummary.TotalTaxed.GetValue())
 
 	expectedSubTotal := decimal.NewFromFloat(s.Document.DebitSummary.TotalTaxed.GetValue()).
@@ -272,45 +272,15 @@ func (s *DebitNoteTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		}
 	}
 
-	expectedTotalOperation := actualSubTotal
-
-	if taxedAmount.GreaterThan(decimal.Zero) {
-		perception := decimal.NewFromFloat(s.Document.DebitSummary.IVAPerception.GetValue())
-		expectedTotalOperation = expectedTotalOperation.Add(perception)
-
-		ivaRetention := decimal.NewFromFloat(s.Document.DebitSummary.IVARetention.GetValue())
-		expectedTotalOperation = expectedTotalOperation.Sub(ivaRetention)
-
-		incomeRetention := decimal.NewFromFloat(s.Document.DebitSummary.IncomeRetention.GetValue())
-		expectedTotalOperation = expectedTotalOperation.Sub(incomeRetention)
-	}
-
-	for _, tax := range s.Document.DebitSummary.TotalTaxes {
-		expectedTotalOperation = expectedTotalOperation.Add(decimal.NewFromFloat(tax.GetValue()))
-	}
-
-	totalNonTaxed := decimal.NewFromFloat(s.Document.DebitSummary.TotalNonTaxed.GetValue())
-	if totalNonTaxed.GreaterThan(decimal.Zero) {
-		expectedTotalOperation = expectedTotalOperation.Add(totalNonTaxed)
-	}
-
-	actualTotalToPay := decimal.NewFromFloat(s.Document.DebitSummary.TotalToPay.GetValue())
-
-	diff = expectedTotalOperation.Sub(actualTotalToPay).Abs()
-	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
-		logs.Error("Invalid total to pay", map[string]interface{}{
-			"calculated":      expectedTotalOperation,
-			"declared":        actualTotalToPay,
-			"difference":      diff,
-			"operation":       totalOperation,
-			"perception":      s.Document.DebitSummary.IVAPerception.GetValue(),
-			"ivaRetention":    s.Document.DebitSummary.IVARetention.GetValue(),
-			"incomeRetention": s.Document.DebitSummary.IncomeRetention.GetValue(),
-		})
-		return dte_errors.NewDTEErrorSimple("InvalidTotalToPayCalculation",
-			actualTotalToPay.InexactFloat64(),
-			expectedTotalOperation.InexactFloat64())
-	}
-
-	return nil
+	// Anexo IV, campos 150 y 153 (NCE/NDE): regla compartida
+	return commonStrategy.ValidateAdjustmentTotals(commonStrategy.AdjustmentTotals{
+		SubTotalSales:   s.Document.DebitSummary.SubTotalSales.GetValue(),
+		Taxes:           s.Document.DebitSummary.TotalTaxes,
+		IVAPerception:   s.Document.DebitSummary.IVAPerception.GetValue(),
+		IVARetention:    s.Document.DebitSummary.IVARetention.GetValue(),
+		IncomeRetention: s.Document.DebitSummary.IncomeRetention.GetValue(),
+		TotalNonTaxed:   s.Document.DebitSummary.TotalNonTaxed.GetValue(),
+		TotalOperation:  s.Document.DebitSummary.TotalOperation.GetValue(),
+		TotalToPay:      s.Document.DebitSummary.TotalToPay.GetValue(),
+	})
 }

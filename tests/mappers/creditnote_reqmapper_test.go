@@ -158,14 +158,14 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 		{
-			name: "CreditNote without commercial name",
+			// Anexo IV, campo 45: el nombre comercial del receptor es opcional
+			name: "CreditNote without commercial name is allowed",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.Receiver.CommercialName = nil
 				return req
 			},
-			wantErr:   true,
-			errorCode: "RequiredField",
+			wantErr: false,
 		},
 		{
 			name: "CreditNote with invalid NIT format",

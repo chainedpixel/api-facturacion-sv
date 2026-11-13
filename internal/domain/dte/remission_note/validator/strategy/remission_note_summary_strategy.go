@@ -2,6 +2,8 @@ package strategy
 
 import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	commonStrategy "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/remission_note_models"
 )
 
@@ -102,15 +104,12 @@ func (s *RemissionNoteSummaryStrategy) validateSubtotalCalculation() *dte_errors
 		return nil
 	}
 
-	subtotal := *s.Document.Summary.GetSubtotal()
-	totalAmount := *s.Document.Summary.GetTotalAmount()
-
-	tolerance := 0.01
-	if abs(subtotal-totalAmount) > tolerance {
-		return dte_errors.NewDTEErrorSimple("InvalidTotalAmount", subtotal, totalAmount)
+	// Anexo IV, campo 150 (NRE): montoTotalOperacion = subTotal + tributos del resumen
+	var taxes []interfaces.Tax
+	if s.Document.Summary.Summary != nil {
+		taxes = s.Document.Summary.Summary.GetTotalTaxes()
 	}
-
-	return nil
+	return commonStrategy.ValidateTotalOperation(*s.Document.Summary.GetSubtotal(), taxes, *s.Document.Summary.GetTotalAmount())
 }
 
 // abs returns the absolute value of a float64

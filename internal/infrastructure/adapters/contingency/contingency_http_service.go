@@ -12,6 +12,7 @@ import (
 
 	"github.com/chainedpixel/ordo-factus/config"
 	haciendaPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
 	authPorts "github.com/chainedpixel/ordo-factus/internal/domain/ports"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
@@ -60,24 +61,43 @@ func (s *contingencyHTTPService) SignAndSend(
 	event *models.ContingencyEvent,
 	nit string,
 	token string,
-) (isDuplicate bool, err error) {
+) (isDuplicate bool, evidence *dte.TransmissionEvidence, err error) {
 	haciendaToken, err := s.getHaciendaToken(ctx, token)
 	if err != nil {
-		return false, shared_error.NewGeneralServiceError("contingencyHTTPService", "SignAndSend", "failed to get hacienda token", err)
+		return false, nil, shared_error.NewGeneralServiceError("contingencyHTTPService", "SignAndSend", "failed to get hacienda token", err)
 	}
 
 	signedDoc, err := s.signEvent(ctx, event, nit)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
 	resp, err := s.sendRequest(ctx, nit, signedDoc, haciendaToken)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	defer resp.Body.Close()
 
-	return s.handleResponse(resp)
+	isDuplicate, responseBody, err := s.handleResponse(resp)
+	return isDuplicate, buildEventEvidence(signedDoc, responseBody), err
+}
+
+// buildEventEvidence arma la evidencia del evento de contingencia: JWS transmitido, sello, fecha y respuesta
+func buildEventEvidence(signedDoc string, responseBody map[string]interface{}) *dte.TransmissionEvidence {
+	evidence := &dte.TransmissionEvidence{SignedDocument: signedDoc}
+	if responseBody == nil {
+		return evidence
+	}
+	if stamp, ok := responseBody["selloRecibido"].(string); ok && stamp != "" {
+		evidence.ReceptionStamp = &stamp
+	}
+	if date, ok := responseBody["fechaHora"].(string); ok {
+		evidence.ProcessingDate = date
+	}
+	if raw, err := json.Marshal(responseBody); err == nil {
+		evidence.HaciendaResponse = string(raw)
+	}
+	return evidence
 }
 
 func (s *contingencyHTTPService) getHaciendaToken(ctx context.Context, token string) (string, error) {
@@ -136,13 +156,12 @@ func (s *contingencyHTTPService) sendRequest(ctx context.Context, nit, signedDoc
 	return resp, nil
 }
 
-func (s *contingencyHTTPService) handleResponse(resp *http.Response) (isDuplicate bool, err error) {
-	var responseBody map[string]interface{}
+func (s *contingencyHTTPService) handleResponse(resp *http.Response) (isDuplicate bool, responseBody map[string]interface{}, err error) {
 	if decodeErr := json.NewDecoder(resp.Body).Decode(&responseBody); decodeErr != nil {
 		if decodeErr == io.EOF {
 			logs.Warn("Contingency event response is empty")
 		} else {
-			return false, shared_error.NewGeneralServiceError("contingencyHTTPService", "handleResponse", "failed to decode response body", decodeErr)
+			return false, nil, shared_error.NewGeneralServiceError("contingencyHTTPService", "handleResponse", "failed to decode response body", decodeErr)
 		}
 	}
 
@@ -152,10 +171,12 @@ func (s *contingencyHTTPService) handleResponse(resp *http.Response) (isDuplicat
 	})
 
 	if resp.StatusCode != http.StatusOK {
-		return s.handleNonOKResponse(responseBody)
+		isDuplicate, err = s.handleNonOKResponse(responseBody)
+		return isDuplicate, responseBody, err
 	}
 
-	return s.handleOKResponseBody(responseBody)
+	isDuplicate, err = s.handleOKResponseBody(responseBody)
+	return isDuplicate, responseBody, err
 }
 
 func (s *contingencyHTTPService) handleNonOKResponse(responseBody map[string]interface{}) (bool, error) {

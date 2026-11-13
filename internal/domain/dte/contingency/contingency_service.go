@@ -49,7 +49,7 @@ func NewContingencyManager(
 		contingencyEvents: contingencyEvents,
 		timeProvider:      timeProvider,
 		docSvc:            newContingencyDocumentSvc(dteManager, repo, sequentialManager),
-		txSvc:             newContingencyTransmissionSvc(authManager, haciendaAuth, cache, tokenService, signer, batchTransmitter, cfg),
+		txSvc:             newContingencyTransmissionSvc(authManager, haciendaAuth, cache, tokenService, signer, batchTransmitter, dteManager, cfg),
 	}
 }
 
@@ -177,8 +177,9 @@ func (s *ContingencyService) processSystemDocumentsByType(ctx context.Context, s
 
 func (s *ContingencyService) verifyAndUpdateExistingDocuments(ctx context.Context, docs []dte.ContingencyDocument) {
 	type verifiedEntry struct {
-		contingencyID string
-		stamp         string
+		contingencyID  string
+		stamp          string
+		processingDate string
 	}
 	byStatus := make(map[string][]verifiedEntry)
 
@@ -209,13 +210,15 @@ func (s *ContingencyService) verifyAndUpdateExistingDocuments(ctx context.Contex
 		internalStatus := mapHaciendaStatusToInternal(statusResult.Status)
 
 		updatedDoc := dte.DTEDetails{
-			ID:             doc.Document.ID,
-			DTEType:        doc.Document.DTEType,
-			ControlNumber:  doc.Document.ControlNumber,
-			ReceptionStamp: statusResult.ReceptionStamp,
-			Transmission:   constants.TransmissionContingency,
-			Status:         internalStatus,
-			JSONData:       doc.Document.JSONData,
+			ID:               doc.Document.ID,
+			DTEType:          doc.Document.DTEType,
+			ControlNumber:    doc.Document.ControlNumber,
+			ReceptionStamp:   statusResult.ReceptionStamp,
+			Transmission:     constants.TransmissionContingency,
+			Status:           internalStatus,
+			JSONData:         doc.Document.JSONData,
+			ProcessingDate:   statusResult.ProcessingDate,
+			HaciendaResponse: statusResult.HaciendaResponse,
 		}
 
 		if err = s.docSvc.updateStatus(ctx, doc.BranchID, updatedDoc); err != nil {
@@ -232,8 +235,9 @@ func (s *ContingencyService) verifyAndUpdateExistingDocuments(ctx context.Contex
 			stamp = *statusResult.ReceptionStamp
 		}
 		byStatus[internalStatus] = append(byStatus[internalStatus], verifiedEntry{
-			contingencyID: doc.ID,
-			stamp:         stamp,
+			contingencyID:  doc.ID,
+			stamp:          stamp,
+			processingDate: statusResult.ProcessingDate,
 		})
 
 		logs.Info("Document updated successfully with Hacienda status", map[string]interface{}{
@@ -245,12 +249,12 @@ func (s *ContingencyService) verifyAndUpdateExistingDocuments(ctx context.Contex
 
 	for status, entries := range byStatus {
 		ids := make([]string, len(entries))
-		stamps := make(map[string]string, len(entries))
+		results := make(map[string]dte.ReceptionResult, len(entries))
 		for i, e := range entries {
 			ids[i] = e.contingencyID
-			stamps[e.contingencyID] = e.stamp
+			results[e.contingencyID] = dte.ReceptionResult{ReceptionStamp: e.stamp, ProcessingDate: e.processingDate}
 		}
-		s.docSvc.markContingencyBatchVerified(ctx, ids, stamps, status)
+		s.docSvc.markContingencyBatchVerified(ctx, ids, results, status)
 	}
 }
 

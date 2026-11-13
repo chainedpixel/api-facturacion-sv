@@ -4,6 +4,7 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/remission_note_models"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
@@ -155,6 +156,23 @@ func mapBaseSummaryFields(summary *structs.RemissionNoteSummaryRequest, baseSumm
 	}
 	if summary.Observations != nil {
 		if err := baseSummary.SetObservations(summary.Observations); err != nil {
+			return err
+		}
+	}
+
+	// Tributos del resumen (campos 136-138): se reutiliza el mapper comun, que exige 2 decimales
+	if len(summary.Tributes) > 0 {
+		tributes := make([]structs.TaxRequest, 0, len(summary.Tributes))
+		for _, tribute := range summary.Tributes {
+			if tribute != nil {
+				tributes = append(tributes, *tribute)
+			}
+		}
+		taxes, err := common.MapCommonRequestSummaryTaxes(tributes)
+		if err != nil {
+			return err
+		}
+		if err := baseSummary.SetTotalTaxes(taxes); err != nil {
 			return err
 		}
 	}

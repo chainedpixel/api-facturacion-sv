@@ -8,7 +8,7 @@ import (
 
 // DTERepositoryPort is an interface that defines the methods of a DTE repository.
 type DTERepositoryPort interface {
-	Create(ctx context.Context, document interface{}, transmission, status string, receptionStamp *string) error
+	Create(ctx context.Context, document interface{}, transmission, status string, evidence *dte.TransmissionEvidence) error
 	Update(ctx context.Context, branchID uint, document dte.DTEDetails) error
 	GetByGenerationCode(ctx context.Context, branchID uint, id string) (*dte.DTEDocument, error)
 	GetDTEBalanceControl(ctx context.Context, branchID uint, id string) (*dte.BalanceControl, error)

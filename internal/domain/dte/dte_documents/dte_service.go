@@ -9,32 +9,88 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/debit_note_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 type DTEService struct {
-	repo DTERepositoryPort
+	repo      DTERepositoryPort
+	eventRepo DTEEventRepositoryPort
 }
 
-func NewDTEService(repo DTERepositoryPort) DTEManager {
+func NewDTEService(repo DTERepositoryPort, eventRepo DTEEventRepositoryPort) DTEManager {
 	return &DTEService{
-		repo: repo,
+		repo:      repo,
+		eventRepo: eventRepo,
 	}
 }
 
-func (m *DTEService) Create(ctx context.Context, document interface{}, transmission, status string, receptionStamp *string) error {
+// RegisterEvent guarda un evento transmitido a Hacienda con su evidencia (Normativa v2.0, regla 11)
+func (m *DTEService) RegisterEvent(ctx context.Context, event *dte.DTEEvent) error {
+	if err := m.eventRepo.Create(ctx, event); err != nil {
+		return shared_error.NewFormattedGeneralServiceWithError("DTEService", "RegisterEvent", err, "FailedToRegisterEvent")
+	}
+	return nil
+}
+
+// GetArchive devuelve el Archivo DTE de un documento: estructura firmada + firmaElectronica + selloRecibido.
+// Los documentos emitidos antes de guardar el JWS no tienen Archivo DTE disponible.
+func (m *DTEService) GetArchive(ctx context.Context, branchID uint, generationCode string) (json.RawMessage, error) {
+	doc, err := m.repo.GetByGenerationCode(ctx, branchID, generationCode)
+	if err != nil {
+		return nil, shared_error.NewFormattedGeneralServiceWithError("DTEService", "GetArchive", err, "FailedToGetDTE", generationCode)
+	}
+	if doc.Details.SignedDocument == "" {
+		return nil, dte_errors.NewValidationError("ArchiveNotAvailable", generationCode)
+	}
+	return BuildArchive(doc.Details.SignedDocument, doc.Details.ReceptionStamp)
+}
+
+// GetEvents devuelve los eventos de un documento (por ejemplo su invalidacion) con la respuesta de Hacienda
+// y el Archivo DTE de cada evento, listo para entregar al receptor
+func (m *DTEService) GetEvents(ctx context.Context, branchID uint, generationCode string) ([]dte.EventArchiveResponse, error) {
+	// Se valida que el documento exista en la sucursal: un codigo inexistente responde no encontrado, no lista vacia
+	if _, err := m.GetByGenerationCode(ctx, branchID, generationCode); err != nil {
+		return nil, err
+	}
+
+	events, err := m.eventRepo.ListByRelatedDTE(ctx, branchID, generationCode)
+	if err != nil {
+		return nil, shared_error.NewFormattedGeneralServiceWithError("DTEService", "GetEvents", err, "FailedToGetEvents", generationCode)
+	}
+
+	result := make([]dte.EventArchiveResponse, 0, len(events))
+	for _, event := range events {
+		result = append(result, ToEventArchiveResponse(event))
+	}
+	return result, nil
+}
+
+// ToEventArchiveResponse arma la respuesta de un evento con su Archivo DTE (si se guardo el JWS)
+func ToEventArchiveResponse(event dte.DTEEvent) dte.EventArchiveResponse {
+	response := dte.EventArchiveResponse{DTEEvent: event}
+	if event.HaciendaResponse != "" {
+		response.HaciendaResponse = json.RawMessage(event.HaciendaResponse)
+	}
+	if event.SignedDocument != "" {
+		if archive, err := BuildArchive(event.SignedDocument, event.ReceptionStamp); err == nil {
+			response.Archive = archive
+		}
+	}
+	return response
+}
+
+// Create guarda el DTE junto con la evidencia de su transmision. Normativa v2.0 (Anexo I, regla 4.1): la
+// estructura firmada no se altera (el sello ya no se inserta en el apendice); el sello y la firma se
+// guardan aparte y se agregan como selloRecibido y firmaElectronica al armar el Archivo DTE.
+func (m *DTEService) Create(ctx context.Context, document interface{}, transmission, status string, evidence *dte.TransmissionEvidence) error {
 	if transmission != constants.TransmissionContingency {
-		if receptionStamp == nil || *receptionStamp == "" {
+		if evidence == nil || evidence.ReceptionStamp == nil || *evidence.ReceptionStamp == "" {
 			return shared_error.NewFormattedGeneralServiceError("DTEService", "CreateDTE", "MissingReceptionStamp")
 		}
-		if err := m.setReceptionStampIntoAppendix(document, receptionStamp); err != nil {
-			return shared_error.NewFormattedGeneralServiceWithError("DTEService", "CreateDTE", err, "FailedToSetReceptionStamp")
-		}
 	}
 
-	if err := m.repo.Create(ctx, document, transmission, status, receptionStamp); err != nil {
+	if err := m.repo.Create(ctx, document, transmission, status, evidence); err != nil {
 		return shared_error.NewFormattedGeneralServiceWithError("DTEService", "CreateDTE", err, "FailedToCreateDTE")
 	}
 
@@ -195,62 +251,6 @@ func (m *DTEService) GetAllDTEs(ctx context.Context, filters *dte.DTEFilters) (*
 	response.Documents = documents
 
 	return response, nil
-}
-
-func (m *DTEService) setReceptionStampIntoAppendix(document interface{}, receptionStamp *string) error {
-	dteType, err := m.determineDTEType(document)
-	if err != nil || dteType == "" {
-		return shared_error.NewGeneralServiceError("DTEService", "setReceptionStampIntoAppendix", "failed to determine DTE type", nil)
-	}
-
-	appendix := &structs.DTEApendice{
-		Campo:    "Datos del documento",
-		Etiqueta: "Sello de recepción",
-		Valor:    *receptionStamp,
-	}
-
-	switch dteType {
-	case constants.FacturaElectronica:
-		document.(*structs.InvoiceDTEResponse).Apendice =
-			append(document.(*structs.InvoiceDTEResponse).Apendice, *appendix)
-	case constants.CCFElectronico:
-		document.(*structs.CCFDTEResponse).Apendice =
-			append(document.(*structs.CCFDTEResponse).Apendice, *appendix)
-	case constants.NotaCreditoElectronica:
-		document.(*structs.CreditNoteDTEResponse).Apendice =
-			append(document.(*structs.CreditNoteDTEResponse).Apendice, *appendix)
-	case constants.NotaDebitoElectronica:
-		document.(*structs.DebitNoteDTEResponse).Apendice =
-			append(document.(*structs.DebitNoteDTEResponse).Apendice, *appendix)
-	case constants.ComprobanteRetencionElectronico:
-		document.(*structs.RetentionDTEResponse).Apendice =
-			append(document.(*structs.RetentionDTEResponse).Apendice, *appendix)
-	case constants.NotaRemisionElectronica:
-		doc := document.(*structs.MHRemissionNote)
-		doc.Appendix = append(doc.Appendix, *appendix)
-	case constants.FacturaSujetoExcluidoElectronica:
-		doc := document.(*structs.FSEDTEResponse)
-		if doc.Apendice == nil {
-			items := []structs.DTEApendice{*appendix}
-			doc.Apendice = &items
-		} else {
-			*doc.Apendice = append(*doc.Apendice, *appendix)
-		}
-	default:
-		return shared_error.NewFormattedGeneralServiceError("DTEService", "setReceptionStampIntoAppendix", "UnsupportedDTETypeForAppendix", dteType)
-	}
-
-	return nil
-}
-
-func (m *DTEService) determineDTEType(document interface{}) (string, error) {
-	dteExtracted, err := utils.ExtractAuxiliarIdentification(document)
-
-	if err != nil {
-		return "", shared_error.NewGeneralServiceError("DTEManager", "determineDTEType", "failed to extract DTE identification", err)
-	}
-
-	return dteExtracted.Identification.DTEType, nil
 }
 
 func calculateTotalPages(totalItems int64, pageSize int) int {

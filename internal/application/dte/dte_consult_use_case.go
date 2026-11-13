@@ -2,6 +2,7 @@ package dte
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -33,6 +34,18 @@ func (u *DTEConsultUseCase) GetByGenerationCode(ctx context.Context, id string) 
 	}
 
 	return dte, nil
+}
+
+// GetArchive devuelve el Archivo DTE (estructura firmada + firmaElectronica + selloRecibido) de un documento
+func (u *DTEConsultUseCase) GetArchive(ctx context.Context, id string) (json.RawMessage, error) {
+	claims := ctx.Value("claims").(*models.AuthClaims)
+	return u.dteService.GetArchive(ctx, claims.BranchID, id)
+}
+
+// GetEvents devuelve los eventos de un documento (invalidacion, etc.) con su Archivo DTE
+func (u *DTEConsultUseCase) GetEvents(ctx context.Context, id string) ([]dte.EventArchiveResponse, error) {
+	claims := ctx.Value("claims").(*models.AuthClaims)
+	return u.dteService.GetEvents(ctx, claims.BranchID, id)
 }
 
 func (u *DTEConsultUseCase) GetAllDTEs(ctx context.Context, r *http.Request) (*dte.DTEListResponse, error) {

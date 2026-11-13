@@ -2,6 +2,7 @@ package contingency
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -15,7 +16,9 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	authPorts "github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
@@ -25,6 +28,7 @@ type ContingencyEventService struct {
 	authManager  auth.AuthManager
 	repo         contingency.ContingencyRepositoryPort
 	timeProvider authPorts.TimeProvider
+	dteManager   dte_documents.DTEManager
 	tokenSvc     *contingencyTokenService
 	httpSvc      *contingencyHTTPService
 	connection   *drivers.DbConnection
@@ -40,11 +44,13 @@ func NewContingencyEventService(
 	repo contingency.ContingencyRepositoryPort,
 	timeProvider authPorts.TimeProvider,
 	connection *drivers.DbConnection,
+	dteManager dte_documents.DTEManager,
 ) *ContingencyEventService {
 	return &ContingencyEventService{
 		authManager:  authManager,
 		repo:         repo,
 		timeProvider: timeProvider,
+		dteManager:   dteManager,
 		connection:   connection,
 		tokenSvc:     newContingencyTokenService(cache, tokenService, authManager),
 		httpSvc:      newContingencyHTTPService(haciendaAuth, signer, cache),
@@ -144,6 +150,32 @@ func (s *ContingencyEventService) prepareContingencyReason(ctx context.Context, 
 	}, nil
 }
 
+// registerEvent guarda el evento de contingencia con su evidencia (JWS, sello, fecha y respuesta de Hacienda).
+// Un fallo al registrar no interrumpe la contingencia: el evento ya fue recibido por Hacienda.
+func (s *ContingencyEventService) registerEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, evidence *dte.TransmissionEvidence) {
+	if s.dteManager == nil || evidence == nil {
+		return
+	}
+	jsonData, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+	if err := s.dteManager.RegisterEvent(ctx, &dte.DTEEvent{
+		GenerationCode:   event.Identification.GenerationCode,
+		BranchID:         branchID,
+		EventType:        dte.EventContingency,
+		JSONData:         string(jsonData),
+		SignedDocument:   evidence.SignedDocument,
+		ReceptionStamp:   evidence.ReceptionStamp,
+		ProcessingDate:   evidence.ProcessingDate,
+		HaciendaResponse: evidence.HaciendaResponse,
+		Status:           constants.DocumentReceived,
+		CreatedAt:        utils.TimeNow(),
+	}); err != nil {
+		logs.Warn("Failed to register contingency event", map[string]interface{}{"error": err.Error()})
+	}
+}
+
 func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, docs []dte.ContingencyDocument) error {
 	client, err := s.authManager.GetByNIT(ctx, event.Issuer.NIT)
 	if err != nil {
@@ -155,9 +187,13 @@ func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, even
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to generate matching token", err)
 	}
 
-	isDuplicate, err := s.httpSvc.SignAndSend(ctx, event, client.NIT, token)
+	isDuplicate, evidence, err := s.httpSvc.SignAndSend(ctx, event, client.NIT, token)
 	if err != nil {
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to sign and send contingency event", err)
+	}
+
+	if !isDuplicate {
+		s.registerEvent(ctx, event, branchID, evidence)
 	}
 
 	if isDuplicate {

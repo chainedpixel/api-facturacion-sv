@@ -22,6 +22,9 @@ func NewValidatedItemCode(value string) *ItemCode {
 }
 
 func (ic *ItemCode) GetValue() string {
+	if ic == nil {
+		return ""
+	}
 	return ic.Value
 }
 

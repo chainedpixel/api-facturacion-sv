@@ -77,43 +77,43 @@ func TestDTEServiceCreate(t *testing.T) {
 	test.TestMain(t)
 
 	tests := []struct {
-		name           string
-		document       interface{}
-		transmission   string
-		status         string
-		receptionStamp *string
-		setupMock      func(*mocks.MockDTERepositoryPort)
-		wantErr        bool
-		errorCode      string
+		name         string
+		document     interface{}
+		transmission string
+		status       string
+		evidence     *dte.TransmissionEvidence
+		setupMock    func(*mocks.MockDTERepositoryPort)
+		wantErr      bool
+		errorCode    string
 	}{
 		{
-			name:           "Valid DTE creation without contingency",
-			document:       createMockInvoiceResponse(),
-			transmission:   constants.TransmissionNormal,
-			status:         constants.DocumentReceived,
-			receptionStamp: utils.ToStringPointer("TEST-STAMP-123"),
+			name:         "Valid DTE creation without contingency",
+			document:     createMockInvoiceResponse(),
+			transmission: constants.TransmissionNormal,
+			status:       constants.DocumentReceived,
+			evidence:     &dte.TransmissionEvidence{ReceptionStamp: utils.ToStringPointer("TEST-STAMP-123"), SignedDocument: "header.payload.signature"},
 			setupMock: func(mock *mocks.MockDTERepositoryPort) {
 				mock.EXPECT().Create(gomock.Any(), gomock.Any(), constants.TransmissionNormal, constants.DocumentReceived, gomock.Any()).Return(nil)
 			},
 			wantErr: false,
 		},
 		{
-			name:           "Valid DTE creation with contingency",
-			document:       createMockInvoiceResponse(),
-			transmission:   constants.TransmissionContingency,
-			status:         constants.DocumentPending,
-			receptionStamp: nil,
+			name:         "Valid DTE creation with contingency",
+			document:     createMockInvoiceResponse(),
+			transmission: constants.TransmissionContingency,
+			status:       constants.DocumentPending,
+			evidence:     nil,
 			setupMock: func(mock *mocks.MockDTERepositoryPort) {
 				mock.EXPECT().Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, nil).Return(nil)
 			},
 			wantErr: false,
 		},
 		{
-			name:           "Failed to create DTE in database",
-			document:       createMockInvoiceResponse(),
-			transmission:   constants.TransmissionNormal,
-			status:         constants.TransmissionNormal,
-			receptionStamp: utils.ToStringPointer("TEST-STAMP-123"),
+			name:         "Failed to create DTE in database",
+			document:     createMockInvoiceResponse(),
+			transmission: constants.TransmissionNormal,
+			status:       constants.TransmissionNormal,
+			evidence:     &dte.TransmissionEvidence{ReceptionStamp: utils.ToStringPointer("TEST-STAMP-123"), SignedDocument: "header.payload.signature"},
 			setupMock: func(mock *mocks.MockDTERepositoryPort) {
 				mock.EXPECT().Create(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(shared_error.NewFormattedGeneralServiceError("Repository", "Create", "FailedToCreateDTE"))
@@ -130,9 +130,9 @@ func TestDTEServiceCreate(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
-			err := service.Create(context.Background(), tt.document, tt.transmission, tt.status, tt.receptionStamp)
+			err := service.Create(context.Background(), tt.document, tt.transmission, tt.status, tt.evidence)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -201,7 +201,7 @@ func TestDTEServiceGenerateBalanceTransaction(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
 			err := service.GenerateBalanceTransaction(context.Background(), tt.branchID, tt.transactionType, tt.originalDTE, tt.adjustmentDTE, tt.document)
 
@@ -356,7 +356,7 @@ func TestDTEServiceValidateForCreditNote(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
 			err = service.ValidateForCreditNote(context.Background(), tt.branchID, tt.originalDTE, document)
 
@@ -418,7 +418,7 @@ func TestDTEServiceUpdateDTE(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
 			err := service.UpdateDTE(context.Background(), tt.branchID, tt.document)
 
@@ -476,7 +476,7 @@ func TestDTEServiceVerifyStatus(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
 			status, err := service.VerifyStatus(context.Background(), tt.branchID, tt.id)
 
@@ -544,7 +544,7 @@ func TestDTEServiceGetByGenerationCode(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
 			result, err := service.GetByGenerationCode(context.Background(), tt.branchID, tt.generationCode)
 
@@ -627,7 +627,7 @@ func TestDTEServiceGetByGenerationCodeConsult(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
 			result, err := service.GetByGenerationCodeConsult(context.Background(), tt.branchID, tt.generationCode)
 
@@ -743,7 +743,7 @@ func TestDTEServiceGetAllDTEs(t *testing.T) {
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			tt.setupMock(mockRepo)
 
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
 			result, err := service.GetAllDTEs(context.Background(), tt.filters)
 
@@ -790,9 +790,10 @@ func TestDTEServiceCreate_RejectsMissingReceptionStamp(t *testing.T) {
 			defer ctrl.Finish()
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			// expect zero calls to Create — that's the whole point of the regression test
-			service := dte_documents.NewDTEService(mockRepo)
+			service := dte_documents.NewDTEService(mockRepo, nil)
 
-			err := service.Create(context.Background(), createMockInvoiceResponse(), tc.transmission, constants.DocumentReceived, tc.receptionStamp)
+			err := service.Create(context.Background(), createMockInvoiceResponse(), tc.transmission, constants.DocumentReceived,
+				&dte.TransmissionEvidence{ReceptionStamp: tc.receptionStamp})
 
 			assert.Error(t, err)
 			test.AssertErrorCode(t, err, "MissingReceptionStamp")
@@ -800,12 +801,10 @@ func TestDTEServiceCreate_RejectsMissingReceptionStamp(t *testing.T) {
 	}
 }
 
-// TestDTEServiceCreate_AppendsReceptionStampForAllSupportedTypes guards the
-// regression where setReceptionStampIntoAppendix only handled four DTE types,
-// silently skipping the appendix injection for nota de débito (06), FSE (14)
-// and remisión (04). After the fix, all supported types must successfully run
-// through Create and reach the repository.
-func TestDTEServiceCreate_AppendsReceptionStampForAllSupportedTypes(t *testing.T) {
+// TestDTEServiceCreate_DoesNotAlterSignedStructure verifica la regla 4.1 del Anexo I (Normativa v2.0): el sello
+// ya no se inserta en el apendice; la estructura firmada se guarda integra y la evidencia (sello y JWS) llega
+// al repositorio por separado para armar el Archivo DTE.
+func TestDTEServiceCreate_DoesNotAlterSignedStructure(t *testing.T) {
 	test.TestMain(t)
 
 	supportedTypes := []string{
@@ -824,17 +823,22 @@ func TestDTEServiceCreate_AppendsReceptionStampForAllSupportedTypes(t *testing.T
 			if doc == nil {
 				t.Fatalf("no response struct registered for DTE type %s", dteType)
 			}
+			before, _ := json.Marshal(doc)
+			evidence := &dte.TransmissionEvidence{ReceptionStamp: utils.ToStringPointer("STAMP"), SignedDocument: "h.p.s"}
 
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
 			mockRepo.EXPECT().
-				Create(gomock.Any(), gomock.Any(), constants.TransmissionNormal, constants.DocumentReceived, gomock.Any()).
+				Create(gomock.Any(), gomock.Any(), constants.TransmissionNormal, constants.DocumentReceived, evidence).
 				Return(nil)
 
-			service := dte_documents.NewDTEService(mockRepo)
-			err := service.Create(context.Background(), doc, constants.TransmissionNormal, constants.DocumentReceived, utils.ToStringPointer("STAMP"))
+			service := dte_documents.NewDTEService(mockRepo, nil)
+			err := service.Create(context.Background(), doc, constants.TransmissionNormal, constants.DocumentReceived, evidence)
 			assert.NoError(t, err, "Create should accept DTE type %s", dteType)
+
+			after, _ := json.Marshal(doc)
+			assert.JSONEq(t, string(before), string(after), "la estructura del DTE %s no debe modificarse", dteType)
 		})
 	}
 }

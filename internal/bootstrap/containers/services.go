@@ -96,7 +96,7 @@ func (c *ServicesContainer) Initialize() error {
 	c.signerManager = signer.NewDTESigner(c.repos.AuthRepo())
 	c.haciendaAuthManager = signing.NewHaciendaAuthService(c.cacheManager, c.authManager)
 	c.transmitterManager = adapterTransmitter.NewMHTransmitter(c.haciendaAuthManager, c.repos.FailedSequentialNumberRepo())
-	c.dteManager = dte_documents.NewDTEService(c.repos.DTERepo())
+	c.dteManager = dte_documents.NewDTEService(c.repos.DTERepo(), c.repos.DTEEventRepo())
 	c.sequentialManager = dte_documents.NewSequentialNumberService(c.repos.SequentialNumberRepo(), c.repos.AuthRepo(), c.repos.ReservedSequenceRepo())
 	c.invoiceManager = invoice.NewInvoiceService(c.sequentialManager)
 	c.ccfManager = ccf.NewCCFService(c.sequentialManager)
@@ -136,6 +136,7 @@ func (c *ServicesContainer) Initialize() error {
 		c.repos.ContingencyRepo(),
 		&transmitter.RealTimeProvider{},
 		c.repos.connection,
+		c.dteManager,
 	)
 
 	c.contingencyManager = contingency.NewContingencyManager(

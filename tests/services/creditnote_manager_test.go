@@ -252,18 +252,17 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
+				// Campo 153 (NCE): totalPagar = montoTotalOperacion + IVA percibido - IVA retenido.
+				// La retencion de renta se elimino para NCE en la v2.0.
 				taxedAmount := creditNote.CreditSummary.Summary.GetTotalTaxed()
-				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)
-				incomeRetention := financial.NewValidatedAmount(taxedAmount * 0.05)
+				ivaRetention := financial.NewValidatedAmount(decimal.NewFromFloat(taxedAmount * 0.01).Round(2).InexactFloat64())
 
 				creditNote.CreditSummary.IVARetention = *ivaRetention
-				creditNote.CreditSummary.IncomeRetention = *incomeRetention
 
 				totalOperation := creditNote.CreditSummary.Summary.GetTotalOperation()
-				newTotalToPay := totalOperation - ivaRetention.GetValue() - incomeRetention.GetValue()
+				newTotalToPay := totalOperation - ivaRetention.GetValue()
 				newTotalToPay = decimal.NewFromFloat(newTotalToPay).Round(2).InexactFloat64()
 				creditNote.CreditSummary.Summary.SetTotalToPay(newTotalToPay)
-				creditNote.CreditSummary.Summary.SetTotalOperation(newTotalToPay)
 
 				payments := creditNote.CreditSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {

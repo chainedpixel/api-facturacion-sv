@@ -110,7 +110,7 @@ func (s *creditNoteService) validateRelatedDocs(ctx context.Context, data *credi
 			return err
 		}
 
-		if data.Receiver.NIT.GetValue() != extractor.Receiver.NIT {
+		if data.Receiver.NIT.GetValue() != extractor.ReceiverID() {
 			return shared_error.NewFormattedGeneralServiceError(
 				"CreditNoteService",
 				"validateRelatedDocs",

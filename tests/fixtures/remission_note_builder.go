@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
@@ -179,7 +180,15 @@ func (b *RemissionNoteBuilder) AddSummary() *RemissionNoteBuilder {
 		b.setError(err)
 		return b
 	}
-	totalAmount, err := financial.NewAmount(baseSummary.GetSubTotal())
+	// Campo 150 (NRE): montoTotalOperacion = subTotal + tributos del resumen
+	totalWithTaxes := baseSummary.GetSubTotal()
+	for _, tax := range baseSummary.GetTotalTaxes() {
+		totalWithTaxes += tax.GetValue()
+	}
+	totalWithTaxes = math.Round(totalWithTaxes*100) / 100
+	b.setError(baseSummary.SetTotalOperation(totalWithTaxes))
+	b.setError(baseSummary.SetTotalToPay(totalWithTaxes))
+	totalAmount, err := financial.NewAmount(totalWithTaxes)
 	if err != nil {
 		b.setError(err)
 		return b
