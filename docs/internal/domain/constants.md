@@ -24,6 +24,8 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `FacturaSujetoExcluidoElectronica` | `14` | FSE | Compra a sujeto excluido |
 | `ComprobanteDonacionElectronico` | `15` | Donación | Comprobante de donación |
 
+`ValidDTETypes` agrupa los once tipos.
+
 ---
 
 ## Estados de Documento
@@ -35,6 +37,8 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `DocumentInvalid` | `"INVALIDATED"` | Invalidado después de ser recibido |
 | `DocumentPending` | `"PENDING"` | Pendiente de transmisión (contingencia) |
 | `DocumentExpired` | `"EXPIRED"` | Contingencia no transmitida dentro de 72 horas desde el sello del evento |
+
+`ValidReceiverDocumentStates` agrupa los cinco estados y se usa para validar el filtro de estado en las consultas.
 
 ### Transiciones de Estado
 
@@ -48,8 +52,11 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 [Nuevo] ──contingencia──→ PENDING
                           │
                           ├──retransmisión exitosa──→ RECEIVED
-                          └──retransmisión fallida──→ REJECTED
+                          ├──retransmisión fallida──→ REJECTED
+                          └──ventana de 72 horas vencida──→ EXPIRED
 ```
+
+Ver [contingency.md](dte/contingency.md) para el detalle de la ventana de 72 horas.
 
 ---
 
@@ -60,6 +67,10 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `TransmissionNormal` | `"NORMAL"` | Transmisión directa a Hacienda |
 | `TransmissionContingency` | `"CONTINGENCY"` | Almacenamiento local por falla |
 
+`ValidTransmissionTypes` agrupa ambos valores y se usa para validar el filtro de transmisión en las consultas.
+
+Los valores numéricos del catálogo de tipo de transmisión del DTE (`TransmisionNormal = 1`, `TransmisionContingencia = 2`, lista `AllowedTransmisionTypes`) se definen en `transsmision_type.go`.
+
 ---
 
 ## Ambientes
@@ -68,6 +79,8 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 |---|---|---|
 | `Testing` | `"00"` | Ambiente de pruebas |
 | `Production` | `"01"` | Ambiente de producción |
+
+Lista permitida: `AllowedAmbientValues`.
 
 ---
 
@@ -78,7 +91,7 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `ModeloFacturacionPrevio` | `1` | Facturación en tiempo real (transmisión normal) |
 | `ModeloFacturacionDiferido` | `2` | Facturación diferida (contingencia) |
 
-**Regla:** El modelo debe ser consistente con el tipo de transmisión.
+**Regla:** El modelo debe ser consistente con el tipo de transmisión (`model_type_strategy.go`). Al transmitir en contingencia, `pkg/shared/utils/updates.go` asigna `ModeloFacturacionDiferido` al documento. Lista permitida: `AllowedModeloFacturacion`.
 
 ---
 
@@ -89,6 +102,8 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `Cash` | `1` | Operación al contado |
 | `Credit` | `2` | Operación a crédito |
 | `Other` | `3` | Otra condición |
+
+Lista permitida: `ValidPaymentConditions`.
 
 ---
 
@@ -101,6 +116,8 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `CarnetResidente` | `"02"` | Carnet de Residente |
 | `Pasaporte` | `"03"` | Pasaporte |
 | `OtroDocumento` | `"37"` | Otro tipo de documento |
+
+La lista permitida es `ValidReceiverDTETypes`; también se usa para el tipo de documento del responsable y del solicitante en la invalidación.
 
 ---
 
@@ -133,19 +150,23 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `AplicaARete` | `"14"` | Aplica a retención |
 | `NoAplica` | `"99"` | No aplica |
 
+Lista permitida: `AllowedPaymentTypes`.
+
 ---
 
 ## Tipos de Impuesto
 
-| Constante | Código | Nombre | Tasa |
-|---|---|---|---|
-| `TaxIVA` | `"20"` | IVA | 13% |
-| `TaxIVAExport` | `"C3"` | IVA Exportación | 0% |
-| `TaxTourism` | `"59"` | Turismo | 1% |
-| `TaxTourismAirport` | `"71"` | Turismo Aeropuerto | Monto fijo |
-| `TaxFOVIAL` | `"D1"` | FOVIAL | 0.5% |
-| `TaxCOTRANS` | `"C8"` | COTRANS | Monto fijo |
-| `TaxSpecialOther` | `"D5"` | Especial/Otro | Sin validación |
+| Constante | Código | Nombre | Constante de valor | Valor usado en la validación |
+|---|---|---|---|---|
+| `TaxIVA` | `"20"` | IVA | `TaxIvaAmount` | `0.13` |
+| `TaxIVAExport` | `"C3"` | IVA Exportación | `TaxIVAExportAmount` | `0.0` |
+| `TaxTourism` | `"59"` | Turismo | `TaxTourismAmount` | `0.05` |
+| `TaxTourismAirport` | `"71"` | Turismo Aeropuerto | `TaxTourismAirportAmount` | `7.0` (monto fijo) |
+| `TaxFOVIAL` | `"D1"` | FOVIAL | `TaxFOVIALAmount` | `0.20` |
+| `TaxCOTRANS` | `"C8"` | COTRANS | `TaxCOTRANSAmount` | `0.10` (monto fijo) |
+| `TaxSpecialOther` | `"D5"` | Especial/Otro | - | Sin validación |
+
+Listas permitidas: `AllowedTaxTypes` y `MapAllowedTaxTypes`. Las fórmulas con que se usan estos valores se describen en [calculations.md](../../api/calculations.md).
 
 ---
 
@@ -159,17 +180,21 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `4` | `FallaEnergiaElectrica` | Falla de energía eléctrica |
 | `5` | `OtroMotivo` | Otro motivo |
 
+`ContingencyReasons` asocia a cada tipo el texto de motivo por defecto y `GetContingencyReason` lo devuelve (el del tipo `5` si el tipo no existe). Lista permitida: `AllowedContingencyTypes`.
+
 ---
 
 ## Tipos de Establecimiento
 
-| Valor | Descripción |
-|---|---|
-| `Sucursal` | Sucursal |
-| `CasaMatriz` | Casa Matriz |
-| `DepositoBodega` | Depósito o Bodega |
-| `PredioOPatio` | Predio o Patio |
-| `Otro` | Otro tipo |
+| Constante | Código | Descripción |
+|---|---|---|
+| `Sucursal` | `"01"` | Sucursal |
+| `CasaMatriz` | `"02"` | Casa Matriz |
+| `DepositoBodega` | `"04"` | Depósito o Bodega |
+| `PredioOPatio` | `"07"` | Predio o Patio |
+| `Otro` | `"20"` | Otro tipo |
+
+Lista permitida: `AllowedEstablishmentTypes`.
 
 ---
 
@@ -181,6 +206,18 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `2` | Anulación | Debe ser null |
 | `3` | Otro motivo | Requerido |
 
+El plazo y la fecha del evento de invalidación se describen en [invalidation.md](dte/invalidation.md).
+
+---
+
+## Tipos de Ítem, Documento Asociado y Domicilio Fiscal
+
+| Constantes | Valores | Descripción |
+|---|---|---|
+| `Producto`, `Servicio`, `ProductoYServicio`, `Impuesto` | `1`, `2`, `3`, `4` | Tipo de ítem (`AllowedItemTypes`) |
+| `DocumentoEmisor`, `DocumentoReceptor`, `DocumentoMedico`, `DocumentoTransporte` | `1`, `2`, `3`, `4` | Código de documento asociado (`AllowedAssociatedDocumentCodes`) |
+| `Domiciled`, `NonDomiciled` | `1`, `2` | Domicilio fiscal (`ValidFiscalDomiciles`), usado en la venta por cuenta de terceros |
+
 ---
 
 ## Códigos de Retención
@@ -189,7 +226,9 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 |---|---|---|
 | `22` | Retención IVA 1% | 0.01 |
 | `C4` | Retención IVA 13% | 0.13 |
-| `C9` | Retención IVA otros | Variable |
+| `C9` | Retención IVA otros | Sin factor fijo (no figura en `GetRetentionAmount`) |
+
+`AllowedRetentionCodes` incluye los tres códigos; `ListRetentionCodes` solo `22` y `C4`.
 
 ---
 
@@ -201,37 +240,43 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `ReservationStatusConfirmed` | `"CONFIRMED"` | Número confirmado (documento transmitido) |
 | `ReservationStatusReleased` | `"RELEASED"` | Número liberado (documento rechazado) |
 
+Estas constantes se definen en `dte_documents/reserved_sequence_model.go`, no en `constants`.
+
 ---
 
 ## Formato de Número de Control
 
 ```
-DTE-{TipoDTE}-{CódigoEstablecimiento}{CódigoPOS}-{Año}{Secuencia}
+DTE-{TipoDTE}-{CódigoEstablecimiento}{CódigoPOS}-{Secuencia de 15 dígitos}
 ```
+
+Cuando se configura el año en el número de control, la secuencia es `{Año}{secuencia de 11 dígitos}`; ver [sequential-numbers.md](sequential-numbers.md).
 
 **Ejemplo:**
 ```
-DTE-03-00010001-2024000000001
+DTE-03-00010001-000000000000001
 │   │   │       │
-│   │   │       └── Año 2024, secuencia 1
+│   │   │       └── Secuencia 1 (15 dígitos)
 │   │   └── Establecimiento 0001, POS 0001
 │   └── CCF (tipo 03)
 └── Prefijo fijo
 ```
 
+El value object `ControlNumber` valida el patrón `^DTE-[0-9]{2}-[A-Z0-9]{8}-[0-9]{15}$`.
+
 ---
 
 ## DTEs Válidos por Contexto
 
-### Para Retención
+### Para Retención (`ValidRetentionDTETypes`)
 
 | Código | Tipo |
 |---|---|
 | `01` | Factura |
 | `03` | CCF |
-| `11` | Factura Exportación |
+| `14` | Factura de Sujeto Excluido |
 
-### Para Documentos Relacionados del CCF
+### Para Documentos Relacionados del CCF (`ValidCCFDTETypesRelateDoc`)
 
 | Código | Tipo |
 |---|---|
@@ -239,15 +284,33 @@ DTE-03-00010001-2024000000001
 | `08` | Comprobante de Liquidación |
 | `09` | Doc. Contable Liquidación |
 
-### Para Documentos Relacionados de Factura
+### Para Documentos Relacionados de Factura (`ValidInvoiceDTETypesRelateDoc`)
 
 | Código | Tipo |
 |---|---|
 | `04` | Nota de Remisión |
+| `08` | Comprobante de Liquidación |
 | `09` | Doc. Contable Liquidación |
 
-### Para Contingencia
+### Para Documentos Relacionados de la Nota de Remisión (`ValidRemissionNoteDTETypesRelateDoc`)
 
-Todos los DTEs excepto:
-- `08` — Comprobante de Liquidación
-- `09` — Doc. Contable Liquidación
+| Código | Tipo |
+|---|---|
+| `01` | Factura |
+| `03` | CCF |
+| `11` | Factura Exportación |
+
+### Para Contingencia (`ValidDTETypesForContingency`)
+
+`01`, `03`, `04`, `05`, `06`, `11` y `14`.
+
+### Ajustables con notas (`ValidAdjustmentDTETypes`)
+
+`03` (CCF) y `07` (Comprobante de Retención): no se pueden invalidar mientras tengan notas de crédito o débito vigentes.
+
+---
+
+## Otros
+
+- **Estados del circuit breaker (`State`)**: `StateClosed`, `StateOpen` y `StateHalfOpen`, definidos en `ciurcuit_states.go`.
+- **Mensajes de error**: `GetErrorMessage(code, params...)` traduce `validation_errors.<code>` según el idioma configurado y antepone `[code]` en modo debug.

@@ -50,14 +50,16 @@ var SMTP      *smtp
 | `MH_AMBIENT_CODE` | string | Sí | Código de ambiente (`"01"` producción, `"00"` pruebas) |
 | `MH_MAX_BATCH_SIZE` | int | Sí | Tamaño máximo de lote (1–100) |
 | `DEBUG` | bool | Sí | Modo debug |
-| `FORCE_CONTINGENCY` | bool | Sí | Forzar modo contingencia |
-| `RUN_MIGRATION` | bool | Sí | Ejecutar migraciones al iniciar |
+| `FORCE_CONTINGENCY` | bool | Sí | Simula indisponibilidad de Hacienda (HTTP 503) en cada transmisión para forzar contingencia. Solo tiene efecto cuando `MH_AMBIENT_CODE` es `"00"` |
+| `RUN_MIGRATION` | bool | Sí | Si es `true`, al iniciar se ejecutan las migraciones automáticas (`AutoMigrate`) de todos los modelos. Con `false` no se crea ni modifica ninguna tabla: una base de datos nueva debe iniciarse al menos una vez con `true` |
 | `ADMIN_EMAIL` | string | No | Email del administrador (destinatario de notificaciones de eventos de dominio) |
 | `API_VERSION` | string | No | Versión de la API mostrada en el footer de los correos (default `3.0.0`) |
 | `NOTIFY_COOLDOWN_MINUTES` | int | No | TTL del cooldown de notificaciones por correo (default `15`) |
-| `MH_EXTRA_HOLIDAYS` | string | No | Asuetos adicionales a los nacionales (`YYYY-MM-DD` separados por comas, p. ej. asuetos locales o decretados). Se excluyen de los días hábiles del plazo de invalidación. Los asuetos nacionales fijos y la Semana Santa (de Lunes Santo a Lunes de Pascua) ya están incluidos |
+| `MH_EXTRA_HOLIDAYS` | string | No | Asuetos adicionales a los nacionales (`YYYY-MM-DD` separados por comas, p. ej. asuetos locales o decretados). Se excluyen de los días hábiles del plazo de invalidación de CCF, notas, remisiones y retenciones (décimo día hábil del mes siguiente). Los asuetos nacionales fijos (1 ene, 1 may, 10 may, 17 jun, 6 ago, 15 sep, 2 nov, 25 dic) y la Semana Santa (de Lunes Santo a Lunes de Pascua) ya están incluidos. Una fecha con formato inválido impide el arranque. Vacío = sin asuetos adicionales |
 | `APP_LANG` | string | Sí | Código de idioma (`"es"`, `"en"`) |
 | `APP_LANG_PATH` | string | Sí | Ruta a archivos de traducción |
+
+> **Variable no leída:** `.env.example` y `scripts/docker-compose.yml` incluyen `APP_NAME`, pero ninguna parte del código la lee.
 
 ### SMTP (notificaciones al admin)
 
@@ -66,7 +68,7 @@ Todas las claves son opcionales. Si `SMTP_HOST` está vacío el sistema degrada 
 | Variable | Tipo | Requerida | Descripción                                              |
 |---|---|---|----------------------------------------------------------|
 | `SMTP_HOST` | string | No | Host SMTP. Vacío = envío deshabilitado                   |
-| `SMTP_PORT` | int | No | Puerto SMTP (default `587`)                              |
+| `SMTP_PORT` | string | No | Puerto SMTP (default `587`; se valida solo si no está vacío) |
 | `SMTP_USERNAME` | string | No | Usuario SMTP                                             |
 | `SMTP_PASSWORD` | string | No | Clave SMTP                                               |
 | `SMTP_FROM` | string | Sí si `SMTP_HOST` | Remitente, ej. `Ordo <noreply@example.com>`              |
@@ -152,17 +154,20 @@ InitEnvConfig(rootPath)
   │
   ├── [6] Validar toda la configuración
   │     ValidateConfig()
-  │     ├── validateServerFields()
+  │     ├── validateServerFields()    (incluye MH_EXTRA_HOLIDAYS)
   │     ├── validateDatabaseFields()
   │     ├── validateRedisFields()
   │     ├── validateLogFields()
   │     ├── validateMHConfigFields()
-  │     └── validateSignerFields()
+  │     ├── validateSignerFields()
+  │     └── validateSMTPFields()      (solo si SMTP_HOST no está vacío)
   │
   └── [7] Asignar punteros globales
         Server = &envConfig.Server
         Database = &envConfig.Database
         ...
+        SanitizeMHPaths(MHPaths)      → se quitan las barras finales de las URLs de MH
+        API_VERSION vacío → "3.0.0"; NOTIFY_COOLDOWN_MINUTES <= 0 → 15
 ```
 
 ### Patrones de Validación
@@ -183,7 +188,10 @@ HostPattern = `^(localhost|IP|domain)$` // Se valida formato de host
 | `DB_HOST`, `REDIS_HOST` | Deben coincidir con HostPattern |
 | `DB_PORT`, `REDIS_PORT` | Deben coincidir con PortPattern |
 | URLs de MH y Signer | Deben coincidir con URLPattern |
-| Campos booleanos | Deben ser `"true"` o `"false"` |
+| Campos booleanos | Se verifica que el campo del struct sea booleano; el valor se interpreta con Viper (`GetBool`) |
+| `MH_EXTRA_HOLIDAYS` | Cada elemento separado por comas debe tener formato `YYYY-MM-DD` |
+| `SMTP_*` | Solo si `SMTP_HOST` no está vacío: host válido, puerto válido (si se informa) y `SMTP_FROM` obligatorio |
+| Archivo `.env` | Debe existir en la raíz del proyecto; si no se encuentra la aplicación no inicia |
 | `REDIS_PASSWORD` | Excepción: puede estar vacío |
 
 ---
@@ -333,4 +341,6 @@ var (
 2. **Validación al inicio**: Toda configuración se valida al arrancar. Si falta un campo requerido o un valor es inválido, la aplicación no inicia.
 3. **Zona horaria hardcodeada**: Ambos drivers usan `America/El_Salvador`. No es configurable via `.env`.
 4. **Variables globales**: Las configuraciones se exponen como punteros globales por conveniencia. Se inicializan una sola vez y no cambian durante la ejecución.
-5. **Archivo de ejemplo**: Se incluye `.env.example` con todas las variables documentadas y valores de ejemplo para ambiente de pruebas.
+5. **Archivo de ejemplo**: Se incluye `.env.example` con las variables y valores de ejemplo para ambiente de pruebas.
+6. **Migraciones**: se ejecutan únicamente con `RUN_MIGRATION=true` (`internal/bootstrap/app.go`). `scripts/docker-compose.yml` la define en `false` y `scripts/docker-compose-external.yml` en `true`.
+7. **Variables en contenedores**: los archivos de `scripts/` definen las variables en `x-app-environment`; el `Dockerfile` copia el `.env` de la raíz al contenedor de ejecución.

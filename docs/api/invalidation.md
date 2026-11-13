@@ -55,30 +55,47 @@ Content-Type: application/json
 
 ## Validaciones
 
+### Del request
+
 | Regla | Detalle |
 |-------|---------|
-| `generation_code` | Debe ser un UUID válido de un DTE previamente emitido |
-| `reason.type` | Valores válidos: `1`, `2` o `3` |
-| `reason.responsible_name` | No vacío |
-| `reason.responsible_doc_type` | Tipo de documento válido |
-| `reason.responsible_num_doc` | Número de documento válido según tipo |
-| `reason.requestor_name` | No vacío |
-| `replacement_generation_code` | **Obligatorio** para tipos `1` y `3`; **prohibido** para tipo `2` |
-| `reason.reason_field` | **Obligatorio** para tipo `3`; opcional para `1` y `2` |
-| El DTE referenciado | Debe existir, tener sello de recepción y estar en estado válido (no ya anulado ni rechazado) |
-| CCF o CR con notas vigentes | Se rechaza con `PendingAdjustmentNotes`, que lista las NC/ND recibidas o pendientes que lo ajustan. El consumidor invalida cada nota y luego vuelve a solicitar la invalidación del CCF o CR; el microservicio no invalida notas automáticamente |
+| `generation_code` | Obligatorio. Debe corresponder a un DTE de la sucursal autenticada |
+| `reason` | Obligatorio, con `type`, `responsible_name`, `responsible_doc_type`, `responsible_num_doc`, `requestor_name`, `requestor_doc_type` y `requestor_num_doc` |
+| `reason.type` | `1`, `2` o `3` |
+| `reason.responsible_doc_type`, `reason.requestor_doc_type` | `36` (NIT), `13` (DUI), `02` (Carnet de residente), `03` (Pasaporte) o `37` (Otro) |
+| `reason.responsible_num_doc`, `reason.requestor_num_doc` | NIT y DUI se aceptan con o sin guiones (se eliminan); el DUI debe tener 9 dígitos. Longitud de 3 a 20 caracteres |
+| `replacement_generation_code` | **Obligatorio** para tipos `1` y `3`; **prohibido** para tipo `2` (`INVALIDREPLACEMENTCODE1AND3`, `INVALIDINVALIDATIONTYPE2`) |
+| `reason.reason_field` | **Obligatorio** para tipo `3` (`INVALIDINVALIDATIONTYPE3`), de 5 a 250 caracteres. Para los tipos `1` y `2` se ignora aunque se envíe |
+
+### Del documento a invalidar
+
+| Regla | Detalle |
+|-------|---------|
+| Estado | No puede estar `INVALIDATED` (`DOCUMENTALREADYINVALID`), `REJECTED` (`DOCUMENTREJECT`) ni `PENDING` (`DOCUMENTPENDING`). Si hay documento de reemplazo (tipos `1` y `3`), se aplican las mismas verificaciones de estado al reemplazo |
+| Sello de recepción | Debe tener sello de recepción de 40 caracteres alfanuméricos; sin sello se rechaza con `DOCUMENTWITHOUTSTAMP` (un documento en contingencia sin transmitir no tiene sello) |
+| CCF o CR con notas vigentes | Se rechaza con `PENDINGADJUSTMENTNOTES`, que lista las NC/ND en estado `RECEIVED` o `PENDING` que lo ajustan. El consumidor invalida cada nota y luego vuelve a solicitar la invalidación del CCF o CR; el microservicio no invalida notas automáticamente |
 
 ### Plazos y fecha del evento
 
+Las reglas siguen el Cuadro 6 de la Normativa de Cumplimiento DTE v2.0 (plazos para transmitir el evento de invalidación) y las reglas de fecha del evento del Anexo V.
+
 | Tipo de DTE | Plazo para transmitir la invalidación (contado desde el sello) | Fecha del evento (`fecEmi`/`horEmi`) |
 |---|---|---|
-| FE (`01`), FEXE (`11`), FSE (`14`) | Hasta las 23:59:59 del mismo día, 3 meses después (2 años para FE y FEXE de emisores con actividad 21001, 21008, 46482, 46484, 46491 o 47721) | Fecha y hora actual; no puede superar el mismo periodo contado desde la generación |
-| Resto (`03`, `04`, `05`, `06`, `07`) | Hasta el décimo día hábil del mes siguiente al mes del sello | Misma fecha y hora de generación del documento (la hora actual si se generó hoy) |
+| FE (`01`), FEXE (`11`), FSE (`14`) | Hasta las 23:59:59 del mismo día, 3 meses después (2 años para FE y FEXE de emisores con actividad económica 21001, 21008, 46482, 46484, 46491 o 47721; la excepción no aplica a FSE) | Fecha y hora actual; no puede superar el mismo periodo (3 meses o 2 años) contado desde la fecha de generación |
+| Resto (`03`, `04`, `05`, `06`, `07`, `08`, `09`, `15`) | Hasta las 23:59:59 del décimo día hábil del mes siguiente al mes del sello | Misma fecha de generación del documento (la fecha y hora actual si se generó hoy) |
 
-- La fecha del sello es `processing_date` (`fhProcesamiento`); para documentos antiguos sin ese dato se usa la fecha de registro.
-- Días hábiles: lunes a viernes sin asuetos nacionales fijos, Semana Santa (de Lunes Santo a Lunes de Pascua), ni los asuetos de `MH_EXTRA_HOLIDAYS`.
+- La fecha del sello es `processing_date` (`fhProcesamiento` de Hacienda); para documentos antiguos sin ese dato se usa la fecha de registro del documento.
+- La fecha de generación se toma de `fecEmi`/`horEmi` del documento guardado.
+- Días hábiles: lunes a viernes, excluyendo los asuetos nacionales fijos (1 de enero, 1 de mayo, 10 de mayo, 17 de junio, 6 de agosto, 15 de septiembre, 2 de noviembre y 25 de diciembre), la Semana Santa (de Lunes Santo a Lunes de Pascua) y los asuetos de la variable `MH_EXTRA_HOLIDAYS`.
+- Si el plazo venció, el documento conserva su validez y corresponde emitir una Nota de Crédito o Débito si procede.
 
-Errores: `InvalidationDeadlineExpired` (plazo vencido), `InvalidationEventDateOutOfRange`, `InvalidationEventDateMismatch`, `MissingStampDate`, `DocumentWithoutStamp`, `PendingAdjustmentNotes`.
+### Orden de verificación
+
+1. Campos del request y reglas de tipo (`reason.type`, reemplazo, `reason_field`).
+2. Estado del documento a invalidar y del reemplazo.
+3. Dependencias (`PENDINGADJUSTMENTNOTES`) y sello de recepción.
+4. Datos del evento, plazo y fecha del evento.
+5. Transmisión a Hacienda.
 
 ---
 
@@ -86,57 +103,142 @@ Errores: `InvalidationDeadlineExpired` (plazo vencido), `InvalidationEventDateOu
 
 **HTTP 200 OK**
 
+La respuesta es un `EventArchiveResponse`: los datos del evento registrado, la respuesta completa de Hacienda (`hacienda_response`) y el **Archivo DTE del evento** (`archivo_dte`), listo para entregar al receptor. El evento queda disponible después en `GET /api/v1/dte/{id}/eventos` (ver [Consulta de DTEs](./dte-query.md)).
+
 ```json
 {
   "success": true,
   "data": {
-    "identificacion": {
-      "version": 2,
-      "ambiente": "01",
-      "codigoGeneracion": "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
-      "fecAnula": "2024-01-15",
-      "horAnula": "14:30:00"
-    },
-    "emisor": {
-      "nit": "...",
-      "nombre": "...",
-      "tipoEstablecimiento": "...",
-      "correo": "..."
-    },
-    "documento": {
-      "tipoDte": "01",
-      "codigoGeneracion": "UUID-DEL-DTE-ORIGINAL",
-      "codigoGeneracionR": null,
-      "tipoAnulacion": 1,
-      "fechaEmision": "2024-01-10",
-      "montoIva": 13.00,
-      "codigoGeneracionR": null
-    },
-    "motivo": {
-      "tipoAnulacion": 1,
-      "motivoAnulacion": "Error en datos del receptor",
-      "nombreResponsable": "Carlos García",
-      "tipDocResponsable": "13",
-      "numDocResponsable": "01234567-8",
-      "nombreSolicita": "María López",
-      "tipDocSolicita": "13",
-      "numDocSolicita": "08765432-1"
+    "generation_code": "A1B2C3D4-0000-4000-8000-1234567890AB",
+    "branch_id": 1,
+    "event_type": "INVALIDATION",
+    "related_dte_id": "3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C",
+    "replacement_dte_id": "9A7B6C5D-3E2F-1A0B-CDEF-1234567890AB",
+    "reception_stamp": "20260115AAFEEE1A566A44F19A622C0C35C8A1B6FAZM",
+    "processing_date": "15/01/2026 14:30:05",
+    "status": "RECEIVED",
+    "created_at": "2026-01-15T14:30:06-06:00",
+    "hacienda_response": { },
+    "archivo_dte": {
+      "identificacion": {
+        "version": 3,
+        "ambiente": "00",
+        "codigoGeneracion": "A1B2C3D4-0000-4000-8000-1234567890AB",
+        "fecEmi": "2026-01-15",
+        "horEmi": "14:30:00",
+        "fusion": null
+      },
+      "emisor": {
+        "nit": "XXXXXXXXXXXXXX",
+        "nombre": "Emisor S.A. de C.V.",
+        "codEstableMH": "",
+        "codEstable": "0001",
+        "codPuntoVentaMH": "",
+        "codPuntoVenta": "0001",
+        "telefono": "XXXXXXXX",
+        "correo": "emisor@ejemplo.com"
+      },
+      "documento": {
+        "tipoDte": "01",
+        "codigoGeneracion": "3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C",
+        "selloRecibido": "20260110AAFEEE1A566A44F19A622C0C35C8A1B6FAZM",
+        "numeroControl": "DTE-01-N0010001-000000000000001",
+        "fecEmi": "2026-01-10",
+        "codigoGeneracionR": "9A7B6C5D-3E2F-1A0B-CDEF-1234567890AB",
+        "tipoDocumento": "13",
+        "numDocumento": "012345678",
+        "nombre": "Receptor",
+        "telefono": "XXXXXXXX",
+        "correo": "receptor@ejemplo.com"
+      },
+      "motivo": {
+        "tipoAnulacion": 1,
+        "motivoAnulacion": null,
+        "nombreResponsable": "Carlos García",
+        "tipDocResponsable": "13",
+        "numDocResponsable": "012345678",
+        "nombreSolicita": "María López",
+        "tipDocSolicita": "13",
+        "numDocSolicita": "087654321"
+      },
+      "firmaElectronica": "<JWS>",
+      "selloRecibido": "20260115AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"
     }
   }
 }
 ```
 
-> **Nota:** La anulación no incluye `reception_stamp` ni `qr_link` ya que no genera un nuevo DTE sino que invalida uno existente.
+### Campos del evento
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `generation_code` | string | Código de generación del evento (distinto al del documento invalidado) |
+| `branch_id` | integer | Sucursal |
+| `event_type` | string | `INVALIDATION` |
+| `related_dte_id` | string | Código de generación del DTE invalidado |
+| `replacement_dte_id` | string o null | Código de generación del DTE de reemplazo |
+| `reception_stamp` | string o null | Sello de recepción del evento |
+| `processing_date` | string | Fecha de procesamiento del evento devuelta por Hacienda |
+| `status` | string | `RECEIVED` |
+| `created_at` | string (ISO 8601) | Fecha de registro del evento |
+| `hacienda_response` | object | Respuesta completa de Hacienda al evento |
+| `archivo_dte` | object | Archivo DTE del evento (se omite si no hay firma guardada) |
+
+### Estructura del evento dentro de `archivo_dte`
+
+La estructura firmada se devuelve sin alteraciones; `firmaElectronica` (JWS) y `selloRecibido` se agregan al final.
+
+**`identificacion`**
+
+| Campo | Descripción |
+|-------|-------------|
+| `version` | Versión del esquema del evento (`3`) |
+| `ambiente` | Código de ambiente (`00` pruebas, `01` producción) |
+| `codigoGeneracion` | UUID del evento |
+| `fecEmi`, `horEmi` | Fecha y hora del evento (ver regla de fecha del evento) |
+| `fusion` | `null` |
+
+**`emisor`:** `nit`, `nombre`, `codEstableMH`, `codEstable`, `codPuntoVentaMH`, `codPuntoVenta`, `telefono`, `correo`.
+
+**`documento`**
+
+| Campo | Descripción |
+|-------|-------------|
+| `tipoDte` | Tipo del DTE invalidado |
+| `codigoGeneracion` | Código de generación del DTE invalidado |
+| `selloRecibido` | Sello de recepción del DTE invalidado |
+| `numeroControl` | Número de control del DTE invalidado |
+| `fecEmi` | Fecha de generación del DTE invalidado |
+| `codigoGeneracionR` | Código de generación del reemplazo; `null` en tipo `2` |
+| `tipoDocumento`, `numDocumento`, `nombre`, `telefono`, `correo` | Datos del receptor (o sujeto excluido) tomados del DTE invalidado |
+
+**`motivo`:** `tipoAnulacion`, `motivoAnulacion` (solo tipo `3`; `null` en los demás), `nombreResponsable`, `tipDocResponsable`, `numDocResponsable`, `nombreSolicita`, `tipDocSolicita`, `numDocSolicita`.
+
+> La invalidación no incluye `reception_stamp` ni `qr_link` en el nivel raíz de la respuesta, ya que no genera un nuevo DTE sino un evento sobre uno existente.
+
+### Efectos sobre el documento
+
+- El DTE original pasa a estado `INVALIDATED`.
+- Si el documento invalidado es una Nota de Crédito o de Débito, se registra una transacción de control de saldo `INVALIDATED` que suma sus montos (gravado, exento y no sujeto) al saldo del documento relacionado electrónico.
 
 ---
 
 ## Respuestas de error
 
+Los errores usan la estructura descrita en [Formato de respuestas](./README.md#respuesta-de-error); `error.code` se devuelve en mayúsculas.
+
 | HTTP | `code` | Cuándo ocurre |
 |------|--------|---------------|
-| `400` | Código específico | DTE no encontrado para el `generation_code` |
-| `400` | Código específico | Fecha de anulación anterior a la emisión del DTE |
-| `400` | Código específico | Tipo de anulación inválido |
+| `400` | `REQUIREDFIELD` | Falta `generation_code`, `reason` o alguno de sus campos obligatorios |
+| `400` | `INVALIDREPLACEMENTCODE1AND3` | Tipo `1` o `3` sin `replacement_generation_code` |
+| `400` | `INVALIDINVALIDATIONTYPE2` | Tipo `2` con `replacement_generation_code` |
+| `400` | `INVALIDINVALIDATIONTYPE3` | Tipo `3` sin `reason_field` |
+| `400` | `FAILEDTOVERIFYDTE` | El `generation_code` (o el reemplazo) no existe en la sucursal |
+| `400` | `DOCUMENTALREADYINVALID`, `DOCUMENTREJECT`, `DOCUMENTPENDING` | El documento (o el reemplazo) está invalidado, rechazado o pendiente de retransmitir |
+| `400` | `PENDINGADJUSTMENTNOTES` | El CCF o CR tiene Notas de Crédito o Débito vigentes; el mensaje lista sus códigos |
+| `400` | `DOCUMENTWITHOUTSTAMP` | El documento no tiene sello de recepción |
+| `400` | `MANY_ERRORS` | Falló una regla del evento; `error.details` incluye `InvalidationDeadlineExpired` (plazo vencido), `InvalidationEventDateOutOfRange`, `InvalidationEventDateMismatch`, `MissingStampDate` o errores de formato de los datos del evento |
+| `400` | `TRANSMISSIONFAILED` | Hacienda no procesó el evento |
 | `400` | `HACIENDA_<codigo>` | Hacienda rechazó la anulación |
 | `500` | `SYSTEM_ERROR` | Error interno |
 
@@ -223,5 +325,12 @@ O listar todos los DTEs:
 
 ```
 GET /api/v1/dte
+Authorization: Bearer <token>
+```
+
+Para consultar los eventos de un DTE (por ejemplo su invalidación):
+
+```
+GET /api/v1/dte/{codigoGeneracion}/eventos
 Authorization: Bearer <token>
 ```

@@ -94,6 +94,8 @@ Central factory que crea mappers para cada tipo de DTE.
 | `CreateFSEMapperAdapter()` | `CreateFSERequest` | `FSEData` |
 | `CreateInvalidationMapperAdapter()` | `CreateInvalidationRequest` | `InvalidationDocument` |
 
+Cada adaptador envuelve el método `MapTo<Tipo>Data` del request mapper correspondiente (`MapToInvoiceData`, `MapToCCFData`, `MapToCreditNoteData`, `MapToDebitNoteData`, `MapToRetentionData`, `MapToRemissionNoteData`, `MapToFSEData`, `MapToInvalidationData`).
+
 ### Response Mappers
 
 | Método | Función | Formato de Salida |
@@ -111,53 +113,65 @@ Central factory que crea mappers para cada tipo de DTE.
 
 ## Proceso de Mapeo (Request → Dominio)
 
-Cada request mapper realiza los siguientes pasos:
+Cada request mapper (`pkg/mapper/request_mapper`) realiza, con variaciones por tipo, los siguientes pasos. El ejemplo es `InvoiceMapper.MapToInvoiceData`:
 
 ```
 CreateXXXRequest (HTTP)
   │
   ├── 1. Validar campos requeridos del request
+  │     (request, items y resumen no nulos; tipo y número de documento del receptor
+  │      van juntos; reglas propias de cada tipo)
   │
-  ├── 2. Mapear Identificación
-  │     common.MapCommonRequestIdentification()
-  │     → Version, Ambient, DTEType, ModelType, OperationType
-  │     → EmissionDate, EmissionTime, Currency
-  │     → ContingencyType, ContingencyReason (si aplica)
-  │
-  ├── 3. Mapear Emisor (desde IssuerDTE)
-  │     common.MapCommonIssuer(issuer)
-  │     → NIT, NRC, Name, ActivityCode, Address, Phone, Email
-  │     → EstablishmentCode, POSCode, CommercialName
-  │
-  ├── 4. Mapear Receptor
-  │     common.MapCommonRequestReceiver(req.Receiver)
-  │     → Name, DocumentType, DocumentNumber, Address
-  │     → Email, Phone, NRC, NIT, ActivityCode
-  │
-  ├── 5. Mapear Ítems (específico por DTE)
+  ├── 2. Mapear Ítems (específico por DTE)
   │     invoice.MapInvoiceItems(req.Items)
-  │     → Number, Type, Description, Quantity, UnitMeasure
-  │     → UnitPrice, Discount, Taxes, TaxedSale, etc.
   │
-  ├── 6. Mapear Resumen (específico por DTE)
+  ├── 3. Mapear Receptor
+  │     common.MapCommonRequestReceiver(req.Receiver)
+  │     (CCF, notas, remisión, retención y FSE usan sus variantes de receptor)
+  │
+  ├── 4. Generar la Identificación (no viene del request)
+  │     common.MapCommonRequestIdentification(modelo, versión, tipoDte)
+  │     → Version, Ambient (MH_AMBIENT_CODE), DTEType, ModelType, OperationType (normal),
+  │       Currency (USD), EmissionDate y EmissionTime (hora actual de El Salvador)
+  │
+  ├── 5. Mapear Resumen (específico por DTE)
   │     invoice.MapInvoiceRequestSummary(req.Summary)
-  │     → Totales, descuentos, impuestos, formas de pago
+  │
+  ├── 6. Mapear Emisor (desde IssuerDTE, cargado por branchID)
+  │     common.MapCommonIssuer(issuer)
   │
   ├── 7. Mapear campos opcionales
-  │     ├── Extension
-  │     ├── RelatedDocuments
-  │     ├── OtherDocuments
+  │     common.MapCommonOptionalToInputData(...)
   │     ├── ThirdPartySale
-  │     └── Appendixes
+  │     ├── Extension (remanente sin uso: ningún request lo envía)
+  │     ├── OtherDocs
+  │     ├── RelatedDocs
+  │     ├── Appendixes
+  │     └── Payments (donde aplica)
   │
-  └── 8. Retornar modelo de dominio
+  └── 8. Retornar el modelo de entrada del dominio (InvoiceData, CCFData, ...)
 ```
+
+El tipo de modelo de facturación es `constants.ModeloFacturacionPrevio` en todos los DTE; el tipo de operación es siempre transmisión normal. La contingencia se aplica después, sobre el documento ya generado, en el handler (`ContingencyHandler`).
+
+Versiones de la estructura JSON por tipo (argumento de `MapCommonRequestIdentification`):
+
+| DTE | Versión |
+|---|---|
+| Factura (01) | 2 |
+| CCF (03) | 4 |
+| Nota de Remisión (04) | 4 |
+| Nota de Crédito (05) | 4 |
+| Nota de Débito (06) | 4 |
+| Comprobante de Retención (07) | 2 |
+| Factura de Sujeto Excluido (14) | 2 |
+| Evento de Invalidación | 3 |
 
 ---
 
 ## Proceso de Mapeo (Dominio → Hacienda)
 
-Cada response mapper transforma los modelos de dominio al formato JSON de la API de Hacienda:
+Cada response mapper (`pkg/mapper/response_mapper`, funciones `ToMH*`) transforma el modelo de dominio validado a la estructura JSON de la API de Hacienda. Esa estructura es la que se serializa, se firma (JWS) y se guarda como evidencia.
 
 ### Estructura JSON Base de Hacienda
 
@@ -168,7 +182,6 @@ Cada response mapper transforma los modelos de dominio al formato JSON de la API
   "receptor": { "nombre", "tipoDocumento", "numDocumento", ... },
   "cuerpoDocumento": [{ "numItem", "tipoItem", "descripcion", "cantidad", ... }],
   "resumen": { "totalNoSuj", "totalExenta", "totalGravada", "subTotal", "totalPagar", ... },
-  "extension": { "nombEntrega", "docuEntrega", ... },
   "documentoRelacionado": [{ "tipoGeneracion", "numeroDocumento", ... }],
   "otrosDocumentos": [...],
   "ventaTercero": {...},
@@ -176,16 +189,19 @@ Cada response mapper transforma los modelos de dominio al formato JSON de la API
 }
 ```
 
+No todos los tipos incluyen todas las secciones; cada estructura sigue el JSON Schema oficial del tipo (ver [Tests](../../../test/README.md), validación contra schemas).
+
 ### Diferencias de Formato por DTE
 
 | DTE | Particularidades del Formato |
 |---|---|
-| **Factura** | `ivaItem` por ítem, `totalIva` en resumen |
-| **CCF** | Sin `ivaItem`, `ivaPerci1` en resumen |
-| **FSE** | `FSEIssuer` (sin tipoEstablecimiento), `sujetoExcluido` en lugar de receptor, ítems con `compra` |
-| **Retención** | Sin `cuerpoDocumento` estándar, usa `cuerpoDocumento` con campos de retención |
-| **Nota de Remisión** | `bienTitulo` en receptor |
-| **Invalidación** | Estructura completamente diferente: `documento` + `motivo` |
+| **Factura** | `ivaItem` por ítem, `totalIva` en el resumen |
+| **CCF** | Sin `ivaItem` por ítem; el receptor se identifica por NIT; el resumen incluye `ivaRete` e `ivaPerci` y no define `totalIva` |
+| **Notas de Crédito y Débito** | `receptor` con tipo y número de documento; `totalIva` en ítems y resumen |
+| **FSE** | `FSEIssuer` (sin `tipoEstablecimiento` ni `nombreComercial`); el sujeto excluido va en `receptor`; ítems con `compra`; resumen con `totalCompra` y `reteRenta` |
+| **Retención** | `cuerpoDocumento` con ítems de retención (`tipoDte`, `numeroDocumento`, `montoSujetoGrav`, `codigoRetencionMH`, `ivaRetenido`); resumen con `totalSujetoRetencion`, `totalIva` y `totalIvaRetenido` |
+| **Nota de Remisión** | `bienTitulo` en el receptor; `ToMHRemissionNote` devuelve `interface{}` |
+| **Invalidación** | Estructura completamente diferente: `identificacion`, `emisor`, `documento` y `motivo` (ver [invalidation-use-case.md](./invalidation-use-case.md)) |
 
 ---
 
@@ -194,22 +210,27 @@ Cada response mapper transforma los modelos de dominio al formato JSON de la API
 El mapper de invalidación recibe parámetros adicionales:
 
 ```go
-func (m *InvalidationMapper) MapToInvalidationData(
-    request *CreateInvalidationRequest,
-    issuer *dte.IssuerDTE,
-    originalDetails *dte.DTEDetails,
+func (i *InvalidationMapper) MapToInvalidationData(
+    req *structs.CreateInvalidationRequest,
+    client *dte.IssuerDTE,
+    baseDte *dte.DTEDetails,
     emissionDate time.Time,
 ) (*invalidation_models.InvalidationDocument, error)
 ```
 
-- `originalDetails` — Detalles del documento original (tipo DTE, sello de recepción, número de control)
-- `emissionDate` — Fecha de emisión original (para validación temporal)
+- `baseDte` — Detalles del documento original (tipo DTE, sello de recepción, número de control, JSON, fecha de procesamiento)
+- `emissionDate` — Fecha de creación del documento original (`CreatedAt`), usada solo como respaldo cuando el JSON no trae `fecEmi`/`horEmi` ni hay fecha de procesamiento
+
+La fecha y hora del evento (`identificacion.fecEmi`/`horEmi`) se calculan con `policy.EventDateTime`: el instante actual para FE, FEXE y FSEE; para el resto de DTE, la fecha y hora de generación del documento (o el instante actual si se generó hoy).
+
+`InvalidationUseCase` no usa `MapperFactory.CreateInvalidationMapperAdapter()` ni `GetInvalidationResponseMapper()`: instancia `request_mapper.NewInvalidationMapper()` en su constructor y llama directamente a `response_mapper.ToMHInvalidation`. Los métodos de la factory existen pero no están conectados a ningún caso de uso.
 
 ---
 
 ## Notas
 
-1. **Generics en mappers**: Los constructores `newTypedMapper[Req, Res]` proporcionan type-safety en tiempo de compilación.
+1. **Generics en mappers**: Los constructores `newTypedMapper[Req, Res]` proporcionan type-safety en tiempo de compilación; si el request no es del tipo esperado se devuelve `invalid request type: expected *<tipo>, got <tipo>`.
 2. **Emisor inyectado**: El emisor no viene del request HTTP — se carga desde la BD por `branchID` y se inyecta en el mapper.
-3. **Mapeo común**: Los campos compartidos (identificación, emisor, receptor) se mapean con funciones comunes reutilizadas por todos los DTEs.
+3. **Mapeo común**: Los campos compartidos (identificación, emisor, receptor, pagos, opcionales) se mapean con funciones comunes reutilizadas por los DTEs (`pkg/mapper/request_mapper/common`).
 4. **Formato Hacienda**: El formato JSON de Hacienda usa nombres en español (`tipoDte`, `codigoGeneracion`, etc.) diferentes a los nombres en inglés del dominio.
+5. **Detalle de mappers**: Ver [Request Mappers](../../../pkg/request-mappers.md) y [Response Mappers](../../../pkg/response-mappers.md).

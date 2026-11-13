@@ -38,7 +38,7 @@ type ValueObject[T any] interface {
 
 ## Dos Constructores: `New*` vs `NewValidated*`
 
-Cada VO tiene exactamente dos constructores:
+La mayoría de los VOs tiene dos constructores (ver la excepción al final de la tabla):
 
 ### `New*(value)` — el constructor validado
 
@@ -168,85 +168,88 @@ Esto significa que si agregas un campo VO a cualquier struct de modelo, se valid
 
 ### base/ — `internal/domain/dte/common/value_objects/base/`
 
-| Nombre | Tipo param Go | Paquete | Regla de validación | Ejemplo válido | Ejemplo inválido |
-|------|--------------|---------|----------------|---------------|-----------------|
-| `Email` | `string` | `base` | Estilo RFC-5322, 3–100 chars | `admin@empresa.sv` | `notanemail` |
-| `Phone` | `string` | `base` | Teléfono salvadoreño, solo dígitos, 8 chars | `22345678` | `1234` |
+| Nombre | Tipo param Go | Regla de validación | Ejemplo válido | Ejemplo inválido |
+|------|--------------|----------------|---------------|-----------------|
+| `Email` | `string` | Formato válido (`checkmail.ValidateFormat`), registro MX alcanzable salvo que `base.SkipMXValidation` sea `true`, y 3–100 caracteres | `admin@empresa.sv` | `notanemail` |
+| `Phone` | `string` | 8–30 caracteres (solo se valida la longitud) | `22345678` | `1234` |
 
 ### document/ — `internal/domain/dte/common/value_objects/document/`
 
-| Nombre | Tipo param Go | Paquete | Regla de validación | Ejemplo válido | Ejemplo inválido |
-|------|--------------|---------|----------------|---------------|-----------------|
-| `Ambient` | `string` | `document` | `"00"` (pruebas) o `"01"` (producción) | `"01"` | `"02"` |
-| `AppendixItem` | `string` | `document` | 1–25 chars alfanuméricos | `"campo1"` | `""` |
-| `AppendixLabel` | `string` | `document` | 1–50 chars | `"Número de Orden"` | `""` |
-| `AppendixValue` | `string` | `document` | 1–150 chars | `"ORD-2024-001"` | `""` |
-| `AssociatedDocumentCode` | `int` | `document` | 1–4 | `3` | `5` |
-| `ContingencyReason` | `string` | `document` | 1–500 chars | `"Fallo de internet"` | `""` |
-| `ContingencyType` | `int` | `document` | Uno de `constants.AllowedContingencyTypes` | `1` | `99` |
-| `DeliveryDocument` | `string` | `document` | 1–100 chars | `"DUI: 01234567-8"` | `""` |
-| `DeliveryName` | `string` | `document` | 1–100 chars | `"Juan Pérez"` | `""` |
-| `DocumentNumber` (paquete document) | `string` | `document` | 3–20 chars | `"A-1001"` | `""` |
-| `DTEType` | `string` | `document` | Uno de `constants.ValidDTETypes` | `"01"` | `"99"` |
-| `EstablishmentType` | `string` | `document` | `01`, `02`, `04`, `07`, o `20` | `"01"` | `"03"` |
-| `InvalidationReason` | `string` | `document` | 1–500 chars | `"Error en receptor"` | `""` |
-| `InvalidationType` | `int` | `document` | 1–3 | `1` | `0` |
-| `ModelType` | `int` | `document` | 1 (previo) o 2 (diferido) | `1` | `3` |
-| `Observation` | `string` | `document` | 0–3000 chars | `"Entrega en bodega"` | (>3000 chars) |
-| `OperationType` | `int` | `document` | 1 (normal) o 2 (contingencia) | `1` | `3` |
-| `RetentionCode` | `string` | `document` | `"22"`, `"C4"`, o `"C9"` | `"C4"` | `"XX"` |
-| `ServiceType` | `int` | `document` | 1–6 | `2` | `7` |
-| `TransmissionType` | `string` | `document` | `"1"` o `"2"` | `"1"` | `"3"` |
-| `Version` | `int` | `document` | 1–3 | `1` | `0` |
+| Nombre | Tipo param Go | Regla de validación | Ejemplo válido | Ejemplo inválido |
+|------|--------------|----------------|---------------|-----------------|
+| `Ambient` | `string` | `"00"` (pruebas) o `"01"` (producción); `NewAmbient()` toma el valor de `config.Server.AmbientCode` | `"01"` | `"02"` |
+| `AppendixField` | `string` | 2–25 caracteres | `"campo1"` | `""` |
+| `AppendixLabel` | `string` | 3–50 caracteres | `"Número de Orden"` | `"ab"` |
+| `AppendixValue` | `string` | 1–150 caracteres | `"ORD-2024-001"` | `""` |
+| `AssociatedDocumentCode` | `int` | 1–4 (`constants.AllowedAssociatedDocumentCodes`) | `3` | `5` |
+| `ContingencyReason` | `string` | 5–150 caracteres | `"Fallo de internet"` | `""` |
+| `ContingencyType` | `int` | 1–5 | `1` | `99` |
+| `DeliveryDocument` | `string` | 1–25 caracteres | `"01234567-8"` | `""` |
+| `DeliveryName` | `string` | 1–100 caracteres | `"Juan Pérez"` | `""` |
+| `DocumentNumber` (paquete `document`) | `string` + tipo de generación `int` | Documento físico (`1`): `^[a-zA-Z0-9]{1,20}$`; electrónico: UUID en mayúsculas hexadecimales con el formato `XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX` | `"A1001"` | `""` |
+| `DTEType` | `string` | Uno de `constants.ValidDTETypes`; `NewDTETypeForReceiver` valida contra `ValidReceiverDTETypes` y `NewDTETypeForRetention` contra `ValidRetentionDTETypes` | `"01"` | `"99"` |
+| `EstablishmentType` | `string` | `01`, `02`, `04`, `07` o `20` (`constants.AllowedEstablishmentTypes`) | `"01"` | `"03"` |
+| `InvalidationReason` | `string` | 5–250 caracteres | `"Error en receptor"` | `""` |
+| `InvalidationType` | `int` | 1–3 | `1` | `0` |
+| `ModelType` | `int` | 1 (previo) o 2 (diferido) | `1` | `3` |
+| `Observation` | `string` | 0–3000 caracteres | `"Entrega en bodega"` | (>3000 caracteres) |
+| `OperationType` | `int` | 1 (normal) o 2 (contingencia) | `1` | `3` |
+| `RetentionCode` | `string` | `"22"`, `"C4"` o `"C9"` | `"C4"` | `"XX"` |
+| `ServiceType` | `int` | 1–6 | `2` | `7` |
+| `TransmissionType` | `int` | 1 o 2 | `1` | `3` |
+| `Version` | `int` | 1–4 | `1` | `0` |
 
 ### financial/ — `internal/domain/dte/common/value_objects/financial/`
 
-| Nombre | Tipo param Go | Paquete | Regla de validación | Ejemplo válido | Ejemplo inválido |
-|------|--------------|---------|----------------|---------------|-----------------|
-| `Amount` | `float64` | `financial` | `0 ≤ value ≤ 99999999999.99` | `1150.00` | `-0.01` |
-| `Currency` | `string` | `financial` | Debe ser `"USD"` | `"USD"` | `"EUR"` |
-| `Discount` | `float64` | `financial` | `0 ≤ value ≤ 100` (porcentaje) | `10.0` | `101.0` |
-| `PaymentCondition` | `int` | `financial` | 1 (contado) o 2 (crédito) | `1` | `3` |
-| `PaymentTerm` | `string` | `financial` | 1–10 chars | `"30"` | `""` |
-| `PaymentType` | `string` | `financial` | Uno de los códigos de pago permitidos | `"01"` | `"99"` |
-| `Tax` | `float64` | `financial` | `0 ≤ value ≤ 99999999999.99` | `149.56` | `-1.0` |
-| `TaxType` | `string` | `financial` | Uno de `constants.AllowedTaxTypes` | `"20"` (IVA) | `"ZZ"` |
+| Nombre | Tipo param Go | Regla de validación | Ejemplo válido | Ejemplo inválido |
+|------|--------------|----------------|---------------|-----------------|
+| `Amount` | `float64` | `0 ≤ value ≤ 99999999999.99`; `NewAmount` redondea a 8 decimales y `NewAmountForTotal` exige a lo sumo 2 decimales | `1150.00` | `-0.01` |
+| `Currency` | `string` | Debe ser `"USD"` | `"USD"` | `"EUR"` |
+| `Discount` | `float64` | `0 ≤ value ≤ 100` (porcentaje, evaluado con 2 decimales) | `10.0` | `101.0` |
+| `PaymentCondition` | `int` | 1 (contado), 2 (crédito) o 3 (otro) | `1` | `4` |
+| `PaymentTerm` | `string` | Patrón `^0[1-3]$` | `"01"` | `"30"` |
+| `PaymentType` | `string` | Código `01`–`14` o `99` (expresión regular `^(0[1-9]||1[0-4]||99)$`, que por sus alternativas vacías acepta también la cadena vacía) | `"01"` | `"15"` |
+| `Tax` | `float64` | `0 ≤ value < 100000000000` (evaluado con 2 decimales) | `149.56` | `-1.0` |
+| `TaxType` | `string` | Uno de `constants.AllowedTaxTypes` | `"20"` (IVA) | `"ZZ"` |
 
 ### identification/ — `internal/domain/dte/common/value_objects/identification/`
 
-| Nombre | Tipo param Go | Paquete | Regla de validación | Ejemplo válido | Ejemplo inválido |
-|------|--------------|---------|----------------|---------------|-----------------|
-| `ActivityCode` | `string` | `identification` | String numérico de 2–6 dígitos | `"47211"` | `"ABC"` |
-| `ControlNumber` | `string` | `identification` | Regex `^DTE-[0-9]{2}-[A-Z0-9]{8}-[0-9]{15}$`, longitud 31 | `"DTE-01-00000001-000000000000001"` | `"DTE-01-X"` |
-| `DocumentNumber` | `string` | `identification` | Formato depende del tipo de documento (DUI, NIT, o 3–20 chars) | `"01234567-8"` (DUI) | `"12"` |
-| `GenerationCode` | `string` | `identification` | UUID válido en mayúsculas (`google/uuid`) | `"A1B2C3D4-E5F6-7890-ABCD-EF1234567890"` | `"not-a-uuid"` |
-| `NIT` | `string` | `identification` | 9 o 14 dígitos (guiones eliminados en construcción) | `"06140101991011"` | `"1234"` |
-| `NRC` | `string` | `identification` | 1–8 dígitos | `"1234567"` | `""` |
+| Nombre | Tipo param Go | Regla de validación | Ejemplo válido | Ejemplo inválido |
+|------|--------------|----------------|---------------|-----------------|
+| `ActivityCode` | `string` | `^[0-9]{2,6}$` | `"47211"` | `"ABC"` |
+| `ControlNumber` | `string` | Regex `^DTE-[0-9]{2}-[A-Z0-9]{8}-[0-9]{15}$` y longitud 31 | `"DTE-01-00000001-000000000000001"` | `"DTE-01-X"` |
+| `DocumentNumber` (paquete `identification`) | `string` | 3–20 caracteres; `NewDocumentNumber(value, dteType)` elimina guiones si el tipo es NIT o DUI y exige 9 dígitos para DUI | `"012345678"` (DUI) | `"12"` |
+| `GenerationCode` | `string` | UUID válido en mayúsculas (`google/uuid`); `NewGenerationCode()` lo genera | `"A1B2C3D4-E5F6-7890-ABCD-EF1234567890"` | `"not-a-uuid"` |
+| `NIT` | `string` | 9 o 14 dígitos (guiones eliminados en construcción) | `"06140101991011"` | `"1234"` |
+| `NRC` | `string` | `^[0-9]{1,8}$` | `"1234567"` | `""` |
 
 ### item/ — `internal/domain/dte/common/value_objects/item/`
 
-| Nombre | Tipo param Go | Paquete | Regla de validación | Ejemplo válido | Ejemplo inválido |
-|------|--------------|---------|----------------|---------------|-----------------|
-| `ItemCode` | `string` | `item` | 1–25 chars | `"SKU-001"` | (>25 chars) |
-| `ItemNumber` | `int` | `item` | 1–2000 | `1` | `0` |
-| `ItemType` | `int` | `item` | 1 (producto), 2 (servicio), 3 (ambos), 4 (impuesto) | `2` | `5` |
-| `Quantity` | `float64` | `item` | `0 < value ≤ 99999999999.99` | `1.5` | `0.0` |
-| `UnitMeasure` | `int` | `item` | 1–99 | `59` | `0` |
+| Nombre | Tipo param Go | Regla de validación | Ejemplo válido | Ejemplo inválido |
+|------|--------------|----------------|---------------|-----------------|
+| `ItemCode` | `string` | 1–24 caracteres (`0 < len < 25`) | `"SKU-001"` | (≥25 caracteres) |
+| `ItemNumber` | `int` | 1–1999 (`0 < value < 2000`) | `1` | `0` |
+| `ItemType` | `int` | 1 (producto), 2 (servicio), 3 (ambos) o 4 (impuesto) | `2` | `5` |
+| `Quantity` | `float64` | `0 < value ≤ 99999999999.99` (evaluado con 2 decimales) | `1.5` | `0.0` |
+| `UnitMeasure` | `int` | 1–99 | `59` | `0` |
 
 ### location/ — `internal/domain/dte/common/value_objects/location/`
 
-| Nombre | Tipo param Go | Paquete | Regla de validación | Ejemplo válido | Ejemplo inválido |
-|------|--------------|---------|----------------|---------------|-----------------|
-| `Address` | `string` | `location` | 1–200 chars | `"Calle Principal, Edificio A"` | `""` |
-| `Department` | `string` | `location` | Código de dos dígitos del catálogo de departamentos de El Salvador | `"06"` | `"99"` |
-| `Municipality` | `string` | `location` | Código de dos dígitos válido dentro del departamento dado | `"14"` | `"99"` |
+| Nombre | Tipo param Go | Regla de validación | Ejemplo válido | Ejemplo inválido |
+|------|--------------|----------------|---------------|-----------------|
+| `Address` | `string` | 1–200 caracteres | `"Calle Principal, Edificio A"` | `""` |
+| `Department` | `string` | Código `01`–`14` | `"06"` | `"99"` |
+| `District` | `string` | Dos dígitos distintos de `00` | `"01"` | `"00"` |
+| `Municipality` | `string` + `Department` | Código válido dentro del departamento dado (patrón por departamento) | `"14"` | `"99"` |
 
 ### temporal/ — `internal/domain/dte/common/value_objects/temporal/`
 
-| Nombre | Tipo param Go | Paquete | Regla de validación | Ejemplo válido | Ejemplo inválido |
-|------|--------------|---------|----------------|---------------|-----------------|
-| `EmissionDate` | `time.Time` | `temporal` | No cero, no más de 1 día en el futuro | `time.Now()` | `time.Time{}` |
-| `EmissionTime` | `time.Time` | `temporal` | No cero | `time.Now()` | `time.Time{}` |
+| Nombre | Tipo param Go | Regla de validación | Ejemplo válido | Ejemplo inválido |
+|------|--------------|----------------|---------------|-----------------|
+| `EmissionDate` | `time.Time` | No cero y anterior a la hora actual más 24 horas | `time.Now()` | `time.Time{}` |
+| `EmissionTime` | `time.Time` | No cero | `time.Now()` | `time.Time{}` |
+
+Algunos VOs no tienen constructor `NewValidated*` (por ejemplo `InvalidationReason`, `InvalidationType` y `DocumentNumber` del paquete `document`) ni siguen exactamente la forma de campo único `Value` (`AssociatedDocumentCode` y `ServiceType` usan un campo no exportado).
 
 ## Ejemplos de Código
 

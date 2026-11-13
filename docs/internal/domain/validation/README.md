@@ -8,6 +8,8 @@
 
 El sistema de validación utiliza el **patrón Strategy** para componer cadenas de validación específicas por tipo de DTE. Cada estrategia es una unidad autónoma que valida un aspecto del documento. Los validadores por DTE orquestan múltiples estrategias para cubrir todas las reglas de negocio.
 
+Las fórmulas de cálculo (venta por ítem, IVA, tributos, subtotales, totales, retenciones), los decimales permitidos por campo, la holgura y los códigos de error de cada cálculo se documentan una sola vez en [Cálculos que valida la API](../../../api/calculations.md). Esta documentación las resume y enlaza.
+
 ---
 
 ## Arquitectura
@@ -17,23 +19,28 @@ DTEValidationStrategy (interfaz)
 │
 ├── Estrategias Comunes (reutilizadas por todos los DTEs)
 │   ├── BasicRulesStrategy
-│   ├── ModelTypeStrategy
-│   ├── ItemValidationStrategy
-│   ├── TaxCalculationStrategy
-│   ├── PaymentTotalStrategy
 │   ├── TemporalValidationStrategy
 │   ├── ContingencyStrategy
-│   ├── ExtensionStrategy
-│   ├── OtherDocumentsStrategy
+│   ├── ModelTypeStrategy
+│   ├── TaxCalculationStrategy
+│   ├── PaymentTotalStrategy
+│   ├── ItemValidationStrategy
+│   ├── DocumentTypeStrategy
 │   ├── RelatedDocsStrategy
-│   └── ThirdPartyStrategy
+│   ├── ThirdPartyStrategy
+│   └── OtherDocumentsStrategy
+│
+├── Reglas compartidas (funciones reutilizadas por los validadores de cada DTE)
+│   ├── calculation_rules.go      → holgura, venta por ítem, suma de operaciones, monto total, descuentos globales en NC/ND, totales de NC/ND
+│   └── related_docs_rules.go     → tipos permitidos y plazos respecto del documento relacionado
 │
 └── Validadores Específicos por DTE (orquestan estrategias)
     ├── InvoiceRulesValidator         → InvoiceItemsStrategy + InvoiceTaxStrategy + InvoiceTotalsStrategy
+    │                                   (InvoiceRelatedDocStrategy existe pero no está registrada en el validador)
     ├── CCFRulesValidator             → CCFItemStrategy + CCFTaxStrategy + CCFReceiverStrategy + CCFRelatedDocStrategy
     ├── FSERulesValidator             → FSEItemStrategy + FSETaxStrategy + FSEReceiverStrategy + FSEDiscountStrategy
     ├── CreditNoteRulesValidator      → CreditNoteItemStrategy + CreditNoteTaxStrategy + CreditNoteRelatedDocStrategy
-    ├── DebitNoteRulesValidator        → DebitNoteItemStrategy + DebitNoteTaxStrategy + DebitNoteRelatedDocStrategy
+    ├── DebitNoteRulesValidator       → DebitNoteItemStrategy + DebitNoteTaxStrategy + DebitNoteRelatedDocStrategy
     ├── RetentionRulesValidator       → RetentionItemStrategy + RetentionTotalStrategy
     ├── RemissionNoteRulesValidator   → RemissionNoteItemStrategy + RemissionNoteSummaryStrategy + RemissionNoteReceiverStrategy
     └── InvalidationRulesValidator    → InvalidationBasicStrategy + InvalidationDocumentStrategy + InvalidationReasonStrategy + InvalidationDateStrategy
@@ -53,64 +60,48 @@ Todas las estrategias implementan este método. Retorna `nil` si la validación 
 
 ---
 
-## Validación en Dos Niveles
+## Orden de la Validación
 
-Cada DTE se valida en dos niveles:
+Para cada DTE que emite el microservicio (FE, CCF, NR, NC, ND y FSE) el servicio de dominio ejecuta, en este orden y deteniéndose en el primer paso que falle:
 
-### Nivel 1: Validación General (DTEDocument.Validate())
+1. **Validador propio del documento** (`<Documento>RulesValidator`): ejecuta todas sus estrategias y agrupa los errores de las distintas estrategias en un `CompositeError`.
+2. **Validación general** (`ValidateDTEDocument`):
+   - `ValidateModel[T]()` recorre por **reflexión** el modelo (campos exportados, structs y slices anidados) y ejecuta `IsValid()` de cada Value Object; retorna la lista de Value Objects inválidos.
+   - `ValidateDTERules()` ejecuta las estrategias comunes en este orden: `BasicRulesStrategy`, `TemporalValidationStrategy`, `ContingencyStrategy`, `ModelTypeStrategy`, `TaxCalculationStrategy`, `PaymentTotalStrategy`, `ItemValidationStrategy`, `DocumentTypeStrategy`, `RelatedDocsStrategy`, `ThirdPartyStrategy` y `OtherDocumentsStrategy`. Los errores de las estrategias y de los Value Objects se agrupan en una sola respuesta.
+3. **Validaciones de servicio** posteriores (documentos relacionados electrónicos, saldo en NC y ND, numeración de control).
 
-Se ejecuta `ValidateModel[T]()` que usa **reflexión** para validar automáticamente todos los Value Objects dentro del modelo:
+El **Comprobante de Retención (07)** solo ejecuta el paso 1 (`RetentionRulesValidator`); no pasa por la validación general.
 
-```go
-func ValidateModel[T any](model T) []error
-```
-
-- Se recorre cada campo del struct
-- Si el campo implementa `ValueObject[T].IsValid()`, se valida
-- Se recorren recursivamente structs y slices anidados
-- Retorna lista de errores de VOs inválidos
-
-### Nivel 2: Validación de Reglas de Negocio (ValidateDTERules())
-
-Se ejecutan las estrategias específicas del DTE:
-
-```go
-func (d *DTEDocument) ValidateDTERules() *dte_errors.DTEError {
-    // Ejecutar estrategias comunes
-    // Ejecutar estrategias específicas del DTE
-}
-```
+Cada estrategia devuelve **el primer error** que encuentra; los validadores agrupan los errores de estrategias distintas.
 
 ---
 
 ## Estrategias Comunes
 
-Estas estrategias se aplican a la mayoría de los DTEs.
+Estas estrategias se aplican a los DTE emitidos por el microservicio, salvo que se indique lo contrario.
 
 ### BasicRulesStrategy
 
 **Campos validados:** Estructura básica del documento
 
-| Validación | Regla |
-|---|---|
-| Documento | No debe ser nil |
-| Identificación | No debe ser nil |
-| Emisor | Debe existir |
-| Ítems | Lista no vacía |
-| Receptor | Requerido para: Factura (01), CCF (03), Remisión (04), Nota Crédito (05), Nota Débito (06), Exportación (11) |
-
-**Validación de NIT/DUI del receptor:**
-
-| Tipo | Patrón | Ejemplo |
+| Validación | Regla | Error |
 |---|---|---|
-| NIT | `^([0-9]{14}\|[0-9]{9})$` | `06142803101234` o `061428031` |
-| DUI | `^[0-9]{8}-[0-9]{1}$` | `01234567-8` |
+| Documento, identificación y emisor | No deben ser nil | `RequiredFieldMissing` |
+| Ítems | Lista no vacía | `RequiredFieldMissing` |
+| Receptor | Requerido para: Factura (01), CCF (03), Remisión (04), Nota Crédito (05), Nota Débito (06) y Exportación (11) | `RequiredFieldMissing` |
+
+**Validación de NIT/DUI del receptor** (solo si se informan tipo y número):
+
+| Tipo | Patrón | Ejemplo | Error |
+|---|---|---|---|
+| NIT (`36`) | `^([0-9]{14}\|[0-9]{9})$` | `06142803101234` o `061428031` | `InvalidNITFormat` |
+| DUI (`13`) | `^[0-9]{9}$` (el DUI se almacena y se envía sin guion: el Value Object quita el guion del request) | `012345678` | `InvalidDUIFormat` |
 
 ---
 
 ### ModelTypeStrategy
 
-**Regla:** El modelo de facturación debe ser consistente con el tipo de transmisión.
+**Regla:** El modelo de facturación debe ser consistente con el tipo de transmisión. Error: `InvalidModelType`.
 
 | Transmisión | Modelo Requerido |
 |---|---|
@@ -123,32 +114,24 @@ Estas estrategias se aplican a la mayoría de los DTEs.
 
 **Campos validados:** Estructura básica de cada ítem
 
-| Validación | Límite |
-|---|---|
-| Total de ítems | Máximo 2000 |
-| Número de ítem | 1 - 2000 |
-| Tipo de ítem | Debe estar en `AllowedItemTypes` |
-| Descripción | 1 - 1000 caracteres |
-| Unidad de medida | 1 - 99 |
-| Código de ítem | Máximo 25 caracteres |
+| Validación | Límite | Error |
+|---|---|---|
+| Total de ítems | Máximo 2000 | `ExceededItemsLimit` |
+| Número de ítem | 1 - 2000 | `InvalidItemNumber` |
+| Tipo de ítem | Debe estar en `AllowedItemTypes` (1 producto, 2 servicio, 3 ambos, 4 impuesto) | `InvalidItemType` |
+| Descripción | 1 - 1500 caracteres (Anexo IV, campo 86) | `InvalidLength` |
+| Unidad de medida | 1 - 99 | `InvalidNumberRange` |
+| Código de ítem | Máximo 25 caracteres | `InvalidLength` |
+
+Los errores de los ítems se agrupan en un error compuesto. Los cálculos por ítem están en [Cálculos que valida la API, sección 2](../../../api/calculations.md#2-cuerpo-del-documento-ítems).
 
 ---
 
 ### TaxCalculationStrategy
 
-**Regla:** Todos los códigos de impuesto de los ítems deben estar en `MapAllowedTaxTypes`.
+**Regla:** Todos los códigos de impuesto de los ítems deben estar en `MapAllowedTaxTypes` (`20`, `C3`, `59`, `71`, `D1`, `C8`, `D5`). Error: `UnsupportedTaxCode`.
 
-**Códigos permitidos:**
-
-| Código | Nombre | Tasa |
-|---|---|---|
-| `20` | IVA | 13% |
-| `C3` | IVA Exportación | 0% |
-| `59` | Turismo | 1% |
-| `71` | Turismo Aeropuerto | Monto fijo |
-| `D1` | FOVIAL | 0.5% |
-| `C8` | COTRANS | Monto fijo |
-| `D5` | Especial/Otro | Sin validación |
+Las bases y tasas con que se recalcula el valor de cada tributo del resumen se documentan en [Cálculos que valida la API, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138).
 
 ---
 
@@ -156,20 +139,23 @@ Estas estrategias se aplican a la mayoría de los DTEs.
 
 **No aplica a:** Nota de Crédito (05), Nota de Débito (06), Nota de Remisión (04)
 
-| Condición | Regla |
-|---|---|
-| Operación a crédito (2) | No se permite pago en efectivo (`BilletesMonedas`). Debe tener plazo y período |
-| Operación al contado (1) | No debe tener plazo ni período de pago |
-| Total de pagos | `Sum(payment.Amount) == TotalToPay` (tolerancia ±0.01) |
+| Condición | Regla | Error |
+|---|---|---|
+| Operación a crédito (2) sin pago en efectivo | El código de pago no puede ser `01` (billetes y monedas) | `InvalidPaymentTypeOP2` |
+| Operación a crédito (2) sin pago en efectivo | Cada pago debe tener plazo (`period`) y período (`term`) | `InvalidPaymentTerms` |
+| Operación al contado (1) sin pago en efectivo | Los pagos no deben tener plazo ni período | `InvalidPaymentTermsOF` |
+| Total de pagos | `Sum(payment.Amount) == TotalToPay` (holgura ±0.01) | `InvalidPaymentTotal` |
+
+Ver también [Cálculos, sección 3.11](../../../api/calculations.md#311-pagos).
 
 ---
 
 ### TemporalValidationStrategy
 
-| Validación | Regla |
-|---|---|
-| Fecha de emisión | No puede ser futura |
-| Hora de emisión | Si la fecha es hoy, la hora no puede ser futura |
+| Validación | Regla | Error |
+|---|---|---|
+| Fecha de emisión | No puede ser posterior a la fecha actual | `InvalidDateTime` |
+| Hora de emisión | Si la fecha de emisión es la de hoy, la hora no puede ser posterior a la actual | `InvalidEmissionTime` |
 
 ---
 
@@ -177,68 +163,79 @@ Estas estrategias se aplican a la mayoría de los DTEs.
 
 **Solo aplica cuando:** `OperationType == TransmisionContingencia`
 
-| Validación | Regla |
-|---|---|
-| Tipo de contingencia | No debe ser nil |
-| Razón de contingencia | Requerida si tipo es `OtroMotivo` (5) |
-| Tipos permitidos | 1-5 (MH no disponible, falla sistema, falla internet, falla energía, otro) |
+| Validación | Regla | Error |
+|---|---|---|
+| Tipo de contingencia | No debe ser nil | `MissingContingencyType` |
+| Razón de contingencia | No puede ser vacía si el tipo es `OtroMotivo` (5) | `MissingContingencyReason` |
+| Tipos permitidos | 1-5 (MH no disponible, falla de conexión del sistema, falla de internet, falla de energía, otro) | `InvalidContingencyType` |
 
 ---
 
-### ExtensionStrategy
+### DocumentTypeStrategy
 
-**Regla:** Si el monto total de la operación es `>= $1,095.00`, la extensión es obligatoria.
-
-La extensión incluye datos del responsable de la entrega y recepción del documento.
+**Solo aplica a:** CCF (03). El receptor debe tener NRC (`MissingNRC`).
 
 ---
 
 ### OtherDocumentsStrategy
 
-| Validación | Límite |
-|---|---|
-| Total documentos | Máximo 10 |
-| Código asociado | 1-4 |
+| Validación | Límite | Error |
+|---|---|---|
+| Total documentos | Máximo 10 | `InvalidOtherDocsCount` |
+| Código asociado | 1-4 | `InvalidAssociatedDocumentCode` |
 
 **Por código asociado:**
 
 | Código | Tipo | Reglas |
 |---|---|---|
 | 1, 2, 4 | Documentos normales | Descripción (1-100 chars) y detalle (1-300 chars) requeridos. Doctor debe ser vacío |
-| 3 | Documentos médicos | Descripción y detalle vacíos. Doctor requerido con nombre (1-100 chars), tipo servicio (1-6) |
+| 3 | Documentos médicos | Descripción y detalle vacíos (`InvalidMedicalDocFields`). Doctor requerido con nombre (1-100 chars) y tipo servicio (1-6, `InvalidServiceType`) |
 
-**Regla de exclusividad médica:** El doctor debe tener NIT **o** Identificación, pero no ambos.
+**Regla de exclusividad médica:** El doctor debe tener NIT **o** Identificación, pero no ambos (`MutuallyExclusiveFields`).
 
 ---
 
 ### RelatedDocsStrategy
 
-| Validación | Límite |
-|---|---|
-| Total docs relacionados | Máximo 50 |
-| Tipos mezclados | No permitido (todos del mismo tipo) |
-| Fecha de emisión | No puede ser futura |
-| Número (contingencia) | UUID válido: `^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$` |
-| Número (normal) | 0-20 caracteres |
+**Archivos:** `related_docs_strategy.go` y `related_docs_rules.go` (`internal/domain/dte/common/validator/strategy/`). Se aplica solo si el documento trae documentos relacionados.
+
+| Validación | Regla | Error |
+|---|---|---|
+| Total docs relacionados | Máximo 50 | `ExceededRelatedDocsLimit` |
+| Tipos mezclados | No permitido (todos del mismo tipo) | `MixedDocumentTypesNotAllowed` |
+| Fecha de emisión del relacionado | No puede ser posterior al día de hoy (se compara el día, no la hora) | `InvalidRelatedDocDate` |
+| Número (generación electrónica, tipo 2) | UUID válido: `^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$` | `InvalidRelatedDocNumberContingency` |
+| Número (otra generación) | Máximo 20 caracteres | `InvalidRelatedDocNumberNormal` |
+| Tipo permitido según el documento emitido | Solo la NR tiene restricción en esta estrategia: puede relacionar `01`, `03` o `11` | `InvalidRelatedDocDTEType` |
+| Plazo de generación respecto del relacionado | Ver tabla siguiente | `RelatedDocOutOfPeriod` |
+
+**Plazos de generación (`ValidateRelatedDocPeriod`)**, contados desde la fecha de emisión del documento relacionado (si se desconoce, no se valida). La comparación es por día:
+
+| Documento relacionado | Plazo máximo para generar el documento | Referencia en la Normativa |
+|---|---|---|
+| Nota de remisión (`04`) | Fin del mes de la NR más 3 días | Anexo IV, "Fecha de emisión" del documento relacionado, regla 2.a (FE, CCFE o FEXE que relacionan una NR) |
+| Documento contable de liquidación (`09`) | Fin del mes del documento relacionado | Mismo campo, regla 2.b (FE o CCFE que relacionan un DCL) |
+| CCF (`03`) o CR (`07`) ajustado por una NC o ND | 3 meses desde la fecha de generación del relacionado (suma de calendario) | Mismo campo, regla 2.c (NCE o NDE que relacionan un CCF o CR) |
+
+Para los demás casos no se evalúa plazo. Cada documento aplica además reglas propias sobre los relacionados en su estrategia específica (tipos permitidos y referencia obligatoria en los ítems); ver la sección "Documentos relacionados" de cada guía.
 
 ---
 
 ### ThirdPartyStrategy
 
-**Cuando hay venta a terceros:**
-- Todos los ítems deben tener documento relacionado
-- El tercero debe tener nombre
-- No se permiten ventas mixtas (propias + terceros)
+**Cuando hay venta a terceros:** el tercero debe tener nombre (`RequiredField`). Las ventas por cuenta de terceros van en documentos separados de las propias (Anexo IV, sección 6): al informar el tercero, todo el documento corresponde a él. El validador no compara ítems individuales contra el tercero.
 
 ---
 
 ## Tolerancias Numéricas
 
-| Contexto | Tolerancia |
+| Contexto | Regla |
 |---|---|
-| Cálculos monetarios | ±0.01 |
-| Subtotales financieros | ±0.0001 |
-| Decimales máximos | 2 decimales para montos |
+| Campos calculados | Holgura de ±0.01 (regla 7.3 de la Normativa), implementada en `WithinTolerance` (`calculation_rules.go`) |
+| Resumen | Múltiplos de 0.01 (`InvalidDecimals`) |
+| Cuerpo | Hasta 8 decimales (se redondean a 8) |
+
+Las fórmulas, los decimales por campo, los ejemplos y los códigos de error se encuentran en [Cálculos que valida la API](../../../api/calculations.md).
 
 ---
 
@@ -261,7 +258,7 @@ Para la documentación detallada de validación por cada DTE:
 
 | Directorio | Contenido |
 |---|---|
-| `internal/domain/dte/common/validator/strategy/` | Estrategias comunes |
+| `internal/domain/dte/common/validator/strategy/` | Estrategias comunes, reglas compartidas de cálculo (`calculation_rules.go`) y de documentos relacionados (`related_docs_rules.go`) |
 | `internal/domain/dte/common/validator/base_validator.go` | Validador base por reflexión |
 | `internal/domain/dte/invoice/validator/` | Estrategias de factura |
 | `internal/domain/dte/ccf/validator/` | Estrategias de CCF |
@@ -271,4 +268,6 @@ Para la documentación detallada de validación por cada DTE:
 | `internal/domain/dte/retention/validator/` | Estrategias de retención |
 | `internal/domain/dte/remission_note/validator/` | Estrategias de nota de remisión |
 | `internal/domain/dte/invalidation/validator/` | Estrategias de invalidación |
+| `internal/domain/dte/invalidation/policy/` | Plazos y fecha del evento de invalidación |
+| `internal/domain/dte/common/calendar/` | Calendario de días hábiles |
 | `internal/domain/dte/common/dte_errors/` | Tipos de error |

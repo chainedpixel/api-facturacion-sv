@@ -11,10 +11,10 @@ La Nota de Remisión es un documento que ampara el **traslado de mercadería** e
 
 Características principales:
 - **Documento de traslado** — Ampara el movimiento físico de mercadería
-- **SubTotal = TotalAmount** — No hay operaciones financieras adicionales (no hay IVA ni retenciones)
-- **Receptor opcional** — Puede o no tener receptor dependiendo del tipo de traslado
+- **Sin retenciones ni cargos financieros** — El resumen no define campos de retención; el monto total se valida como subtotal más los tributos del resumen
+- **Receptor requerido** — `RemissionNoteReceiverStrategy` rechaza el documento si no hay receptor (`RequiredField` con `receiver`)
 - **BienTitulo** — Campo especial del receptor que indica el título del bien trasladado
-- **Sin formas de pago** — No aplica el `PaymentTotalStrategy`
+- **Documentos relacionados** — Los tipos permitidos (`ValidRemissionNoteDTETypesRelateDoc`) son `01`, `03` y `11`; ver [constants.md](../constants.md)
 
 ---
 
@@ -56,18 +56,21 @@ func (s *remissionNoteService) Create(ctx context.Context, input interface{}, br
 ### Flujo de Ejecución
 
 ```
-1. Cast del input → RemissionNoteInput
+1. Cast del input → *RemissionNoteInput
 2. Verificar que el resumen existe (SummaryIsRequired)
 3. Crear documento base (DTEDocument)
 4. Ensamblar RemissionNoteModel
-5. Validar reglas de negocio
-6. Generar código de generación (UUID) y número de control
-7. Retornar RemissionNoteModel validado
+5. Validar reglas específicas (RemissionNoteRulesValidator)
+6. Validar reglas genéricas de DTE (ValidateDTEDocument)
+7. Generar código de generación (UUID) y número de control
+8. Retornar RemissionNoteModel validado
 ```
+
+El `RemissionNoteRulesValidator` compone tres estrategias: `RemissionNoteItemStrategy`, `RemissionNoteSummaryStrategy` y `RemissionNoteReceiverStrategy`.
 
 ### Verificación de Resumen
 
-Antes de continuar, se verifica que el resumen no sea `nil`. Si lo es, se retorna un error `SummaryIsRequired`.
+Antes de continuar, se verifica que `RemissionSummary` no sea `nil`. Si lo es, se retorna un error `SummaryIsRequired`.
 
 ---
 
@@ -88,9 +91,12 @@ type RemissionNoteModel struct {
 ```go
 type RemissionNoteInput struct {
     *models.InputDataCommon
-    Items             []RemissionNoteItem
-    RemissionSummary  *RemissionNoteSummary
-    Receiver          *RemissionNoteReceiver    // Receptor opcional
+    Receiver         *RemissionNoteReceiver
+    Items            []RemissionNoteItem
+    RemissionSummary *RemissionNoteSummary
+    Extension        interfaces.Extension // remanente sin uso: no se recibe en el request ni se envía a Hacienda
+    Appendixes       []models.Appendix
+    ThirdPartySale   interfaces.ThirdPartySale
 }
 ```
 
@@ -110,8 +116,28 @@ type RemissionNoteItem struct {
 ```go
 type RemissionNoteSummary struct {
     *models.Summary
-    // Extiende Summary sin campos adicionales especiales
-    // La diferencia clave es la regla: SubTotal = TotalAmount
+    NonSubjectTotal    *financial.Amount
+    ExemptTotal        *financial.Amount
+    TaxedTotal         *financial.Amount
+    SubtotalSales      *financial.Amount
+    NonSubjectDiscount *financial.Amount
+    ExemptDiscount     *financial.Amount
+    TaxedDiscount      *financial.Amount
+    DiscountPercent    *float64
+    TotalDiscount      *financial.Amount
+    Subtotal           *financial.Amount
+    TotalAmount        *financial.Amount
+    PaymentTypes       []interfaces.PaymentType
+}
+```
+
+Los campos de totales son opcionales (punteros): las validaciones de coherencia solo se aplican a los que se envían. El `Summary` base embebido es el que se asigna al `DTEDocument` (`GetTotalTaxes()` proviene de él).
+
+```go
+// Receptor
+type RemissionNoteReceiver struct {
+    *models.Receiver
+    BienTitulo *string
 }
 ```
 
@@ -141,29 +167,33 @@ El campo `BienTitulo` indica el tipo de título bajo el cual se traslada la merc
 
 ### Validaciones de BienTitulo
 
-- **Requerido** cuando existe receptor
-- **Máximo 2 caracteres**
-- Debe ser uno de los valores válidos (`01`-`05`, `99`)
+- **Obligatorio** (`RequiredBienTitulo`)
+- **Máximo 2 caracteres** (`InvalidLength`)
+- Debe ser uno de los valores válidos (`01`-`05`, `99`; `InvalidBienTitulo`)
 
 ---
 
 ## Reglas de Cálculo
 
-### Regla Principal: SubTotal = TotalAmount
+Las fórmulas generales se documentan en [calculations.md](../../../api/calculations.md).
 
-En la nota de remisión, el subtotal debe ser igual al monto total, ya que no hay transacciones financieras adicionales.
+### Monto total de la operación
+
+Cuando se envían `Subtotal` y `TotalAmount`, el monto total debe ser el subtotal más la suma de los tributos del resumen (`InvalidTotalOperation`, regla compartida `ValidateTotalOperation`).
 
 ### Validación de Totales
 
+Cada total del resumen que se envía debe coincidir con la suma de los ítems (tolerancia de 0.01):
+
 ```
-Sum(item.NonSubjectSale) == Summary.TotalNonSubject    (±0.01)
-Sum(item.ExemptSale)     == Summary.TotalExempt        (±0.01)
-Sum(item.TaxedSale)      == Summary.TotalTaxed         (±0.01)
+Sum(item.NonSubjectSale) == Summary.NonSubjectTotal    (InvalidTotalNonSubject)
+Sum(item.ExemptSale)     == Summary.ExemptTotal        (InvalidTotalExempt)
+Sum(item.TaxedSale)      == Summary.TaxedTotal         (InvalidTotalTaxed)
 ```
 
 ### Montos No Negativos
 
-Todos los totales deben ser `>= 0`.
+Los totales (no sujeto, exento, gravado y monto total) deben ser `>= 0` (`InvalidAmount`).
 
 ---
 
@@ -171,27 +201,27 @@ Todos los totales deben ser `>= 0`.
 
 ### Validación por Ítem
 
-- Al menos un ítem requerido
-- `NonSubjectSale >= 0`
-- `ExemptSale >= 0`
-- `TaxedSale >= 0`
-- Al menos un tipo de venta debe tener valor (`> 0`)
-- Los ítems deben estar numerados secuencialmente comenzando desde `1`
+- Al menos un ítem requerido (`RequiredField` con `items`)
+- `NonSubjectSale >= 0`, `ExemptSale >= 0` y `TaxedSale >= 0` (`InvalidAmount`)
+- La suma de los tres tipos de venta debe ser distinta de cero (`AtLeastOneSaleTypeRequired`)
+- Los ítems deben estar numerados secuencialmente comenzando desde `1` (`InvalidSequence`)
 
 ---
 
 ## Reglas del Receptor
 
-### Campos Requeridos (cuando el receptor existe)
+### Campos Requeridos
 
 | Campo | Requerido | Validación |
 |---|---|---|
 | `Name` | Sí | No vacío |
-| `DocumentType` | Sí | Tipo válido |
-| `DocumentNumber` | Sí | Formato válido según tipo |
-| `Address` | Sí | No vacío |
-| `Email` | Sí | Formato válido |
+| `DocumentType` | Sí | No vacío |
+| `DocumentNumber` | Sí | No vacío |
+| `Address` | Sí | Presente |
+| `Email` | Sí | No vacío |
 | `BienTitulo` | Sí | Valor válido (01-05, 99) |
+
+Además, el receptor debe ser de tipo `*RemissionNoteReceiver` (`InvalidRemissionNoteReceiver`).
 
 ### Validación de NIT
 
@@ -203,13 +233,17 @@ Si `DocumentType` es `"36"` (NIT), se requiere el campo `NIT` del receptor.
 
 | Error | Causa |
 |---|---|
-| Cast fallido | El `interface{}` no es `*RemissionNoteInput` |
-| `SummaryIsRequired` | Resumen es `nil` |
-| `ValidationFailed` | Reglas de negocio no cumplidas |
-| `RequiredField` | Campos obligatorios faltantes |
-| `InvalidValue` | Valores fuera del rango permitido |
+| Pánico por cast (cast sin comprobación) | El `interface{}` no es `*RemissionNoteInput` |
+| `SummaryIsRequired` | `RemissionSummary` es `nil` |
+| `ValidationFailed` | Reglas de negocio no cumplidas (envuelve el error compuesto) |
+| `RequiredField` | Campos obligatorios faltantes (ítems, receptor, nombre, documento, dirección, correo, NIT) |
+| `InvalidAmount` | Monto negativo |
+| `AtLeastOneSaleTypeRequired` | Ítem sin ningún tipo de venta |
 | `InvalidSequence` | Ítems no numerados secuencialmente |
-| `TotalMismatch` | Totales no coinciden con suma de ítems |
+| `InvalidTotalNonSubject`, `InvalidTotalExempt`, `InvalidTotalTaxed` | Totales no coinciden con la suma de ítems |
+| `InvalidTotalOperation` | Monto total distinto de subtotal más tributos |
+| `RequiredBienTitulo`, `InvalidBienTitulo`, `InvalidLength` | `BienTitulo` ausente o inválido |
+| `InvalidRemissionNoteReceiver` | El receptor no es de tipo nota de remisión |
 
 ---
 
@@ -218,12 +252,11 @@ Si `DocumentType` es `"36"` (NIT), se requiere el campo `NIT` del receptor.
 | Aspecto | Factura/CCF | Nota de Remisión |
 |---|---|---|
 | **Propósito** | Venta | Traslado de mercadería |
-| **IVA** | Sí | No |
-| **Formas de pago** | Requeridas | No aplican |
-| **Receptor** | Requerido | Opcional |
+| **IVA** | Sí | No hay validación de IVA en el resumen |
+| **Formas de pago** | Requeridas | `PaymentTotalStrategy` omite NC, ND y NRE |
+| **Receptor** | Requerido | Requerido (con `BienTitulo`) |
 | **BienTitulo** | No existe | Campo del receptor |
-| **SubTotal** | Calculado con descuentos | Igual al total |
-| **Operación financiera** | Sí | No |
+| **Monto total** | Según el tipo de documento | Subtotal más tributos del resumen |
 
 ---
 
@@ -232,7 +265,7 @@ Si `DocumentType` es `"36"` (NIT), se requiere el campo `NIT` del receptor.
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/remission_note/remission_note_service.go` | Servicio principal |
-| `internal/domain/dte/remission_note/models/` | Modelos de nota de remisión |
+| `internal/domain/dte/remission_note/remission_note_models/` | Modelos de nota de remisión |
 | `internal/domain/dte/remission_note/validator/` | Estrategias de validación |
 
 ---
@@ -240,7 +273,7 @@ Si `DocumentType` es `"36"` (NIT), se requiere el campo `NIT` del receptor.
 ## Notas
 
 1. **No es venta**: La nota de remisión ampara traslado de mercadería, no una transacción comercial.
-2. **Sin PaymentTotalStrategy**: Al no ser una operación de venta, no se aplican validaciones de formas de pago.
+2. **Sin validación de formas de pago**: `PaymentTotalStrategy` (validación genérica) omite la nota de remisión, y sus estrategias propias tampoco validan formas de pago.
 3. **BienTitulo**: Es un campo exclusivo de la nota de remisión que no existe en otros DTEs.
-4. **Receptor condicional**: La presencia del receptor depende del tipo de traslado, pero si existe, sus campos son obligatorios.
+4. **Receptor obligatorio**: Sin receptor, la validación falla con `RequiredField`; con receptor, todos sus campos listados son obligatorios.
 5. **Numeración secuencial**: Los ítems deben estar numerados `1, 2, 3...` sin saltos.

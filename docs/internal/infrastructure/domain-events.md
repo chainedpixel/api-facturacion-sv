@@ -14,7 +14,7 @@ El sistema permite que distintos puntos del microservicio publiquen **eventos de
 
 1. **Activación de contingencia** en una sucursal.
 2. **Falla consistente de emisión** de un DTE (rechazado por Hacienda).
-3. **Fallo del job de retransmisión** de contingencia.
+3. **Fallo del job de retransmisión** de contingencia, que además se usa para dos alertas de la ventana de contingencia: documentos **vencidos** (más de 72 horas desde el sello del evento) y contingencia que supera los **3 días** (requiere informe técnico).
 
 El bus es **in-process y asíncrono** (basado en goroutines), no requiere broker externo. Cada notificación pasa por un **cooldown en Redis** (15 minutos por defecto) para evitar inundar la bandeja durante incidentes prolongados.
 
@@ -106,7 +106,7 @@ type RejectedDocSummary struct {
 |---|---|---|---|
 | `contingency.activated` | `ContingencyActivatedEvent` | `branch:<id>` | Cuando un DTE se almacena en modo contingencia |
 | `emission.failure` | `EmissionFailureEvent` | `dte:<controlNumber>` (fallback: `dte:<generationCode>`) | Cuando MH rechaza un DTE en transmisión por lotes |
-| `retransmission_job.failed` | `RetransmissionJobFailedEvent` | `job:<jobName>` | Cuando el batch de retransmisión tiene rechazos **o** cuando el job falla por error de infraestructura |
+| `retransmission_job.failed` | `RetransmissionJobFailedEvent` | `job:<jobName>` | Cuando el batch de retransmisión tiene rechazos, cuando el job falla por error de infraestructura, cuando hay documentos de contingencia vencidos (72 horas) o cuando la contingencia supera los 3 días |
 
 #### Campos clave por evento
 
@@ -138,9 +138,9 @@ type RejectedDocSummary struct {
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `JobName` | `string` | Nombre del job (`contingency_retransmission`) |
-| `FailedDocuments` | `[]RejectedDocSummary` | Lista de documentos rechazados con detalle de MH (vacía en fallos de infraestructura) |
-| `LastError` | `string` | Error de ejecución del job (vacío cuando el fallo es por rechazos de MH) |
+| `JobName` | `string` | Identifica el origen: `contingency_retransmission` (fallo del job), `contingency_72h_expired` (documentos vencidos) o `contingency_technical_report` (contingencia mayor a 3 días). Los rechazos del batch usan el nombre del job del publisher |
+| `FailedDocuments` | `[]RejectedDocSummary` | Lista de documentos afectados con detalle (vacía en fallos de infraestructura y en la alerta de 3 días). Para `contingency_72h_expired`, cada elemento lleva `ErrorCode = CONTINGENCY_72H_EXPIRED` y la descripción del vencimiento |
+| `LastError` | `string` | Mensaje de la alerta o error de ejecución del job (en rechazos del batch va vacío) |
 
 ### Puerto del Mailer
 
@@ -171,7 +171,7 @@ type Mailer interface {
 
 > **Archivo:** `internal/infrastructure/adapters/repositories/event_repository.go`
 
-Inserta cada evento persistible en la tabla `domain_events` (modelo GORM ya existente en `db_models/domain_events_model.go`).
+Inserta cada evento persistible en la tabla `domain_events` (modelo GORM en `db_models/domain_events_model.go`). Ver la nota de la sección de persistencia: actualmente ningún evento concreto implementa `PersistableEvent`.
 
 ### Mailer SMTP
 
@@ -179,11 +179,12 @@ Inserta cada evento persistible en la tabla `domain_events` (modelo GORM ya exis
 
 Usa `github.com/wneessen/go-mail`. Comportamiento:
 
-- Si `SMTP_HOST`, `SMTP_FROM` o `ADMIN_EMAIL` están vacíos → log `WARN` y retorna `nil` (degradación elegante).
+- Si `SMTP_HOST`, `ADMIN_EMAIL` o `SMTP_FROM` están vacíos → log `WARN` y retorna `nil` (degradación elegante).
 - Manejo de TLS según puerto cuando `SMTP_TLS=true`:
   - `465` → SSL/TLS implícito (SMTPS, ej. Gmail).
-  - cualquier otro puerto → `STARTTLS` (ej. 587).
+  - cualquier otro puerto → `STARTTLS` obligatorio (ej. 587).
   - `SMTP_TLS=false` → sin TLS (solo dev).
+- El puerto por defecto es 587 si `SMTP_PORT` está vacío o no es válido.
 - Autenticación PLAIN cuando `SMTP_USERNAME` o `SMTP_PASSWORD` están seteados.
 
 ### Cooldown en Redis
@@ -200,7 +201,8 @@ type Cooldown interface {
 
 - Llave: `notify:cooldown:<eventName>:<aggregateID>`
 - Implementación: `SET ... NX EX <ttl>` — atómico.
-- TTL configurable vía `NOTIFY_COOLDOWN_MINUTES` (default 15).
+- TTL configurable vía `NOTIFY_COOLDOWN_MINUTES` (default 15; si el valor es menor o igual a 0 se usa 15 minutos).
+- Si la configuración de Redis no está disponible o su URL es inválida, no se construye el cooldown y el handler envía todas las notificaciones sin deduplicar.
 
 ### Renderer de plantillas
 
@@ -208,7 +210,8 @@ type Cooldown interface {
 
 - Carga las plantillas desde `assets/mails/` con `embed.FS` (binario self-contained).
 - Por cada evento produce `(subject, html, plain)`.
-- Inyecta automáticamente `APIVersion` (de `config.Server.APIVersion`), `Environment` (`MH_AMBIENT_CODE` mapeado a `test`/`production`) y `Timestamp`.
+- Inyecta automáticamente `APIVersion` (de `config.Server.APIVersion`, `3.0.0` si está vacío), `Environment` (código de ambiente `00` = `test`, `01` = `production`) y `Timestamp`.
+- Solo existe plantilla, asunto, badge y título para los tres eventos definidos. Las alertas de vencimiento y de 3 días reutilizan la plantilla de `retransmission_job.failed`: el asunto es `Retransmisión: N documento(s) rechazado(s) por MH` si el evento trae documentos (caso de vencimiento, aunque los documentos no fueron rechazados por Hacienda) y `Job de retransmisión: fallo de ejecución` si no los trae (alerta de 3 días); el mensaje descriptivo viaja en `LastError`.
 
 ---
 
@@ -220,13 +223,14 @@ Flujo:
 
 ```
 Handle(ctx, evt)
-  ├── cooldown.ShouldNotify(evt.Name, evt.AggregateID)
+  ├── cooldown.ShouldNotify(evt.Name, evt.AggregateID)   (si hay cooldown)
+  │       ├── error  →  log Warn y se continúa con el envío
   │       └── false  →  log debug y retorna nil
   ├── render.Render(evt)  →  subject, html, plain
   └── mailer.SendAdminAlert(subject, html, plain)
 ```
 
-Errores del mailer se loguean como `ERROR` pero **no se propagan** al publisher: una caída de SMTP nunca debe revertir la lógica de negocio que originó el evento.
+Los errores de render o del mailer se registran como `ERROR` y se devuelven desde `Handle`, pero el bus los registra de nuevo en su propio log y **no llegan** al publisher: el handler corre en una goroutine independiente, por lo que una caída de SMTP nunca revierte la lógica de negocio que originó el evento.
 
 ---
 
@@ -288,7 +292,7 @@ Métodos clave:
 
 | Método | Función |
 |---|---|
-| `initNotificationStack()` | Construye `EventBus` (con repositorio), `Mailer`, `Cooldown` y `AdminEmailHandler`, y suscribe el handler a los tres eventos. |
+| `initNotificationStack()` | Construye el `Mailer`, el `TemplateRenderer` y el `Cooldown`, y suscribe el `AdminEmailHandler` a los tres eventos. Si las plantillas no cargan, se registra un error y las notificaciones quedan deshabilitadas. |
 | `attachEventBusToPublishers()` | Inyecta el bus en `ContingencyService` y `BatchTransmitterService` vía `SetEventBus(...)`. |
 | `EventBus()` / `Mailer()` | Accesores expuestos por el contenedor. |
 
@@ -301,6 +305,8 @@ El bus también se entrega al job de retransmisión desde `cmd/setup/jobs.go` (`
 | Origen | Evento publicado | Notas |
 |---|---|---|
 | `contingency_service.go` → `StoreDocumentInContingency` | `ContingencyActivatedEvent` | Popula `NIT` desde los JWT claims |
+| `contingency_service.go` → `expireOverdueDocuments` | `RetransmissionJobFailedEvent` (`JobName = contingency_72h_expired`) | Una vez por ejecución cuando hay documentos con más de 72 horas desde el sello del evento; `FailedDocuments` lista cada documento vencido |
+| `contingency_service.go` → `alertLongContingency` | `RetransmissionJobFailedEvent` (`JobName = contingency_technical_report`) | Cuando el documento pendiente más antiguo supera los 3 días (72 horas desde `created_at`); `LastError` indica que se requiere informe técnico |
 | `batch_transmitter_service.go` → bloque de rechazos | `EmissionFailureEvent` (uno por DTE rechazado) | Incluye `ControlNumber` de `doc.Document.ControlNumber` y `HaciendaObservations` de la respuesta MH |
 | `batch_transmitter_service.go` → bloque de rechazos | `RetransmissionJobFailedEvent` | Se publica **además** del anterior cuando hay ≥1 rechazo; lleva `FailedDocuments` con el resumen de todos los rechazos del batch |
 | `contingency_retransmission_job.go` → `handleExecutionError` | `RetransmissionJobFailedEvent` | Solo cuando el job falla por error de infraestructura; `FailedDocuments` vacío, `LastError` con el mensaje de error |
@@ -320,13 +326,13 @@ Todos los publishers comparten el patrón `if s.bus != nil { s.bus.Publish(...) 
 | `payload` | json | Map serializado del evento |
 | `occurred_at` | timestamp | Momento del evento |
 
-Solo los eventos que implementan `PersistableEvent` (con `UserID()` y `BranchID()`) se persisten. Los eventos system-wide (job failures) se publican pero no se almacenan en esta tabla.
+Solo los eventos que implementan `PersistableEvent` (con `UserID()` y `BranchID()`) se persisten. En el código actual **ningún evento concreto** (`ContingencyActivatedEvent`, `EmissionFailureEvent`, `RetransmissionJobFailedEvent`) implementa esa interfaz, por lo que el bus no escribe filas en `domain_events` aunque el repositorio esté inyectado.
 
 ---
 
 ## Tests
 
-> **Ubicación:** `tests/events/`, `tests/notifier/`, `tests/handlers/`, `tests/repositories/`
+> **Ubicación:** `tests/events/`, `tests/notifier/`, `tests/handlers/`, `tests/repositories/`, `tests/health/`
 
 | Archivo                                       | Cobertura                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 |-----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -335,7 +341,7 @@ Solo los eventos que implementan `PersistableEvent` (con `UserID()` y `BranchID(
 | `tests/notifier/template_renderer_test.go`    | Renderizado correcto de los tres eventos; resolución de etiquetas de `ContingencyType` (1-5) y `DTEType` (11 códigos); fallback a valor raw para tipos desconocidos; campos opcionales (NIT, ClientName, BranchAddress) presentes cuando se populan y ausentes cuando están vacíos; ausencia de basura en HTML (sin `&mdash;` huérfano, sin filas vacías); `ControlNumber` en subject y cuerpo del correo de emisión; lista de `FailedDocuments` con código, descripción y observaciones en el correo de retransmisión; subject dinámico según tipo de fallo (rechazos MH vs error de infraestructura); integridad estructural con eventos mínimos; round-trip de `Payload()` para los campos nuevos |
 | `tests/notifier/smtp_mailer_test.go`          | Servidor SMTP fake recibe `subject`, `html` y `plain`; degradación cuando faltan envs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `tests/handlers/admin_email_handler_test.go`  | Cooldown, errores del cooldown, errores de render, sin cooldown, dedupe                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `tests/handlers/test_notify_handler_test.go`  | Endpoint `GET /notify-test`: variantes `contingency`/`emission`/`job` y respuesta `503` cuando el stack no está inicializado                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `tests/handlers/debug_notify_handler_test.go` | Endpoint `POST /debug/notify-test`: variantes `contingency`/`emission`/`job` y respuesta `503` cuando el stack no está inicializado                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `tests/repositories/event_repository_test.go` | INSERT en `domain_events` validado con `sqlmock`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 ---
@@ -360,23 +366,23 @@ Los textos están traducidos en `assets/i18n/{es,en}.yaml` bajo `health.up.domai
 
 ## Endpoint de Prueba (solo `DEBUG=true`)
 
-> **Archivos:** `internal/infrastructure/api/handlers/test_handler.go`, `internal/infrastructure/api/routes/test_routes.go`
+> **Archivos:** `internal/infrastructure/api/handlers/debug_notify_handler.go`, `internal/infrastructure/api/routes/debug_routes.go`
 
 Cuando `DEBUG=true` en `.env`, el servidor expone un endpoint que envía un correo real de prueba al `ADMIN_EMAIL` usando el `Mailer` y el `TemplateRenderer` configurados. **Bypassa el cooldown** de Redis para permitir reintentos consecutivos durante la verificación.
 
 ```
-GET /api/v1/notify-test[?event=contingency|emission|job]
+POST /api/v1/debug/notify-test[?event=contingency|emission|job]
 ```
 
 | Parámetro | Valor | Resultado |
 |---|---|---|
 | `event=contingency` (default) | `ContingencyActivatedEvent` | Correo "Contingencia activada" |
 | `event=emission` | `EmissionFailureEvent` | Correo "Falla consistente de emisión" con DTE de prueba |
-| `event=job` | `RetransmissionJobFailedEvent` | Correo "Job de retransmisión con fallos" |
+| `event=job` | `RetransmissionJobFailedEvent` | Correo "Job de retransmisión con fallos" (con dos documentos de ejemplo) |
 
 ### Respuestas
 
-- `200 OK` — `{ "event": "contingency.activated", "subject": "...", "sent": true }`
+- `200 OK` — `{ "success": true, "data": { "event": "contingency.activated", "subject": "...", "sent": true } }`
 - `503 Service Unavailable` — el stack de notificaciones no se inicializó (templates rotos o mailer no construido).
 - `500 Internal Server Error` — fallo de render o de transporte SMTP. El cuerpo incluye el mensaje del error.
 

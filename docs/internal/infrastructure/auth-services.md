@@ -34,40 +34,45 @@ type JWTService struct {
 | Método | Descripción |
 |---|---|
 | `GenerateToken(claims, tokenLifetime)` | Se genera un JWT firmado con HS256 |
-| `ValidateToken(tokenString)` | Se valida el token y se recuperan claims del cache |
+| `ValidateToken(tokenString)` | Se recuperan los claims del cache y además se verifica la firma y vigencia del JWT |
 | `RevokeToken(token)` | Se invalida un token eliminándolo del cache |
-| `SaveTimestampsForContingency(issuedAt, expiresAt, tokenLifetime, claims)` | Se cachean timestamps para contingencia |
+| `SaveTimestampsForContingency(issuedAt, expiresAt, tokenLifetime, claims)` | Se cachean las marcas de emisión y expiración del usuario, que contingencia reutiliza para regenerar un token equivalente |
 | `GetSecretKey()` | Se retorna la clave de firma |
 
 ### Claims del Token
 
-```go
-type AuthClaims struct {
-    ClientID  uint      `json:"sub"`
-    BranchID  uint      `json:"branch_sub"`
-    AuthType  string    `json:"auth_type"`
-    NIT       string    `json:"nit"`
-    ExpiresAt time.Time `json:"expires_at"`
-    IssuedAt  time.Time `json:"iat"`
-}
-```
+El JWT se firma con `jwt.MapClaims` con estas claves:
+
+| Claim | Origen |
+|---|---|
+| `sub` | `ClientID` |
+| `branch_sub` | `BranchID` |
+| `auth_type` | `AuthType` |
+| `nit` | `NIT` |
+| `exp` | emisión + `tokenLifetime` (Unix) |
+| `iat` | momento de emisión (Unix) |
+
+Los `AuthClaims` (`ClientID`, `BranchID`, `AuthType`, `NIT`) se serializan a JSON y se guardan en cache; el middleware de autenticación los inyecta en el contexto de la petición.
 
 ### Flujo de Generación
 
 ```
 GenerateToken(claims, lifetime)
   │
-  ├── 1. Crear JWT con claims estándar (sub, exp, iat)
-  │      Algoritmo: HS256
-  │      Firma: SecretKey
+  ├── 1. Crear JWT (HS256) con sub, branch_sub, auth_type, nit, exp, iat
   │
-  ├── 2. Firmar token → tokenString
+  ├── 2. Firmar con SecretKey → tokenString
   │
-  ├── 3. Cachear claims en Redis
-  │      Key: tokenString
+  ├── 3. SaveTimestampsForContingency
+  │      Key: token:timestamps:{ClientID}
+  │      Valor: { IssuedAt, ExpiresAt } (Unix)
   │      TTL: tokenLifetime
   │
-  └── 4. Retornar tokenString
+  ├── 4. Cachear claims en Redis
+  │      Key: token:{tokenString}
+  │      TTL: tokenLifetime
+  │
+  └── 5. Retornar tokenString
 ```
 
 ### Flujo de Validación
@@ -76,14 +81,21 @@ GenerateToken(claims, lifetime)
 ValidateToken(tokenString)
   │
   ├── 1. Buscar claims en cache (Redis)
-  │      Key: tokenString
+  │      Key: token:{tokenString}
+  │      └── No existe → error (FailedToLogin)
   │
-  ├── 2. Si no existe → token inválido o expirado
+  ├── 2. Deserializar AuthClaims
+  │      └── Error → AuthServiceUnavailable
   │
-  └── 3. Si existe → retornar AuthClaims deserializados
+  ├── 3. jwt.Parse con SecretKey (firma y expiración)
+  │      └── Error → AuthServiceUnavailable
+  │
+  └── 4. token.Valid → retornar AuthClaims (si no, Unauthorized)
 ```
 
-> **Nota:** La validación se basa en la existencia del token en cache, no en la firma JWT. Esto permite la revocación inmediata.
+> **Nota:** La validación exige las dos condiciones: que el token exista en cache (lo que permite la revocación inmediata) y que su firma y expiración sean válidas.
+
+> **Observación del código:** `GenerateToken` imprime el token firmado en la salida estándar con `fmt.Printf`, y `ValidateToken` y `RevokeToken` registran el token completo en los logs.
 
 ---
 
@@ -96,9 +108,9 @@ ValidateToken(tokenString)
 
 ```go
 type RedisTokenCache struct {
-    client      *redis.Client
+    client       *redis.Client
     cryptService ports.CryptManager
-    ctx         context.Context
+    ctx          context.Context
 }
 ```
 
@@ -108,15 +120,19 @@ type RedisTokenCache struct {
 |---|---|
 | `Set(key, value, ttl)` | Se almacena un valor con tiempo de expiración |
 | `Get(key)` | Se recupera un valor por clave |
-| `Delete(token)` | Se elimina una entrada |
+| `Delete(token)` | Se elimina la entrada `token:{token}` |
+| `Expire(key, ttl)` | Se asigna expiración a una clave |
+| `ScanKeys(pattern)` | Se listan las claves que coinciden con un patrón (iteración por cursor) |
 | `Close()` | Se cierra la conexión Redis |
 
 ### Métodos — Credenciales Cifradas
 
 | Método | Descripción |
 |---|---|
-| `SetCredentials(token, creds, ttl)` | Se cifran y almacenan credenciales de Hacienda |
-| `GetCredentials(token)` | Se descifran y retornan credenciales |
+| `SetCredentials(token, creds, ttl)` | Se cifran y almacenan credenciales de Hacienda en `hacienda:credentials:{token}` |
+| `GetCredentials(token)` | Se descifran y retornan credenciales de `hacienda:credentials:{token}` |
+
+Otras claves que se escriben vía `Set`: `token:{jwt}`, `token:timestamps:{clientID}`, `hacienda:token:{jwt}` (token de Hacienda, 24 h) y `metrics:...` (ver [endpoint-metrics.md](endpoint-metrics.md)).
 
 ### Flujo de Cifrado de Credenciales
 
@@ -126,7 +142,7 @@ SetCredentials(token, creds, ttl)
   ├── 1. Serializar HaciendaCredentials a JSON
   ├── 2. Derivar clave AES del token (SHA256)
   ├── 3. Cifrar JSON con cryptopasta (AES-GCM)
-  ├── 4. Codificar en base64
+  ├── 4. Codificar en base64 (CryptService)
   └── 5. Almacenar en Redis con TTL
 
 GetCredentials(token)
@@ -143,7 +159,7 @@ GetCredentials(token)
 | Método | Descripción |
 |---|---|
 | `RPush(key, value)` | Se agrega un elemento al final de la lista |
-| `LPush(key, value)` | Se agrega un elemento al inicio de la lista |
+| `LPush(key, value)` | Se agrega un elemento al inicio de la lista (lo usa `MetricsMiddleware`) |
 | `LRange(key, start, stop)` | Se obtiene un rango de elementos |
 | `LLen(key)` | Se obtiene la longitud de la lista |
 | `LTrim(key, start, stop)` | Se recorta la lista al rango especificado |
@@ -151,9 +167,9 @@ GetCredentials(token)
 ### Inicialización
 
 ```
-NewRedisTokenCache(redisURL, cryptService)
+NewRedisTokenCache(redisConfig, cryptService)
   │
-  ├── 1. Parsear URL de Redis
+  ├── 1. Parsear la URL construida con config.RedisConfig.GetURL()
   ├── 2. Crear cliente go-redis
   ├── 3. Verificar conexión (Ping)
   └── 4. Retornar instancia configurada
@@ -179,7 +195,7 @@ type CryptService struct{}
 | Método | Descripción |
 |---|---|
 | `GenerateAPIKey()` | Se genera una clave API de 32 bytes (hex-encoded, 64 chars) |
-| `GenerateAPISecret()` | Se genera un secret de 48 bytes (base64-encoded) |
+| `GenerateAPISecret()` | Se genera un secret de 48 bytes (base64 URL-safe) |
 | `GenerateBulkAPIKeys(amount)` | Se generan N pares de key/secret en lote |
 | `EncryptStruct(token, data)` | Se cifran credenciales con clave derivada del token |
 | `DecryptStruct(token, data)` | Se descifran credenciales |
@@ -191,7 +207,7 @@ GenerateAPIKey()
   → crypto/rand.Read(32 bytes) → hex.EncodeToString → "a1b2c3d4..."
 
 GenerateAPISecret()
-  → crypto/rand.Read(48 bytes) → base64.StdEncoding → "dGVzdC..."
+  → crypto/rand.Read(48 bytes) → base64.URLEncoding → "dGVzdC..."
 
 GenerateBulkAPIKeys(n)
   → keys[0..n-1] = GenerateAPIKey()
@@ -227,16 +243,18 @@ Login Request
   ▼
 AuthMiddleware
   ├── JWTService.ValidateToken(token)
-  │     └── RedisTokenCache.Get(token) → claims
+  │     ├── RedisTokenCache.Get("token:" + token) → claims
+  │     └── jwt.Parse (firma y expiración)
   │
   ▼
 AuthUseCase.Login()
   ├── AuthManager.Login() → genera claims
-  ├── JWTService.GenerateToken(claims, 24h)
+  ├── JWTService.GenerateToken(claims, tokenLifetime)
   │     ├── Firmar JWT
-  │     └── RedisTokenCache.Set(token, claims, 24h)
+  │     ├── RedisTokenCache.Set("token:timestamps:{clientID}", ..., tokenLifetime)
+  │     └── RedisTokenCache.Set("token:" + token, claims, tokenLifetime)
   │
-  └── RedisTokenCache.SetCredentials(token, mhCreds, 24h)
+  └── RedisTokenCache.SetCredentials(token, mhCreds, tokenLifetime)
         └── CryptService.EncryptStruct(token, creds)
 ```
 
@@ -244,8 +262,8 @@ AuthUseCase.Login()
 
 ## Notas
 
-1. **Token en cache = token válido**: La validación de JWT se basa en la existencia en Redis, no en la verificación criptográfica de la firma. Esto permite la revocación instantánea al eliminar la entrada del cache.
+1. **Doble verificación del token**: Un token es válido solo si existe en Redis y su firma/expiración son correctas. Eliminar la entrada del cache revoca el token de inmediato.
 2. **Credenciales cifradas en reposo**: Las credenciales de Hacienda se almacenan cifradas en Redis usando AES-GCM (via cryptopasta) con una clave derivada del token del usuario.
-3. **TTL sincronizado**: El TTL del cache coincide con la vida útil del token (24 horas), garantizando limpieza automática.
+3. **TTL sincronizado**: El TTL del cache coincide con la vida útil del token (`token_lifetime` del usuario expresado en días, 14 por defecto en el modelo de BD; la estrategia estándar lo multiplica por 24 horas; ver [database.md](database.md)), garantizando limpieza automática.
 4. **Crypto seguro**: Se usa `crypto/rand` para generación aleatoria (no `math/rand`), asegurando claves criptográficamente seguras.
 5. **Derivación de clave**: Se utiliza SHA256 para derivar claves AES de 32 bytes a partir de tokens de longitud variable.

@@ -21,8 +21,8 @@ Características principales:
 
 ```go
 type invalidationService struct {
-    validator  *validator.InvalidationRulesValidator
     dteManager dte_documents.DTEManager
+    deadlines  *policy.Deadlines
 }
 ```
 
@@ -30,21 +30,24 @@ type invalidationService struct {
 
 | Dependencia | Tipo | Propósito |
 |---|---|---|
-| `validator` | `*validator.InvalidationRulesValidator` | Se validan reglas de negocio de invalidación |
-| `dteManager` | `DTEManager` | Se accede al documento original y se actualiza su estado |
+| `dteManager` | `DTEManager` | Se accede al documento original, se consultan notas vigentes y se actualiza su estado |
+| `deadlines` | `*policy.Deadlines` | Se calculan los plazos de transmisión de la invalidación |
 
 ### Constructor
 
 ```go
-func NewInvalidationService(dteManager dte_documents.DTEManager) InvalidationManager
+func NewInvalidationService(dteManager dte_documents.DTEManager, deadlines *policy.Deadlines) InvalidationManager
 ```
+
+Si `deadlines` es `nil` se usa un calendario con los asuetos nacionales únicamente. El validador de reglas (`InvalidationRulesValidator`) se crea en cada llamada a `Validate`, con `utils.TimeNow()` como instante de evaluación.
 
 ### Interfaz `InvalidationManager`
 
 ```go
 type InvalidationManager interface {
-    Validate(ctx context.Context, branchID uint, document interface{}) error
-    ValidateStatus(ctx context.Context, branchID uint, req interface{}) error
+    Validate(ctx context.Context, branchID uint, document *invalidation_models.InvalidationDocument) error
+    ValidateStatus(ctx context.Context, branchID uint, req structs.CreateInvalidationRequest) error
+    ValidateDependencies(ctx context.Context, branchID uint, doc *dte.DTEDocument) error
     InvalidateDocument(ctx context.Context, branchID uint, originalCode string) error
 }
 ```
@@ -59,11 +62,11 @@ type InvalidationManager interface {
 func (s *invalidationService) Validate(
     ctx context.Context,
     branchID uint,
-    document interface{},
+    document *invalidation_models.InvalidationDocument,
 ) error
 ```
 
-Se valida la estructura del documento de invalidación contra las reglas de negocio. Ejecuta el `InvalidationRulesValidator` completo.
+Se valida la estructura del documento de invalidación contra las reglas de negocio. Ejecuta el `InvalidationRulesValidator` completo (cuatro estrategias, los errores se agrupan en un error compuesto).
 
 ### `ValidateStatus`
 
@@ -71,23 +74,32 @@ Se valida la estructura del documento de invalidación contra las reglas de nego
 func (s *invalidationService) ValidateStatus(
     ctx context.Context,
     branchID uint,
-    req interface{},
+    req structs.CreateInvalidationRequest,
 ) error
 ```
 
-Se valida el estado del documento original y, si es tipo reemplazo, el estado del documento de reemplazo:
-
-1. **Documento original**: Debe estar en estado `RECEIVED`
-2. **Documento de reemplazo** (tipo 1): Debe existir y estar en estado `RECEIVED`
+Se consulta con `DTEManager.VerifyStatus` el estado del documento a invalidar y, si el tipo de invalidación no es `2` y se envió un código de reemplazo, el estado del documento de reemplazo. Solo los estados listados abajo producen error; cualquier otro estado (`RECEIVED`, `EXPIRED`) no se rechaza en este paso.
 
 #### Mapeo de Estados a Errores
 
-| Estado del Original | Error |
+| Estado | Error (parámetro: `document to invalidate` o `replacement document`) |
 |---|---|
-| `RECEIVED` | Sin error (válido) |
 | `INVALIDATED` | `DocumentAlreadyInvalid` |
 | `REJECTED` | `DocumentReject` |
 | `PENDING` | `DocumentPending` |
+| Otros | Sin error |
+
+### `ValidateDependencies`
+
+```go
+func (s *invalidationService) ValidateDependencies(
+    ctx context.Context,
+    branchID uint,
+    doc *dte.DTEDocument,
+) error
+```
+
+Solo aplica a documentos cuyo tipo está en `ValidAdjustmentDTETypes` (CCF `03` y Comprobante de Retención `07`); para el resto retorna `nil`. Se consultan las notas vigentes con `DTEManager.GetActiveAdjustmentNotes` y, si existe alguna, se retorna `PendingAdjustmentNotes` con el código del documento y la lista de notas. Ver sección Dependencias.
 
 ### `InvalidateDocument`
 
@@ -118,25 +130,22 @@ func (s *invalidationService) handleControlBalance(
 ) error
 ```
 
-Cuando se invalida una nota de crédito o débito, se revierte el efecto en el balance del documento original:
+Cuando se invalida una nota de crédito o débito, se registra una transacción de balance sobre los documentos relacionados de tipo electrónico (`ElectronicDocument`):
 
-### Nota de Crédito (DTE 05) Invalidada
-
-Se extraen los montos (`TaxedSale`, `ExemptSale`, `NonSubjectSale`) de la nota de crédito y se suman de vuelta al balance del documento referenciado. Es decir, se "deshace" la reducción.
-
-### Nota de Débito (DTE 06) Invalidada
-
-Se extraen los montos de la nota de débito y se restan del balance del documento referenciado. Es decir, se "deshace" el incremento.
+1. Se extraen del JSON de la nota los documentos relacionados y los ítems (`utils.ExtractRelatedDocAndItemsFromStringJSON`).
+2. Por cada ítem cuyo documento relacionado es electrónico se invoca:
 
 ```go
 dteManager.GenerateBalanceTransactionWithAmounts(
     ctx, branchID,
-    transactionType,    // "CREDIT_REVERSAL" o "DEBIT_REVERSAL"
-    originalDTE,
-    adjustmentDTE,
-    taxedSale, exemptSale, notSubjectSale,
+    constants.DocumentInvalid, // tipo de transacción: "INVALIDATED"
+    relatedDocumentNumber,     // documento original afectado
+    originalCode,              // nota invalidada
+    taxedAmount, exemptAmount, notSubjectAmount,
 )
 ```
+
+El efecto sobre el saldo se aplica en el modelo de persistencia (`DTEBalanceTransaction.AfterCreate`): si el tipo de transacción es `05` se restan los montos del saldo restante; con cualquier otro tipo (incluido `INVALIDATED`) se suman. Por tanto, la invalidación de una nota devuelve los montos al saldo del documento original. Para una nota de débito, la transacción de creación también suma al saldo, por lo que la invalidación aplica la misma suma.
 
 ---
 
@@ -157,29 +166,43 @@ type InvalidationDocument struct {
 
 ```go
 type InvalidatedDocument struct {
-    Type            string  // Tipo de DTE del documento a invalidar
-    GenerationCode  string  // Código de generación UUID del documento
-    ReceptionStamp  string  // Sello de recepción de Hacienda
-    ControlNumber   string  // Número de control del documento
-    EmissionDate    string  // Fecha de emisión original
+    Type            document.DTEType               // json "type": tipo de DTE a invalidar
+    GenerationCode  identification.GenerationCode  // json "generationCode"
+    ReceptionStamp  string                         // json "receptionStamp": sello de recepción
+    ControlNumber   identification.ControlNumber   // json "controlNumber"
+    EmissionDate    temporal.EmissionDate          // json "emissionDate": fecha de emisión original
+    DocumentType    *document.DTEType              // json "documentType": tipo de documento del receptor
+    DocumentNumber  *identification.DocumentNumber // json "documentNumber"
+    Name            *string                        // json "name": nombre del receptor
+    Email           *base.Email                    // json "email"
+    ReplacementCode *identification.GenerationCode // json "replacementCode,omitempty"
+    IVAAmount       *financial.Amount              // json "IVAAmount,omitempty"
+    Phone           *base.Phone                    // json "phone,omitempty"
+
+    GenerationDateTime time.Time // json "-": fecha y hora de generación del documento
+    StampDate          time.Time // json "-": fecha del sello de recepción
+    IssuerActivity     string    // json "-": código de actividad del emisor
 }
 ```
+
+Los tres últimos campos no se serializan; los usa `InvalidationDateStrategy` para calcular plazos y validar la fecha del evento.
 
 ### InvalidationReason
 
 ```go
 type InvalidationReason struct {
-    Type                int     // Tipo de invalidación (1, 2, 3)
-    ResponsibleName     string  // Nombre del responsable
-    ResponsibleDocType  string  // Tipo de documento del responsable
-    ResponsibleDocNum   string  // Número de documento del responsable
-    RequesterName       string  // Nombre del solicitante
-    RequesterDocType    string  // Tipo de documento del solicitante
-    RequesterDocNum     string  // Número de documento del solicitante
-    Reason              string  // Motivo de la invalidación (requerido para tipo 3)
-    ReplacementCode     string  // Código del documento de reemplazo (tipo 1 y 3)
+    Type               document.InvalidationType     // json "type": 1, 2 o 3
+    ResponsibleName    string                        // json "responsibleName"
+    ResponsibleDocType document.DTEType              // json "responsibleDocType"
+    ResponsibleDocNum  identification.DocumentNumber // json "responsibleDocNum"
+    RequesterName      string                        // json "requesterName"
+    RequesterDocType   document.DTEType              // json "requesterDocType"
+    RequesterDocNum    identification.DocumentNumber // json "requesterDocNum"
+    Reason             *document.InvalidationReason  // json "reason": obligatorio para tipo 3
 }
 ```
+
+El código de reemplazo no forma parte de `InvalidationReason`: se ubica en `InvalidatedDocument.ReplacementCode`. El value object `InvalidationReason` acepta entre 5 y 250 caracteres; `InvalidationType` acepta de 1 a 3.
 
 ---
 
@@ -193,7 +216,7 @@ type InvalidationReason struct {
 
 ### Reglas por Tipo
 
-- **Tipo 1 (Reemplazo)**: Se requiere el código del documento de reemplazo. El documento de reemplazo debe existir y estar en estado `RECEIVED`.
+- **Tipo 1 (Reemplazo)**: Se requiere el código del documento de reemplazo. Si se envía, su estado se consulta en `ValidateStatus` y se rechaza si es `INVALIDATED`, `REJECTED` o `PENDING`.
 - **Tipo 2 (Anulación)**: No debe tener código de reemplazo.
 - **Tipo 3 (Otro)**: Se requiere el campo `Reason` explicando el motivo, y el código de reemplazo.
 
@@ -250,22 +273,23 @@ Request de Invalidación
   ▼
 InvalidationUseCase (Application Layer)
   │
-  ├── 1. Extraer contexto de autenticación
-  ├── 2. invalidationService.Validate()         ← Validar estructura
-  ├── 3. invalidationService.ValidateStatus()    ← Validar estados
+  ├── 1. Extraer contexto de autenticación (claims y token)
+  ├── 2. Validar la solicitud (mapper)
+  ├── 3. invalidationService.ValidateStatus()        ← Validar estados
   ├── 4. Cargar documento original
-  ├── 4.1 invalidationService.ValidateDependencies() ← NC/ND vigentes de un CCF o CR
-  ├── 5. Cargar info del emisor
-  ├── 6. Mapear a modelo de dominio
-  ├── 7. Validar documento completo
-  ├── 8. Mapear a formato Hacienda
-  ├── 9. Transmitir a Hacienda (sin contingencia)
+  ├── 5. invalidationService.ValidateDependencies()  ← NC/ND vigentes de un CCF o CR
+  ├── 6. Cargar info del emisor
+  ├── 7. Mapear a modelo de dominio (InvalidationDocument)
+  ├── 8. invalidationService.Validate()              ← Validar reglas del evento
+  ├── 9. Mapear a formato Hacienda
+  ├── 10. Transmitir a Hacienda (sin contingencia); si el estado no es RECEIVED → TransmissionFailed
   │
-  └── 10. [Si éxito]:
+  └── 11. [Si éxito]:
         ├── invalidationService.InvalidateDocument()
         │     ├── Actualizar estado → INVALIDATED
         │     └── handleControlBalance() (si nota crédito/débito)
-        └── Retornar resultado
+        ├── dteManager.RegisterEvent()   ← Guarda el evento con su evidencia (JWS, sello, respuesta)
+        └── Retornar el evento con su Archivo DTE
 ```
 
 > **Sin contingencia**: La invalidación NO soporta contingencia. Si Hacienda no está disponible, la operación falla.
@@ -282,12 +306,12 @@ InvalidationUseCase (Application Layer)
 | `RequiredField` | Campos obligatorios faltantes |
 | `InvalidPattern` | Sello de recepción con formato inválido |
 | `InvalidDTETypeForInvalidation` | Tipo de DTE no válido para invalidación |
-| `InvalidEnum` | Tipo de invalidación fuera de rango (1-3) |
+| `InvalidEnum` | Tipo de invalidación fuera de rango (1-3) o tipo de documento del responsable o solicitante no permitido |
 | `InvalidationDeadlineExpired` | Plazo de transmisión vencido |
 | `InvalidationEventDateOutOfRange` | Fecha del evento de FE/FEXE/FSE fuera del periodo desde la generación |
 | `InvalidationEventDateMismatch` | Fecha del evento distinta a la generación (resto de DTE) |
 | `MissingStampDate` | No se conoce la fecha del sello |
-| `DocumentWithoutStamp` | El documento no tiene sello de recepción |
+| `DocumentWithoutStamp` | El documento no tiene sello de recepción (se lanza en el mapeo de la solicitud, `pkg/mapper`, no en el dominio) |
 | `PendingAdjustmentNotes` | CCF o CR con NC/ND vigentes |
 
 ---
@@ -297,7 +321,9 @@ InvalidationUseCase (Application Layer)
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/invalidation/invalidation_service.go` | Servicio principal |
-| `internal/domain/dte/invalidation/models/` | Modelos de invalidación |
+| `internal/domain/dte/invalidation/invalidation_models/` | Modelos de invalidación |
+| `internal/domain/dte/invalidation/policy/` | Plazos y fecha del evento por tipo de DTE |
+| `internal/domain/dte/common/calendar/` | Calendario de días hábiles |
 | `internal/domain/dte/invalidation/validator/` | Estrategias de validación |
 
 ---

@@ -33,7 +33,9 @@ func NewDTEUseCaseFactory(
 ) *DTEUseCaseFactory
 ```
 
-El `MapperFactory` y `DTEOperations` se instancian internamente.
+El `MapperFactory` (`mapper.NewMapperFactory()`) y `DTEOperations` (`NewDTEOperations()`) se instancian internamente.
+
+`UseCaseContainer.Initialize` construye la factory una sola vez con `AuthManager`, `DTEManager`, el `BaseTransmitter` (`dte.NewBaseTransmitter`) y `SequentialManager`, y luego obtiene cada caso de uso pasando el servicio de dominio del tipo (`InvoiceService`, `CCFService`, `RetentionManager`, `CreditNoteManager`, `RemissionNoteManager`, `FSEManager`, `DebitNoteManager`).
 
 ---
 
@@ -68,7 +70,7 @@ func (f *DTEUseCaseFactory) CreateInvalidationUseCase(
 ) *InvalidationUseCase
 ```
 
-La invalidación NO usa `GenericDTEUseCase` — tiene su propio caso de uso dedicado (`InvalidationUseCase`) porque su flujo es fundamentalmente diferente.
+La invalidación NO usa `GenericDTEUseCase` — tiene su propio caso de uso dedicado (`InvalidationUseCase`) porque su flujo es fundamentalmente diferente. La factory le inyecta `DTEManager`, el `InvalidationManager`, `AuthManager` y el `BaseTransmitter`; no usa `MapperFactory` ni `SequentialNumberManager`.
 
 ---
 
@@ -122,6 +124,6 @@ DTEUseCaseFactory
 
 ## Notas
 
-1. **Extensibilidad**: Para agregar un nuevo tipo de DTE, se crea un nuevo método factory que inyecte el mapper, response mapper, y operaciones apropiadas.
+1. **Extensibilidad**: Para agregar un nuevo tipo de DTE, se crea un nuevo método factory que inyecte el mapper, response mapper, y operaciones apropiadas, y se registra su endpoint en `HandlerContainer.initializeGenericCreatorHandler`. La factory no tiene método para Factura de Exportación (11).
 2. **Dependencias compartidas**: `authService`, `dteService`, `transmitter` y `sequentialManager` se comparten entre todos los casos de uso.
 3. **MapperFactory y DTEOperations**: Se crean una vez en el constructor y se reutilizan en todos los métodos factory.

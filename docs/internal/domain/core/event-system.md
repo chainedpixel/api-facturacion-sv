@@ -47,7 +47,7 @@ type Handler interface {
 }
 ```
 
-El `Name()` se usa para identificar el handler en el registro del bus. `Handle` es invocado sincrónicamente por el bus al publicar un evento.
+El `Name()` se usa para identificar el handler en los logs del bus. `Handle` es invocado por el bus en una goroutine propia al publicar un evento (ver Flujo Completo).
 
 ---
 
@@ -67,7 +67,7 @@ type Bus interface {
 | Método | Comportamiento |
 |---|---|
 | `Subscribe(eventName, handler)` | Registra un handler para un nombre de evento específico |
-| `Publish(ctx, evt)` | Invoca sincrónicamente todos los handlers registrados para `evt.Name()` |
+| `Publish(ctx, evt)` | Persiste el evento si es `PersistableEvent` e invoca cada handler registrado para `evt.Name()` en una goroutine independiente (con contexto sin cancelación y recuperación de pánicos) |
 
 La implementación concreta se encuentra en `internal/infrastructure/adapters/events/`. Ver [Eventos de Dominio y Notificaciones](../../infrastructure/domain-events.md).
 
@@ -87,7 +87,7 @@ type PersistableEvent interface {
 }
 ```
 
-Los eventos que implementan esta interface son detectados por el bus y persisten automáticamente su payload a través del `Repository`.
+Los eventos que implementan esta interface son detectados por el bus (`InMemoryBus.persist`) y persisten su payload a través del `Repository` antes de despachar a los handlers. Ninguno de los tres eventos definidos actualmente implementa `UserID()` ni `BranchID()`, por lo que ninguno se persiste.
 
 ---
 
@@ -104,6 +104,22 @@ type Repository interface {
 ```
 
 La implementación concreta es `EventRepository` en `internal/infrastructure/adapters/repositories/event_repository.go`.
+
+---
+
+## Puerto de Notificación
+
+### `Mailer`
+
+> **Archivo:** `internal/domain/core/notification/mailer_port.go`
+
+```go
+type Mailer interface {
+    SendAdminAlert(ctx context.Context, subject, htmlBody, plainBody string) error
+}
+```
+
+Puerto para enviar alertas por correo al administrador. El paquete `notification` también define los modelos `NotifiableUser` (`ID`, `UserID`, `EntityType`, `Email`, `EnabledPush`) y `UserNotification` (`ID`, `UserID`, `EventID`, `NotificationType`, `Message`, `DeliveryStatus`, `DeliveryAt`).
 
 ---
 
@@ -146,7 +162,7 @@ const (
 
 ### `ContingencyActivatedEvent`
 
-Se publica cuando el sistema activa el modo de contingencia para una sucursal.
+Se publica cuando un documento se almacena en contingencia (`ContingencyService.StoreDocumentInContingency`, si hay bus configurado). En esa publicación se informan `BranchID`, `NIT`, `ContingencyType` (código como texto), `Reason`, `AffectedDocs = 1` y `OccurredAtTime`; `BranchAddress` y `ClientName` quedan vacíos.
 
 ```go
 type ContingencyActivatedEvent struct {
@@ -168,6 +184,7 @@ type ContingencyActivatedEvent struct {
 | Clave | Valor |
 |---|---|
 | `branch_id` | ID de la sucursal afectada |
+| `branch_address` | Dirección de la sucursal |
 | `nit` | NIT del emisor |
 | `client_name` | Nombre del cliente |
 | `contingency_type` | Tipo de contingencia activado |
@@ -203,6 +220,10 @@ type EmissionFailureEvent struct {
 
 | Clave | Valor |
 |---|---|
+| `branch_id` | ID de la sucursal |
+| `branch_address` | Dirección de la sucursal |
+| `nit` | NIT del emisor |
+| `client_name` | Nombre del cliente |
 | `control_number` | Número de control del DTE fallido |
 | `generation_code` | UUID del documento |
 | `dte_type` | Tipo de DTE (01, 03, etc.) |
@@ -215,7 +236,12 @@ type EmissionFailureEvent struct {
 
 ### `RetransmissionJobFailedEvent`
 
-Se publica cuando el `RetransmissionJob` no puede retransmitir documentos pendientes.
+Se publica cuando falla la retransmisión de documentos de contingencia (transmisor por lotes y job de retransmisión) y como alerta del servicio de contingencia con estos `JobName`:
+
+| `JobName` | Motivo |
+|---|---|
+| `contingency_72h_expired` | Documentos que superaron las 72 horas desde el sello del evento de contingencia y pasaron a `EXPIRED`; cada documento se resume con el código `CONTINGENCY_72H_EXPIRED` |
+| `contingency_technical_report` | La contingencia supera 3 días: se requiere el Informe Técnico de Contingencia antes de transmitir el evento (sin documentos en la lista) |
 
 ```go
 type RetransmissionJobFailedEvent struct {
@@ -227,6 +253,8 @@ type RetransmissionJobFailedEvent struct {
 ```
 
 **`AggregateID()`** → `"job:{JobName}"`
+
+**Payload:** `job_name`, `failed_documents` (lista de `RejectedDocSummary`) y `last_error`.
 
 ### `RejectedDocSummary`
 
@@ -252,24 +280,25 @@ Componente del sistema (ej. GenericDTEUseCase)
   │
   └── bus.Publish(ctx, evt)
         │
+        ├── Si evt implementa PersistableEvent:
+        │     repository.Save(ctx, eventType, userID, branchID, payload, occurredAt)
+        │     (síncrono, antes de despachar)
+        │
         ├── Busca handlers registrados para "emission.failure"
         │
-        ├── Para cada handler:
-        │     handler.Handle(ctx, evt)
-        │     └── AdminEmailHandler:
-        │           ├── Verifica cooldown Redis
-        │           ├── Renderiza plantilla HTML
-        │           └── Envía correo SMTP al administrador
-        │
-        └── Si evt implementa PersistableEvent:
-              repository.Save(ctx, eventType, userID, branchID, payload, occurredAt)
+        └── Para cada handler, en su propia goroutine:
+              handler.Handle(ctx, evt)
+              └── AdminEmailHandler:
+                    ├── Verifica cooldown Redis
+                    ├── Renderiza plantilla HTML
+                    └── Envía correo SMTP al administrador
 ```
 
 ---
 
 ## Notas
 
-1. **Publicación síncrona**: El bus invoca los handlers en la misma goroutine del publicador. Los handlers deben ser rápidos o manejar su propia concurrencia.
+1. **Despacho asíncrono**: El bus lanza cada handler en una goroutine; `Publish` no espera su resultado. Los errores y pánicos de los handlers se registran en el log y no afectan al publicador. La persistencia (si aplica) sí es síncrona.
 2. **Agregar un nuevo evento**: Definir el struct en `events.go`, implementar la interface `Event`, declarar la constante del nombre. Si debe persistirse, implementar también `PersistableEvent`.
 3. **Agregar un handler**: Implementar `event.Handler` y registrarlo con `bus.Subscribe(eventName, handler)` durante la inicialización del servidor.
 4. **Cooldown en notificaciones**: El `AdminEmailHandler` usa Redis para evitar notificaciones duplicadas del mismo agregado en un período configurable (default 15 min). Ver [AdminEmailHandler](../../application/handlers/admin-email-handler.md).

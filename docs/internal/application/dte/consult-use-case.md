@@ -5,7 +5,7 @@
 
 ## Descripción General
 
-El `DTEConsultUseCase` gestiona las consultas y búsquedas de documentos tributarios electrónicos. Es el caso de uso más simple, con solo una dependencia (`DTEManager`).
+El `DTEConsultUseCase` gestiona las consultas y búsquedas de documentos tributarios electrónicos: el documento, su Archivo DTE, sus eventos y el listado filtrado. Es el caso de uso más simple, con solo una dependencia (`DTEManager`).
 
 ---
 
@@ -17,9 +17,20 @@ type DTEConsultUseCase struct {
 }
 ```
 
+Se construye con `NewDTEConsultUseCase(dteService)` en `UseCaseContainer.Initialize`.
+
 ---
 
 ## Métodos
+
+| Método | Endpoint | Delegación |
+|---|---|---|
+| `GetByGenerationCode` | `GET /api/v1/dte/{id}` | `DTEManager.GetByGenerationCodeConsult` |
+| `GetArchive` | `GET /api/v1/dte/{id}/archivo` | `DTEManager.GetArchive` |
+| `GetEvents` | `GET /api/v1/dte/{id}/eventos` | `DTEManager.GetEvents` |
+| `GetAllDTEs` | `GET /api/v1/dte` | `parseDTEFilters` + `DTEManager.GetAllDTEs` |
+
+Los cuatro métodos leen los claims del contexto (`ctx.Value("claims")`) para limitar la consulta a la sucursal autenticada (`GetAllDTEs` lo hace salvo `all=true`).
 
 ### `GetByGenerationCode`
 
@@ -35,9 +46,62 @@ Se consulta un DTE individual por su código de generación (UUID).
 **Flujo:**
 1. Se extraen los claims del contexto
 2. Se busca el documento por `branchID` y `generationCode`
-3. Se retorna el DTE con su JSON completo mapeado
+3. Se retorna un `dte.DTEResponse`
+
+```go
+type DTEResponse struct {
+    ControlNumber  string                 `json:"control_number"`
+    GenerationCode string                 `json:"generation_code"`
+    ReceptionStamp *string                `json:"reception_stamp"`
+    Transmission   string                 `json:"transmission"`
+    Status         string                 `json:"status"`
+    CreatedAt      string                 `json:"created_at"`
+    UpdatedAt      string                 `json:"updated_at"`
+    JSONData       map[string]interface{} `json:"json_data"`
+}
+```
 
 > **Seguridad:** El documento se filtra por `branchID` del claim, previniendo acceso cross-branch.
+
+---
+
+### `GetArchive`
+
+```go
+func (u *DTEConsultUseCase) GetArchive(
+    ctx context.Context,
+    id string,
+) (json.RawMessage, error)
+```
+
+Se obtiene el Archivo DTE del documento (Normativa de Cumplimiento DTE v2.0, Anexo I, regla 4.1): la estructura de datos firmada, íntegra y sin alteraciones, más `firmaElectronica` y `selloRecibido`.
+
+**Flujo (en `DTEService.GetArchive`):**
+1. Se carga el documento por `branchID` y código de generación (`FailedToGetDTE` si no existe)
+2. Si el documento no tiene JWS guardado (`SignedDocument` vacío) se devuelve `ArchiveNotAvailable`
+3. `BuildArchive(signedDocument, receptionStamp)` toma la estructura del payload del JWS y agrega `firmaElectronica` y `selloRecibido` al final; si el JWS no tiene tres partes, no decodifica o no es un objeto JSON, devuelve `ArchiveNotAvailable`
+
+El handler responde el JSON del archivo tal cual (`Content-Type: application/json`, `Content-Disposition: attachment; filename="<codigoGeneracion>.json"`), sin el envoltorio estándar de respuesta. Los documentos emitidos antes de que se guardara el JWS no tienen Archivo DTE disponible.
+
+---
+
+### `GetEvents`
+
+```go
+func (u *DTEConsultUseCase) GetEvents(
+    ctx context.Context,
+    id string,
+) ([]dte.EventArchiveResponse, error)
+```
+
+Se listan los eventos de un documento (actualmente, sus invalidaciones) con su evidencia.
+
+**Flujo (en `DTEService.GetEvents`):**
+1. Se valida que el documento exista en la sucursal (un código inexistente responde no encontrado, no una lista vacía)
+2. Se listan los eventos relacionados al documento (`DTEEventRepositoryPort.ListByRelatedDTE`, tabla `dte_events`); un fallo devuelve `FailedToGetEvents`
+3. Cada evento se convierte con `ToEventArchiveResponse`: los datos del evento, `hacienda_response` (respuesta completa de Hacienda) y `archivo_dte` (Archivo DTE del evento, solo si hay JWS válido)
+
+Si no hay eventos, se devuelve una lista vacía.
 
 ---
 
@@ -53,9 +117,10 @@ func (u *DTEConsultUseCase) GetAllDTEs(
 Se consultan DTEs con filtros, paginación y resumen estadístico.
 
 **Flujo:**
-1. Se parsean los filtros del query string HTTP
-2. Se ejecuta la consulta con filtros
-3. Se retorna la lista con paginación y resumen
+1. Se parsean los filtros del query string HTTP (`parseDTEFilters`)
+2. Se calcula el resumen estadístico con los mismos filtros; si el total es 0 se retorna la respuesta sin documentos
+3. Se obtiene la página de documentos
+4. Se retorna la lista con paginación y resumen
 
 ---
 
@@ -65,7 +130,7 @@ Se consultan DTEs con filtros, paginación y resumen estadístico.
 
 | Parámetro | Tipo | Default | Descripción |
 |---|---|---|---|
-| `all` | `bool` | `false` | Si `true`, consulta todas las sucursales (admin) |
+| `all` | `bool` | `false` | Si es `true`, no se filtra por sucursal (consulta todas las sucursales) |
 | `status` | `string` | — | Estado del documento |
 | `transmission` | `string` | — | Tipo de transmisión |
 | `type` | `string` | — | Tipo(s) de DTE (separados por coma) |
@@ -76,38 +141,41 @@ Se consultan DTEs con filtros, paginación y resumen estadístico.
 
 ### Valores Válidos de Status
 
-| Valor (query) | Valor Interno |
+| Valor (query, sin distinguir mayúsculas) | Valor Interno |
 |---|---|
 | `received` | `RECEIVED` |
 | `invalidated` | `INVALIDATED` |
 | `rejected` | `REJECTED` |
 | `pending` | `PENDING` |
+| `expired` | `EXPIRED` |
+
+El mensaje de `InvalidQueryParam` para un `status` inválido lista solo `'received', 'invalidated', 'rejected'`, aunque se aceptan también `pending` y `expired`.
 
 ### Valores Válidos de Transmission
 
-| Valor (query) | Valor Interno |
+| Valor (query, sin distinguir mayúsculas) | Valor Interno |
 |---|---|
 | `normal` | `NORMAL` |
 | `contingency` | `CONTINGENCY` |
 
 ### Valores Válidos de Type
 
-Códigos de DTE separados por coma: `01,03,05,06,07,14`, etc.
+Códigos de DTE de `constants.ValidDTETypes`, separados por coma: `01`, `03`, `04`, `05`, `06`, `07`, `08`, `09`, `11`, `14`, `15`. El mensaje de error indica el rango `01-15`, aunque no todos los códigos de ese rango son válidos (por ejemplo `02` o `10`).
 
 ### Estructura de Filtros
 
 ```go
 type DTEFilters struct {
-    IncludeAll   bool
     BranchID     uint
+    IncludeAll   bool
     StartDate    *time.Time
     EndDate      *time.Time
     Status       string
-    Page         int
-    PageSize     int
     Transmission string
     DTEType      string
     DTETypes     []string
+    Page         int
+    PageSize     int
 }
 ```
 
@@ -119,9 +187,9 @@ type DTEFilters struct {
 
 ```go
 type DTEListResponse struct {
-    Documents  []DTEModelResponse
-    Summary    ListSummary
-    Pagination DTEPaginationResponse
+    Documents  []DTEModelResponse    `json:"documents"`
+    Summary    ListSummary           `json:"summary"`
+    Pagination DTEPaginationResponse `json:"pagination"`
 }
 ```
 
@@ -129,23 +197,25 @@ type DTEListResponse struct {
 
 ```go
 type ListSummary struct {
-    Total         int64  // Total de documentos
-    Received      int64  // Documentos recibidos
-    Invalid       int64  // Documentos invalidados
-    Rejected      int64  // Documentos rechazados
-    Pending       int64  // Documentos pendientes
-    ByContingency int64  // Transmitidos por contingencia
-    ByNormal      int64  // Transmitidos normalmente
+    Total         int64 `json:"total"`          // Total de documentos que cumplen los filtros
+    Received      int64 `json:"received"`       // Documentos recibidos
+    Invalid       int64 `json:"invalid"`        // Documentos invalidados
+    Rejected      int64 `json:"rejected"`       // Documentos rechazados
+    Pending       int64 `json:"pending"`        // Documentos pendientes
+    ByContingency int64 `json:"by_contingency"` // Transmitidos por contingencia
+    ByNormal      int64 `json:"by_normal"`      // Transmitidos normalmente
 }
 ```
+
+El resumen no tiene contador para el estado `EXPIRED`: esos documentos cuentan en `total`, pero no en los contadores por estado.
 
 ### DTEPaginationResponse
 
 ```go
 type DTEPaginationResponse struct {
-    TotalPages int
-    Page       int
-    PageSize   int
+    TotalPages int `json:"total_pages"`
+    Page       int `json:"page"`
+    PageSize   int `json:"page_size"`
 }
 ```
 
@@ -153,9 +223,9 @@ type DTEPaginationResponse struct {
 
 ```go
 type DTEModelResponse struct {
-    Status           string
-    TransmissionType string
-    Document         json.RawMessage  // JSON completo del DTE
+    Status           string          `json:"status"`
+    TransmissionType string          `json:"transmission_type"`
+    Document         json.RawMessage `json:"document"`  // JSON completo del DTE
 }
 ```
 
@@ -169,13 +239,14 @@ Los valores de los filtros se validan contra mapas de valores permitidos:
 - `ValidTransmissionTypes` — tipos de transmisión válidos
 - `ValidDTETypes` — códigos de DTE válidos
 
-Si un valor no es válido, se retorna un `ServiceError` formateado.
+Si un valor no es válido, se retorna un `ServiceError` formateado (`InvalidQueryParam`). Una fecha con formato distinto a RFC3339 devuelve el mismo error.
 
 ---
 
 ## Notas
 
-1. **Filtro por sucursal**: Por defecto, solo se retornan documentos de la sucursal del usuario autenticado. El parámetro `all=true` permite consultar todas las sucursales (permisos de admin).
+1. **Filtro por sucursal**: Por defecto, solo se retornan documentos de la sucursal del usuario autenticado. El parámetro `all=true` consulta todas las sucursales y el código no comprueba ningún permiso adicional: basta con estar autenticado.
 2. **Case insensitive**: Los valores de `status` y `transmission` se aceptan en minúsculas y se convierten internamente a mayúsculas.
 3. **Tipos múltiples**: Se puede filtrar por múltiples tipos de DTE usando coma: `?type=01,03,05`.
-4. **Resumen estadístico**: La respuesta incluye un resumen con conteos por estado y tipo de transmisión, calculado en la misma consulta.
+4. **Resumen estadístico**: La respuesta incluye un resumen con conteos por estado y tipo de transmisión, calculado con los mismos filtros.
+5. **Paginación**: `page` y `page_size` inválidos (no numéricos o menores o iguales a 0) se reemplazan por 1 y 5.

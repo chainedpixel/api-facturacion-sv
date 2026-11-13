@@ -44,15 +44,16 @@ func (s *creditFiscalService) Create(ctx context.Context, input interface{}, bra
 ### Flujo de Ejecución
 
 ```
-1. Cast del input → CCFData
+1. Cast del input → *CCFData
 2. Crear documento base (DTEDocument) desde CCFData
 3. Ensamblar CreditFiscalDocument con ítems y resumen específicos
-4. Validar reglas de negocio del CCF
-5. Generar código de generación (UUID) y número de control
-6. Retornar CreditFiscalDocument validado
+4. Validar reglas específicas del CCF (CCFRulesValidator)
+5. Validar reglas genéricas de DTE (ValidateDTEDocument)
+6. Generar número de control (SequentialNumberManager) y código de generación (UUID)
+7. Retornar CreditFiscalDocument validado
 ```
 
-El flujo es idéntico al de factura en estructura, pero con reglas de validación y cálculos diferentes (ver sección de cálculos).
+El flujo es idéntico al de factura en estructura, pero con reglas de validación y cálculos diferentes. Las fórmulas se documentan en [calculations.md](../../../api/calculations.md). El `CCFRulesValidator` compone cuatro estrategias: `CCFItemStrategy`, `CCFTaxStrategy`, `CCFReceiverStrategy` y `CCFRelatedDocStrategy`, y agrupa los errores en un error compuesto.
 
 ---
 
@@ -121,53 +122,29 @@ type CreditSummary struct {
 
 | Aspecto | Factura (01) | CCF (03) |
 |---|---|---|
-| **IVA** | Incluido en precio (`TaxedSale / 1.13 * 0.13`) | Separado del precio (`(TotalTaxed - TaxedDiscount) * 0.13`) |
+| **IVA** | Incluido en precio | Separado del precio, calculado en el resumen |
 | **Receptor** | Requerido, NRC opcional | Requerido, **NRC obligatorio** |
-| **Percepción** | No aplica | `IVAPerception = TotalTaxed * 0.01` (cuando aplica) |
+| **Percepción** | No aplica | Campo `IVAPerception` (cuando aplica) |
+| **Retención de renta** | No aplica | No permitida (`IncomeRetentionNotAllowed`) |
 | **IVA por ítem** | Sí (`IVAItem`) | No (se calcula en resumen) |
 | **Activity Code receptor** | Opcional | **Obligatorio** |
 | **Activity Description receptor** | Opcional | **Obligatorio** |
 
 ---
 
-## Fórmulas de Cálculo
+## Cálculos
 
-### IVA del CCF (a nivel de resumen)
+Las fórmulas del CCF (IVA sobre la base gravada menos el descuento, percepción de IVA, subtotales, total de la operación y total a pagar) y la tolerancia aplicada se documentan en [calculations.md](../../../api/calculations.md). Los porcentajes y montos fijos por código de impuesto están en [constants.md](../constants.md).
 
-```
-IVA = (TotalTaxed - TaxedDiscount) * 0.13
-```
+Reglas del resumen que valida `CCFTaxStrategy`:
 
-El descuento se aplica **antes** de calcular el IVA. Tolerancia: `±0.01`
-
-### Percepción de IVA
-
-```
-IVAPerception = TotalTaxed * 0.01    (cuando aplica, tolerancia ±0.01)
-```
-
-### SubTotal
-
-```
-SubTotal = TotalTaxed - TaxedDiscount + TotalExempt - ExemptDiscount + TotalNonSubject - NonSubjectDiscount
-```
-
-### Total a Pagar
-
-```
-TotalToPay = SubTotal + IVAPerception - IVARetention - IncomeRetention + TotalNonTaxed
-```
-
-### Cálculos de Impuestos por Código
-
-| Código | Nombre | Fórmula |
-|---|---|---|
-| `20` (IVA) | Impuesto al Valor Agregado | `(TotalTaxed - TaxedDiscount) * 0.13` |
-| `C3` (IVA Export) | IVA Exportación | `TotalTaxed * 0.00` |
-| `59` (Tourism) | Turismo | `TotalTaxed * 0.01` |
-| `71` (Tourism Airport) | Turismo Aeropuerto | Monto fijo |
-| `D1` (FOVIAL) | FOVIAL | `TotalTaxed * 0.005` |
-| `C8` (COTRANS) | COTRANS | Monto fijo |
+- Los totales del resumen (gravado, exento, no sujeto) deben coincidir con la suma de los ítems.
+- Cada descuento no puede exceder su base.
+- Si el gravado es mayor que cero debe existir IVA (código `20`); si es cero no pueden existir impuestos en el resumen.
+- Si `IVAPerception` es distinto de cero, debe corresponder al 1% del gravado.
+- `IncomeRetention` debe ser cero: la retención de renta no se admite en el CCF.
+- El total a pagar suma el monto total de la operación, `IVAPerception` y `TotalNonTaxed`, y resta `IVARetention`; si el resultado es negativo se espera `0.00`.
+- `TotalNonTaxed` del resumen debe igualar la suma de `NonTaxed` de los ítems.
 
 ---
 
@@ -189,20 +166,21 @@ Estas validaciones se ejecutan en `CCFReceiverStrategy`.
 
 Cada ítem solo puede tener **un tipo de venta activo**:
 
-- `TaxedSale > 0` → No puede tener `ExemptSale` ni `NonSubjectSale`
-- `ExemptSale > 0` → No puede tener `TaxedSale` ni `NonSubjectSale`
-- `NonSubjectSale > 0` → No puede tener `TaxedSale` ni `ExemptSale`
+- `ExemptSale > 0` → No puede tener `TaxedSale`, `NonSubjectSale` ni `NonTaxed`, ni impuestos
+- `NonSubjectSale > 0` → No puede tener `TaxedSale`, `ExemptSale` ni `NonTaxed`, ni impuestos
+- `NonTaxed > 0` → No puede tener otro tipo de venta ni impuestos
 
 ### Reglas de No Gravado
 
-- Si `NonTaxed > 0`: no se puede mezclar con otros tipos de venta
-- Si `NonTaxed > 0` y `UnitPrice == 0`: `UnitPrice` debe ser igual a `TaxedSale`
+- Si `NonTaxed > 0`: no se puede mezclar con otros tipos de venta, no puede tener impuestos y el precio unitario debe ser `0` (`InvalidUnitPriceWithNonTaxed`)
+- Con `TaxedSale > 0`, el precio unitario no puede ser `0` (`InvalidUnitPriceZero`)
+- La venta del ítem (suma de no sujeta, exenta y gravada) debe corresponder a `(precio unitario x cantidad) - descuento`
 
 ### Reglas de Impuestos por Tipo de Ítem
 
 - **Producto (tipo 1):** Solo se permite IVA (código `20`)
-- **Impuesto (tipo 4):** Solo se permite IVA, unidad de medida debe ser `99`
-- Si `TaxedSale > 0`: debe tener impuestos asignados
+- **Impuesto (tipo 4):** Debe tener exactamente un impuesto, IVA (`InvalidTaxRulesCCF`), y unidad de medida `99`
+- Si `TaxedSale > 0`: debe tener impuestos asignados (`MissingTaxesItem`)
 
 ---
 
@@ -214,7 +192,7 @@ Los documentos relacionados válidos para CCF son:
 - `08` — Comprobante de Liquidación Electrónico
 - `09` — Documento Contable de Liquidación Electrónico
 
-Si existen documentos relacionados, cada ítem debe referenciar uno y la referencia debe existir en la lista de documentos del CCF.
+Si existen documentos relacionados (máximo 50, `ExceededRelatedDocsLimit`), cada ítem debe referenciar uno (`MissingItemRelatedDoc`) y la referencia debe existir en la lista de documentos del CCF (`InvalidItemRelatedDoc`). Un tipo no permitido produce `InvalidRelatedDocDTEType`.
 
 ---
 
@@ -222,12 +200,15 @@ Si existen documentos relacionados, cada ítem debe referenciar uno y la referen
 
 | Error | Causa |
 |---|---|
-| Cast fallido | El `interface{}` no es `*CCFData` |
+| Pánico por cast (cast sin comprobación) | El `interface{}` no es `*CCFData` |
 | `MissingNRC` | Receptor sin NRC |
 | `RequiredField` | ActivityCode o ActivityDescription del receptor faltante |
 | `InvalidTaxCodeOnly20` | Producto con impuesto diferente a IVA |
 | `InvalidMixedSalesWithNonTaxed` | Ítem con NonTaxed mezclado con otros tipos de venta |
-| `InvalidTotalToPayNonTaxedCCF` | Total a pagar incorrecto con no gravado |
+| `InvalidTotalToPayCalculation` | Total a pagar incorrecto |
+| `IncomeRetentionNotAllowed` | Retención de renta distinta de cero |
+| `InvalidPerceptionAmount` | Percepción de IVA distinta del 1% del gravado |
+| `InvalidTaxCalculation` | Impuesto del resumen distinto del esperado |
 
 ---
 
@@ -236,7 +217,7 @@ Si existen documentos relacionados, cada ítem debe referenciar uno y la referen
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/ccf/credit_fiscal_service.go` | Servicio principal |
-| `internal/domain/dte/ccf/models/` | Modelos del CCF |
+| `internal/domain/dte/ccf/ccf_models/` | Modelos del CCF |
 | `internal/domain/dte/ccf/validator/` | Estrategias de validación |
 
 ---
@@ -244,6 +225,6 @@ Si existen documentos relacionados, cada ítem debe referenciar uno y la referen
 ## Notas
 
 1. **IVA separado**: Es la diferencia fundamental con factura. El IVA se calcula sobre `(TotalTaxed - TaxedDiscount)`, no sobre cada ítem individual.
-2. **Percepción**: Es un cargo adicional del 1% que se aplica en ciertos casos. Se suma al total a pagar.
+2. **Percepción**: Es un cargo adicional del 1% del gravado que se aplica en ciertos casos. Se suma al total a pagar.
 3. **Receptor estricto**: Siempre se verifica NRC, código y descripción de actividad económica.
 4. **Documentos relacionados**: Se restringen a tipos específicos (`04`, `08`, `09`) a diferencia de factura.

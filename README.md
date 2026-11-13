@@ -1,6 +1,6 @@
 # API Facturación El Salvador
 
-[![Go Version](https://img.shields.io/badge/Go-1.23+-blue.svg)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org/)
 [![Go Version](https://img.shields.io/badge/DTE-2026-orange.svg)](https://factura.gob.sv)
 
 API REST para la gestión, emisión y transmisión de Documentos Tributarios Electrónicos (DTE) para El Salvador, desarrollada en Go y diseñada para cumplir con los requisitos establecidos por el Ministerio de Hacienda.
@@ -16,9 +16,10 @@ API REST para la gestión, emisión y transmisión de Documentos Tributarios Ele
 - Emisión de Notas de Débito Electrónicas (código 06)
 - Emisión de Comprobantes de Retención Electrónicos (CRE — código 07)
 - Emisión de Facturas de Sujeto Excluido (FSE — código 14)
-- Invalidación (anulación) de documentos
+- Invalidación (anulación) de documentos, con plazos y fecha del evento según la Normativa de Cumplimiento DTE v2.0
+- Entrega del Archivo DTE (estructura firmada + `firmaElectronica` + `selloRecibido`) en la respuesta de emisión y en `GET /api/v1/dte/{id}/archivo`; eventos de invalidación en `GET /api/v1/dte/{id}/eventos`
 - Gestión automática de números de control con ciclo reserva/confirmación/liberación
-- Manejo de contingencias con retransmisión automática en segundo plano
+- Manejo de contingencias con retransmisión automática en segundo plano y vencimiento (`EXPIRED`) a las 72 horas del sello del evento
 - Consulta y listado de DTEs con filtros avanzados y paginación
 - Autenticación JWT por sucursal con gestión de tokens de Hacienda
 - Firmado electrónico de documentos via servicio externo
@@ -59,7 +60,7 @@ Para mayor detalle, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y la carpeta [docs/
 
 | Tecnología | Propósito |
 |-----------|-----------|
-| Go 1.23 | Lenguaje principal |
+| Go 1.24 | Lenguaje principal |
 | MySQL | Base de datos (via GORM) |
 | Redis | Caché de tokens de Hacienda |
 | Gorilla Mux | Router HTTP |
@@ -73,7 +74,7 @@ Para mayor detalle, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y la carpeta [docs/
 ## Requisitos previos
 
 - Docker y Docker Compose
-- Go 1.23+ (solo para desarrollo local)
+- Go 1.24+ (solo para desarrollo local)
 - Certificados de firma digital (para ambiente de producción o pruebas con Hacienda)
 
 ---
@@ -91,24 +92,34 @@ cd ordo-factus
 
 2. Colocar los certificados de firma digital en la carpeta `scripts/temp` (crearla si no existe).
 
-3. Iniciar los servicios:
+3. Iniciar los servicios desde la carpeta `scripts`:
 
 ```bash
+cd scripts
 docker-compose up -d
 ```
 
+`scripts/docker-compose.yml` levanta MySQL, Redis, el servicio de firma y la API. Para usar MySQL, Redis y el firmador instalados en el equipo se usa `scripts/docker-compose-external.yml`.
+
+4. **Migraciones de base de datos:** la API solo crea o actualiza las tablas al iniciar si `RUN_MIGRATION=true`. En un despliegue nuevo (base de datos vacía) debe iniciarse al menos una vez con `RUN_MIGRATION=true`; después puede volver a `false`. En `scripts/docker-compose.yml` el valor por defecto es `false` y en `scripts/docker-compose-external.yml` es `true`.
+
 ### Configuración
 
-Las variables de entorno están predefinidas en `docker-compose.yml`. Las configuraciones principales son:
+Las variables de entorno se leen del archivo `.env` de la raíz del proyecto (se incluye `.env.example` como plantilla) y pueden ser sobrescritas por variables de ambiente; los archivos de `scripts/` las definen en `x-app-environment`. Si el archivo `.env` no existe la aplicación no inicia. El detalle completo está en [docs/config/README.md](./docs/config/README.md). Las principales son:
 
 | Variable | Descripción |
 |----------|-------------|
-| DSN de base de datos | String de conexión MySQL |
-| Dirección Redis | Host y puerto del servidor Redis |
-| Secreto JWT | Clave para validación de API keys |
-| URL del servicio de firma | URL base del servicio externo de firma (Spring Boot) |
-| URL de la API de Hacienda | URL base del endpoint de transmisión del MH |
-| Puerto | Puerto HTTP del servidor (por defecto `8080`) |
+| `SERVER_PORT` | Puerto HTTP del servidor (`7319` en `.env.example`) |
+| `JWT_SECRET` | Clave para firmar los tokens JWT |
+| `MH_AMBIENT_CODE` | Ambiente: `00` pruebas, `01` producción |
+| `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_CHARSET` | Conexión a la base de datos (`mysql` o `postgres`) |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | Conexión a Redis |
+| `SIGNER_PATH`, `SIGNER_HEALTH` | URLs del servicio externo de firma |
+| `MH_AUTH_URL`, `MH_RECEPTION_URL`, `MH_LOTE_RECEPTION_URL`, `MH_RECEPTION_CONSULT_URL`, `MH_RECEPTION_CONSULT_LOTE_URL`, `MH_CONTINGENCY_URL`, `MH_NULLIFY_URL` | Endpoints de Hacienda |
+| `RUN_MIGRATION` | Ejecuta las migraciones al iniciar (`true`/`false`) |
+| `FORCE_CONTINGENCY` | Fuerza contingencia; solo tiene efecto con `MH_AMBIENT_CODE=00` |
+| `MH_EXTRA_HOLIDAYS` | Asuetos adicionales (`YYYY-MM-DD` separados por coma) para el plazo de invalidación |
+| `DEBUG` | Modo debug (habilita `POST /api/v1/debug/notify-test`) |
 
 ---
 
@@ -145,8 +156,10 @@ Authorization: Bearer <token>
 ### Consulta de DTEs
 
 ```
-GET /api/v1/dte          — Listar DTEs con filtros y paginación
-GET /api/v1/dte/{id}     — Obtener DTE por código de generación (UUID)
+GET /api/v1/dte                 — Listar DTEs con filtros y paginación
+GET /api/v1/dte/{id}            — Obtener DTE por código de generación (UUID)
+GET /api/v1/dte/{id}/archivo    — Archivo DTE (estructura firmada + firmaElectronica + selloRecibido)
+GET /api/v1/dte/{id}/eventos    — Eventos del DTE (invalidación) con su Archivo DTE
 ```
 
 Filtros disponibles en el listado: `status`, `type`, `transmission`, `startDate`, `endDate`, `page`, `page_size`.
@@ -154,12 +167,12 @@ Filtros disponibles en el listado: `status`, `type`, `transmission`, `startDate`
 ### Monitoreo y Estado
 
 ```
-GET /api/v1/health    — Estado del servicio (BD, Redis, Hacienda, signer, eventos de dominio, SMTP)
-GET /api/v1/metrics   — Métricas de endpoints en formato Prometheus
+GET /health           — Estado del servicio (sin prefijo /api/v1 y sin autenticación)
+GET /api/v1/metrics   — Métricas de endpoints del sistema autenticado (JSON)
 GET /api/v1/test      — Prueba de componentes del sistema
 ```
 
-El endpoint de health incluye dos checkers asociados al sistema de notificaciones:
+El endpoint de health ejecuta los checkers `database`, `redis`, `hacienda`, `filesystem`, `signer`, `domain_events` y `smtp`. Dos de ellos están asociados al sistema de notificaciones:
 
 - `domain_events`: publica un evento `health.probe` en el bus y verifica que un suscriptor interno responda en menos de 1 s.
 - `smtp`: si `SMTP_HOST` está vacío reporta `UP` con el detalle "no configurado". En caso contrario hace un handshake completo (`EHLO` + TLS + `AUTH PLAIN`) y reporta `DOWN` con un detalle limpio si las credenciales son inválidas o el servidor no responde.
@@ -228,7 +241,7 @@ Cuando la API de Hacienda no está disponible, el sistema almacena automáticame
 | HTTP 502/503/504 de Hacienda | No disponibilidad del MH |
 | HTTP 408/429 (timeout o rate limiting) | No disponibilidad del MH |
 
-Durante contingencia la respuesta es `HTTP 201` con el DTE completo pero sin sello de recepción (`reception_stamp: null`). El documento queda en estado `PENDING` hasta ser retransmitido exitosamente.
+Durante contingencia la respuesta es `HTTP 201` con el DTE completo pero sin sello de recepción (`reception_stamp: null`). El documento queda en estado `PENDING` hasta ser retransmitido exitosamente. El plazo para transmitirlo es de 72 horas desde el sello del evento de contingencia; vencido ese plazo el documento pasa a `EXPIRED` y se considera no emitido.
 
 Los documentos que **no** activan contingencia son aquellos con errores de validación o rechazados definitivamente por Hacienda.
 

@@ -43,7 +43,7 @@ type MapperAdapter struct {
 }
 ```
 
-Se envuelve una función de mapeo concreta en la interfaz `DTEMapper`. El adapter maneja el type assertion internamente.
+Se envuelve una función de mapeo concreta en la interfaz `DTEMapper`. `MapToDomainModel` reenvía el request, el emisor y los parámetros variádicos a `MapFunc`.
 
 ---
 
@@ -59,9 +59,11 @@ func newTypedMapper[Req any, Res any](
 
 Se crea un mapper type-safe que:
 1. Recibe un `interface{}` como request
-2. Hace type assertion a `*Req`
-3. Ejecuta la función de mapeo tipada
+2. Hace type assertion a `*Req`; si el tipo no coincide retorna el error `invalid request type: expected *<Req>, got <tipo>`
+3. Ejecuta la función de mapeo tipada (los `params` se ignoran)
 4. Retorna el resultado como `interface{}`
+
+Solo `Req` se indica explícitamente al instanciar (`Res` se infiere de la función de mapeo).
 
 ### `newTypedMapperWithParams`
 
@@ -71,7 +73,7 @@ func newTypedMapperWithParams[Req any, Res any](
 ) DTEMapper
 ```
 
-Variante que pasa parámetros adicionales (usada por el mapper de invalidación que necesita `DTEDetails` y `time.Time`).
+Variante que pasa parámetros adicionales (usada por el mapper de invalidación que necesita `*dte.DTEDetails` y `time.Time`). La misma comprobación de tipo del request aplica.
 
 ---
 
@@ -95,7 +97,7 @@ Factory centralizada que crea mappers para cada tipo de DTE.
 | `CreateRetentionMapperAdapter()` | `CreateRetentionRequest` | `InputRetentionData` |
 | `CreateRemissionNoteMapperAdapter()` | `CreateRemissionNoteRequest` | `RemissionNoteInput` |
 | `CreateFSEMapperAdapter()` | `CreateFSERequest` | `FSEData` |
-| `CreateInvalidationMapperAdapter()` | `CreateInvalidationRequest` | `InvalidationDocument` |
+| `CreateInvalidationMapperAdapter()` | `CreateInvalidationRequest` | `InvalidationDocument` (requiere `params[0]` = `*dte.DTEDetails` y `params[1]` = `time.Time`) |
 
 ### Response Mappers
 
@@ -118,7 +120,7 @@ Factory centralizada que crea mappers para cada tipo de DTE.
 DTEUseCaseFactory.CreateInvoiceUseCase()
   │
   ├── mapper := mapperFactory.CreateInvoiceMapperAdapter()
-  │     → newTypedMapper[CreateInvoiceRequest, InvoiceData](MapToInvoiceData)
+  │     → newTypedMapper[structs.CreateInvoiceRequest](NewInvoiceMapper().MapToInvoiceData)
   │
   ├── responseMapper := mapperFactory.GetInvoiceResponseMapper()
   │     → ToMHInvoice
@@ -131,6 +133,6 @@ DTEUseCaseFactory.CreateInvoiceUseCase()
 ## Notas
 
 1. **Generics para type-safety**: Los constructores `newTypedMapper[Req, Res]` eliminan la necesidad de type assertions manuales en cada mapper.
-2. **Invalidación es especial**: Es el único mapper que usa `newTypedMapperWithParams` porque necesita parámetros adicionales (detalles del DTE original y fecha de emisión).
+2. **Invalidación es especial**: Es el único mapper que usa `newTypedMapperWithParams` porque necesita parámetros adicionales (detalles del DTE original y fecha de emisión). Sus parámetros se leen por posición con type assertion directa (`params[0].(*dte.DTEDetails)`, `params[1].(time.Time)`): si faltan o tienen otro tipo la ejecución entra en pánico.
 3. **Factory stateless**: `MapperFactory` no tiene estado. Se puede instanciar una sola vez y reutilizar.
 4. **Emisor inyectado**: El emisor (`IssuerDTE`) no proviene del request HTTP; se carga desde la BD por `branchID` y se inyecta en el mapper por el caso de uso.

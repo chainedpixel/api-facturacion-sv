@@ -8,6 +8,8 @@
 
 Los response mappers transforman los modelos de dominio (resultado del procesamiento de servicios y validaciones) al formato JSON que la API de Hacienda espera recibir. Cada tipo de DTE tiene su propio mapper de nivel superior y mappers específicos para componentes como emisor, receptor, ítems y resumen.
 
+Los montos y totales ya vienen calculados desde el dominio; los response mappers no recalculan los totales del documento. Las excepciones puntuales (IVA por ítem y totales de IVA en NC/ND) se indican más abajo. Las fórmulas de cálculo se documentan en [Cálculos de DTE](../api/calculations.md).
+
 ---
 
 ## Funciones de Nivel Superior
@@ -21,9 +23,9 @@ Cada función recibe un `interface{}` (modelo de dominio) y retorna la estructur
 | `ToMHCreditNote(doc)` | `*CreditNoteModel` | `*CreditNoteDTEResponse` |
 | `ToMHDebitNote(doc)` | `*DebitNoteModel` | `*DebitNoteDTEResponse` |
 | `ToMHRetention(doc)` | `*RetentionModel` | `*RetentionDTEResponse` |
-| `ToMHRemissionNote(doc)` | `*RemissionNoteModel` | `*MHRemissionNote` |
+| `ToMHRemissionNote(doc)` | `*RemissionNoteModel` | `*MHRemissionNote` (devuelve `nil` si el tipo no coincide) |
 | `ToMHFSE(doc)` | `*FSEModel` | `*FSEDTEResponse` |
-| `ToMHInvalidation(doc)` | `*InvalidationDocument` | `*InvalidationResponse` |
+| `ToMHInvalidation(doc)` | `*InvalidationDocument` | `*InvalidationResponse` (devuelve `nil` si `doc` es `nil`) |
 
 ---
 
@@ -35,25 +37,34 @@ Se reutilizan para los componentes compartidos entre múltiples tipos de DTE.
 |---|---|---|
 | `MapCommonResponseIdentification()` | `interfaces.Identification` | `*DTEIdentification` |
 | `MapCommonResponseIssuer()` | `interfaces.Issuer` | `DTEIssuer` |
-| `MapCommonResponseReceiver()` | `interfaces.Receiver` | `DTEReceiver` |
+| `MapCommonResponseReceiver()` | `interfaces.Receiver` | `DTEReceiver` (receptor del CCF, identificado por `nit`) |
+| `MapCommonResponseDocumentReceiver()` | `interfaces.Receiver` | `DTEDocumentReceiver` (receptor de NC, ND y Retención, identificado por `tipoDocumento` y `numDocumento`) |
 | `MapCommonResponseAddress()` | `interfaces.Address` | `DTEAddress` |
 | `MapCommonItems()` | `interfaces.Item` | `DTEItem` |
+| `MapItemCodes()` | `interfaces.Item` | `codigo` y `codTributo` del ítem |
 | `MapCommonResponseSummary()` | `interfaces.Summary` | `*DTESummary` |
-| `MapTaxes()` | `[]interfaces.Tax` | `[]DTETax` |
+| `MapTaxes()` | `[]interfaces.Tax` | `[]DTETax` (`nil` si no hay tributos) |
 | `MapCommonResponsePayments()` | `[]interfaces.PaymentType` | `[]DTEPayment` |
-| `MapCommonResponseExtension()` | `interfaces.Extension` | `*DTEExtension` |
 | `MapCommonResponseRelatedDocuments()` | `[]interfaces.RelatedDocument` | `[]DTERelatedDocument` |
 | `MapCommonResponseOtherDocuments()` | `[]interfaces.OtherDocuments` | `[]DTEOtherDocument` |
 | `MapCommonResponseThirdPartySale()` | `interfaces.ThirdPartySale` | `*DTEThirdPartySale` |
-| `MapCommonResponseAppendix()` | `[]interfaces.Appendix` | `[]DTEApendice` |
+| `MapCommonResponseAppendix()` | `[]interfaces.Appendix` | `[]DTEApendice` (`nil` si no hay elementos) |
+| `AdjustsRetentionVoucher()` | `[]interfaces.RelatedDocument` | `bool`: si la NC/ND ajusta un Comprobante de Retención (07) |
+| `AdjustmentItemIVA()` | venta gravada del ítem y monto del resumen | IVA percibido o retenido del ítem de NC/ND |
+
+No existe un response mapper de extensión: ningún DTE incluye la sección `extension` en el JSON enviado a Hacienda.
 
 ### Transformaciones Clave
 
 - **Fechas**: Formato `"2006-01-02"` (YYYY-MM-DD)
 - **Horas**: Formato `"15:04:05"` (HH:MM:SS)
-- **Campos opcionales**: Se convierten a puntero; si están vacíos se asigna `nil`
-- **Dirección**: Se retorna `nil` si todos los campos están vacíos
-- **Tributos**: Se redondean a 2 decimales usando `shopspring/decimal`
+- **Campos opcionales**: Se convierten a puntero; si están vacíos se asigna `nil` (se serializa `null`)
+- **Dirección del receptor**: Se retorna `nil` si departamento, municipio y complemento están vacíos
+- **Código de ítem y tributo (`MapItemCodes`)**: `codigo` va `null` si no se informó; `codTributo` solo se informa en ítems tipo 4 (impuesto sujeto a cálculo de IVA)
+- **Tributos del resumen (`MapTaxes`)**: Sin tributos se devuelve `nil` (se envía `null`); los valores se redondean a 2 decimales usando `shopspring/decimal`
+- **Apéndice (`MapCommonResponseAppendix`)**: Sin elementos se devuelve `nil` (se envía `null`), porque los esquemas exigen `null` o un arreglo con `minItems` 1; un arreglo vacío sería rechazado
+- **Venta a terceros (`MapCommonResponseThirdPartySale`)**: Incluye `codDomiciliado` (Domicilio Fiscal, CAT-032)
+- **Nombre comercial del emisor**: Se envía solo si no está vacío
 
 ---
 
@@ -63,81 +74,89 @@ Se reutilizan para los componentes compartidos entre múltiples tipos de DTE.
 
 | Mapper | Particularidad |
 |---|---|
-| `MapInvoiceResponseReceiver()` | Sin campo `NIT` (a diferencia de `DTEReceiver`) |
+| `MapInvoiceResponseReceiver()` | Estructura `InvoiceReceiver`: identificado por `tipoDocumento`/`numDocumento`, todos los campos son punteros; sin `nit` ni `nombreComercial` |
 | `MapInvoiceResponseItem()` | Se agregan: `VentaNoSuj`, `VentaExenta`, `VentaGravada`, `PSV`, `NoGravado`, `IvaItem` |
-| `MapInvoiceResponseSummary()` | Se agregan: `DescuGravada`, `IvaRete1`, `TotalIva`, `SaldoFavor`, `ReteRenta` |
+| `MapInvoiceResponseSummary()` | Se agregan: `DescuGravada`, `IvaRete`, `TotalIva`, `SaldoFavor` |
 
 ### CCF (03)
 
 | Mapper | Particularidad |
 |---|---|
+| `MapCommonResponseReceiver()` | Receptor identificado por `nit` y `nrc`, con `nombreComercial` (opcional, `null` si no viene) |
 | `MapCCFResponseItem()` | Se agregan: `VentaNoSuj`, `VentaExenta`, `VentaGravada`, `PSV`, `NoGravado` (sin `IvaItem`) |
-| `MapCCFResponseSummary()` | Se agregan: `DescuGravada`, `IvaRete1`, `IvaPerci1`, `ReteRenta`, `SaldoFavor` |
+| `MapCCFResponseSummary()` | Se agregan: `DescuGravada`, `IvaRete`, `IvaPerci`, `SaldoFavor` |
 
-### Nota de Crédito (05)
+### Nota de Crédito (05) y Nota de Débito (06)
 
-| Mapper | Particularidad |
-|---|---|
-| `MapCreditNoteIssuer()` | Emisor simplificado (sin códigos POS ni establecimiento) |
-| `MapCreditNoteResponseItem()` | Se agrega `CodTributo` como puntero; sin `PSV`, `NoGravado`, `IvaItem` |
-| `MapCreditNoteResponseSummary()` | Se agregan: `DescuGravada`, `IvaRete1`, `IvaPerci1`, `ReteRenta`; sin pagos |
-| `MapCreditNoteResponseExtension()` | Sin `PlacaVehiculo` |
-
-### Nota de Débito (06)
+La estructura de ambas es la misma; la `identificacion` usa `DTEAdjustmentIdentification`, que agrega el campo `fusion` (siempre `null`).
 
 | Mapper | Particularidad |
 |---|---|
-| Estructura idéntica a Nota de Crédito | Se agrega `NumPagoElectronico` en resumen |
+| `MapCreditNoteIssuer()` / `MapDebitNoteIssuer()` | Emisor sin `codEstable` ni `codPuntoVenta`; `nit` con `omitempty` |
+| `MapCommonResponseDocumentReceiver()` | Receptor con `tipoDocumento` y `numDocumento` (en el request se identifica por NIT; ver [Request Mappers](request-mappers.md)) |
+| `MapCreditNoteResponseItem()` / `MapDebitNoteResponseItem()` | `codTributo` y `codigo` como punteros; sin `PSV` ni `IvaItem`; `NoGravado` en 0; `TotalIva` del ítem = venta gravada x 13% redondeada a 2 decimales |
+| `MapCreditNoteResponseSummary()` / `MapDebitNoteResponseSummary()` | Se agregan `IvaPerci`, `IvaRete`, `TotalIva` y `CodigoRetencionMH` (siempre `null`); sin `descuGravada`, `reteRenta` ni pagos. `TotalIva` es el valor del tributo `20` del resumen o, si no existe, total gravado x 13%. La ND agrega `NumPagoElectronico` |
+
+Ajustes aplicados por `ToMHCreditNote` y `ToMHDebitNote` después de mapear:
+
+1. `ivaPerci` e `ivaRete` por ítem se calculan con `AdjustmentItemIVA`: venta gravada x 1% cuando el resumen informa percepción o retención respectivamente (0 en caso contrario).
+2. Si ninguno de los documentos relacionados es un Comprobante de Retención (07), `totalIva` del resumen y de cada ítem se envía en `0` (Anexo IV, campos 100 y 146: el IVA por ítem y su total solo aplican al ajustar un CRE; al ajustar un CCF el IVA va únicamente como tributo `20` del resumen).
+3. `documentoRelacionado` se mapea siempre; `ventaTercero` y `apendice` solo si existen. No hay `otrosDocumentos`.
 
 ### Retención (07)
 
 | Mapper | Particularidad |
 |---|---|
-| `MapRetentionResponseIssuer()` | Emisor completo con todos los campos opcionales |
-| `MapRetentionResponseItem()` | Estructura diferente: `TipoDTE`, `TipoDoc`, `NumDoc`, `FechaEmision`, `MontoSujetoGravado`, `CodigoRetencionMH`, `IvaRetenido` |
-| `MapRetentionResponseSummary()` | Solo 3 campos: `TotalIvaRetenido`, `TotalSujRetencion`, `TotalIvaRetenidoLetras` |
-| `MapRetentionResponseExtension()` | Sin `PlacaVehiculo` |
+| `MapRetentionResponseIssuer()` | Emisor con `codEstable` y `codPuntoVenta` (punteros) y nombre comercial opcional |
+| `MapCommonResponseDocumentReceiver()` | Receptor con `tipoDocumento` y `numDocumento` |
+| `MapRetentionResponseItem()` | Estructura propia: `numItem`, `tipoDte`, `tipoGeneracion`, `numeroDocumento`, `fechaEmision`, `montoSujetoGrav`, `codigoRetencionMH`, `ivaRetenido`, `descripcion` |
+| `MapRetentionResponseSummary()` | `totalSujetoRetencion`, `totalIva`, `totalIvaRetenido`, `totalLetras`, `observaciones` |
+
+La Retención no incluye documentos relacionados, venta a terceros ni extensión; solo `apendice` opcional.
 
 ### Nota de Remisión (04)
 
 | Mapper | Particularidad |
 |---|---|
-| `MapRemissionNoteReceiver()` | Se agrega `BienTitulo` (default `"99"`); NRC = `nil` si `DocumentType == "13"` |
-| `MapRemissionNoteItems()` | Se agregan: `VentaNoSuj`, `VentaExenta`, `VentaGravada`, `Codigo`, `CodTributo` |
-| `MapRemissionNoteSummary()` | `TaxedDiscount` hardcodeado a `0.0`; `TotalLetras` default `"CERO"` |
+| `MapRemissionNoteIssuer()` | Reutiliza `MapCommonResponseIssuer()` |
+| `MapRemissionNoteReceiver()` | Estructura `MHRemissionNoteReceiver` con `bienTitulo` (si el receptor no es del tipo específico, `"99"`); `nrc` = `nil` si `DocumentType == "13"` |
+| `MapRemissionNoteItems()` | Se agregan: `ventaNoSuj`, `ventaExenta`, `ventaGravada`, `codigo`; `codTributo` solo para ítems tipo 4 (primer tributo del ítem) |
+| `MapRemissionNoteSummary()` | `descuGravada` toma el descuento gravado del modelo (0 si no existe); `porcentajeDescuento` usa el valor del modelo o el del resumen base; `totalLetras` por defecto `"CERO"` si no hay resumen base; `tributos` es `null` si no hay tributos; sin pagos |
+| `MapRemissionNoteRelatedDocuments()`, `MapRemissionNoteThirdPartySale()`, `MapRemissionNoteAppendix()` | Devuelven `nil` si no hay datos |
 
 ### FSE (14)
 
 | Mapper | Particularidad |
 |---|---|
-| `MapFSEResponseIssuer()` | Sin `TipoEstablecimiento` ni `NombreComercial` |
-| `MapFSEResponseReceiver()` | Struct `FSESubjectExcluded` (no `DTEReceiver`); se remueven guiones del documento |
-| `MapFSEResponseItems()` | Campo `Compra` en lugar de ventas; sin tributos; reenumerados 1-indexed |
-| `MapFSEResponseSummary()` | Campos: `TotalCompra`, `Descu`, `IvaRete1`, `ReteRenta`; con `Observaciones` |
+| `MapFSEResponseIssuer()` | Sin `TipoEstablecimiento` ni `NombreComercial`; `codActividad` y `descActividad` como punteros |
+| `MapFSEResponseReceiver()` | Estructura `FSESubjectExcluded` (no `DTEReceiver`), publicada en la clave `receptor`; se remueven guiones del número de documento |
+| `MapFSEResponseItems()` | Campo `Compra` en lugar de ventas; sin tributos; reenumerados desde 1 |
+| `MapFSEResponseSummary()` | Campos: `totalCompra`, `descu`, `totalDescu`, `subTotal`, `reteRenta`, `totalPagar`, `totalLetras`, `condicionOperacion`, `pagos` (puntero, `null` si no hay), `observaciones` (`null` si vacío) |
+
+El `apendice` de FSE es un puntero a arreglo: `nil` cuando no hay elementos.
 
 ### Invalidación
 
 | Mapper | Particularidad |
 |---|---|
-| `MapIdentificationResponse()` | Usa `FecAnula`/`HorAnula` en lugar de `FecEmi`/`HorEmi`; sin `TipoDte`, `NumeroControl`, etc. |
-| `MapIssuerResponse()` | Emisor reducido: sin NRC, dirección, código actividad |
-| `MapInvalidatedDocumentResponse()` | Campos únicos: `SelloRecibido`, `MontoIva`, `CodigoGeneracionR` (reemplazo) |
-| `MapInvalidationReasonResponse()` | Estructura completa: tipo, motivo, responsable, solicitante |
+| `MapIdentificationResponse()` | Campos `version`, `ambiente`, `codigoGeneracion`, `fecEmi`, `horEmi` y `fusion` (siempre `null`); no incluye `tipoDte` ni `numeroControl` |
+| `MapIssuerResponse()` | Emisor reducido: `nit`, `nombre`, `codEstableMH`, `codEstable`, `codPuntoVentaMH`, `codPuntoVenta`, `telefono`, `correo` (sin NRC, dirección ni código de actividad) |
+| `MapInvalidatedDocumentResponse()` | Campos propios: `tipoDte`, `codigoGeneracion`, `selloRecibido`, `numeroControl`, `fecEmi`, `codigoGeneracionR` (reemplazo, opcional), `tipoDocumento`, `numDocumento`, `nombre`, `telefono`, `correo` |
+| `MapInvalidationReasonResponse()` | `tipoAnulacion`, `motivoAnulacion` (opcional), responsable (`nombreResponsable`, `tipDocResponsable`, `numDocResponsable`) y solicitante (`nombreSolicita`, `tipDocSolicita`, `numDocSolicita`) |
 
 ---
 
 ## Estructura Base JSON Hacienda
 
-### DTE Estándar (Factura, CCF, NC, ND)
+### DTE Estándar (Factura, CCF)
 
 ```json
 {
-  "identificacion": { "version", "ambiente", "tipoDte", "numeroControl", "codigoGeneracion", "tipoModelo", "tipoOperacion", "fecEmi", "horEmi", "tipoMoneda" },
-  "emisor": { "nit", "nrc", "nombre", "codActividad", "descActividad", "direccion", ... },
-  "receptor": { "nombre", "tipoDocumento", "numDocumento", "direccion", ... },
+  "identificacion": { "version", "ambiente", "tipoDte", "numeroControl", "codigoGeneracion", "tipoModelo", "tipoOperacion", "tipoContingencia", "motivoContin", "fecEmi", "horEmi", "tipoMoneda" },
+  "emisor": { "nit", "nrc", "nombre", "codActividad", "descActividad", "direccion", "codEstable", "codPuntoVenta", ... },
+  "receptor": { "nombre", "nrc", "direccion", ... },
   "cuerpoDocumento": [ { "numItem", "tipoItem", "descripcion", "cantidad", "precioUni", ... } ],
   "resumen": { "totalGravada", "subTotal", "totalPagar", "totalLetras", "tributos", "pagos", ... },
-  "extension": { ... },
   "documentoRelacionado": [ ... ],
   "otrosDocumentos": [ ... ],
   "ventaTercero": { ... },
@@ -145,13 +164,15 @@ Se reutilizan para los componentes compartidos entre múltiples tipos de DTE.
 }
 ```
 
+El receptor de la Factura se identifica con `tipoDocumento`/`numDocumento`; el del CCF con `nit`. NC, ND y Retención usan `tipoDocumento`/`numDocumento` y no incluyen `otrosDocumentos`.
+
 ### Invalidación
 
 ```json
 {
-  "identificacion": { "version", "ambiente", "codigoGeneracion", "fecAnula", "horAnula" },
-  "emisor": { "nit", "nombre", "tipoEstablecimiento", "telefono", "correo" },
-  "documento": { "tipoDte", "codigoGeneracion", "selloRecibido", "numeroControl", "fecEmi", "montoIva", ... },
+  "identificacion": { "version", "ambiente", "codigoGeneracion", "fecEmi", "horEmi", "fusion" },
+  "emisor": { "nit", "nombre", "codEstableMH", "codEstable", "codPuntoVentaMH", "codPuntoVenta", "telefono", "correo" },
+  "documento": { "tipoDte", "codigoGeneracion", "selloRecibido", "numeroControl", "fecEmi", "codigoGeneracionR", ... },
   "motivo": { "tipoAnulacion", "motivoAnulacion", "nombreResponsable", "tipDocResponsable", ... }
 }
 ```
@@ -164,14 +185,14 @@ Se reutilizan para los componentes compartidos entre múltiples tipos de DTE.
 
 | Archivo | Estructuras |
 |---|---|
-| `common_structs.go` | DTEIdentification, DTEIssuer, DTEReceiver, DTEAddress, DTEItem, DTESummary, DTETax, DTEPayment, DTEExtension, DTEApendice, DTERelatedDocument, DTEOtherDocument, DTEDoctor, DTEThirdPartySale |
+| `common_structs.go` | DTEIdentification, DTEAdjustmentIdentification, DTEIssuer, DTEReceiverBase, DTEReceiver, DTEDocumentReceiver, DTEAddress, DTEItem, DTESummary, DTETax, DTEPayment, DTEApendice, DTERelatedDocument, DTEOtherDocument, DTEDoctor, DTEThirdPartySale |
 | `invoice_structs.go` | InvoiceDTEResponse, InvoiceSummary, InvoiceReceiver, InvoiceItem |
 | `ccf_structs.go` | CCFDTEResponse |
-| `credit_note_structs.go` | CreditNoteDTEResponse, CreditNoteDTEIssuer, CreditNoteDTEItem, CreditNoteDTESummary, CreditNoteDTEExtension |
-| `debit_note_structs.go` | DebitNoteDTEResponse, DebitNoteDTEIssuer, DebitNoteDTEItem, DebitNoteDTESummary, DebitNoteDTEExtension |
+| `credit_note_structs.go` | CreditNoteDTEResponse, CreditNoteDTEIssuer, CreditNoteDTEItem, CreditNoteDTESummary |
+| `debit_note_structs.go` | DebitNoteDTEResponse, DebitNoteDTEIssuer, DebitNoteDTEItem, DebitNoteDTESummary |
 | `remission_note_structs.go` | MHRemissionNote, MHRemissionNoteReceiver, MHRemissionNoteItem, MHRemissionNoteSummary |
 | `fse_structs.go` | FSEDTEResponse, FSEIssuer, FSESubjectExcluded, FSEItemResponse, FSESummaryResponse |
-| `retention_struct.go` | RetentionDTEResponse, RetentionSummary, RetentionItem, RetentionIssuer, RetentionExtension |
+| `retention_struct.go` | RetentionDTEResponse, RetentionSummary, RetentionItem, RetentionIssuer |
 | `invalidation_structs.go` | InvalidationResponse, InvalidationIdentification, InvalidationIssuer, DocumentResponse, ReasonResponse |
 
 ---
@@ -180,7 +201,7 @@ Se reutilizan para los componentes compartidos entre múltiples tipos de DTE.
 
 1. **Interfaces como entrada**: Todos los mappers comunes usan interfaces (`interfaces.Issuer`, `interfaces.Item`, etc.) para desacoplar del modelo concreto. Los mappers específicos usan tipos concretos cuando necesitan campos exclusivos del tipo de DTE.
 2. **Value objects**: Los montos financieros se extraen con `.GetValue()` sobre value objects inmutables del dominio.
-3. **Redondeo de tributos**: Se usa `shopspring/decimal` con `Floor`/`Round` a 2 decimales para garantizar precisión monetaria.
-4. **Campos nulos en JSON**: Los campos con `omitempty` en los tags JSON se omiten cuando son `nil` o zero-value. Los punteros a string se usan para campos opcionales que Hacienda no requiere.
-5. **FSE es diferente**: El JSON de FSE usa `sujetoExcluido` en lugar de `receptor`, `compra` en lugar de ventas, y no tiene tributos por ítem.
-6. **Invalidación es diferente**: Usa `documento` + `motivo` en lugar de `cuerpoDocumento` + `resumen`. Los campos de fecha usan prefijo `Anula` (`fecAnula`, `horAnula`).
+3. **Redondeo de tributos**: `MapTaxes` usa `shopspring/decimal` con redondeo a 2 decimales.
+4. **Campos nulos en JSON**: Los campos requeridos por el esquema que no aplican se serializan como `null` (punteros sin `omitempty`). Solo `nit` del emisor de NC/ND usa `omitempty`.
+5. **FSE es diferente**: El JSON de FSE usa el objeto de sujeto excluido en la clave `receptor`, `compra` en lugar de ventas, y no tiene tributos por ítem.
+6. **Invalidación es diferente**: Usa `documento` + `motivo` en lugar de `cuerpoDocumento` + `resumen`. La identificación usa `fecEmi`/`horEmi` (fecha y hora del evento).

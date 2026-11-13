@@ -24,8 +24,8 @@ type HaciendaRequest struct {
     SendID         int         `json:"idEnvio"`
     Version        int         `json:"version"`
     Document       interface{} `json:"documento"`
-    DTEType        string      `json:"tipoDte"`
-    GenerationCode string      `json:"codigoGeneracion"`
+    DTEType        string      `json:"tipoDte,omitempty"`
+    GenerationCode string      `json:"codigoGeneracion,omitempty"`
     URL            string      `json:"-"`
 }
 ```
@@ -36,8 +36,8 @@ type HaciendaRequest struct {
 | `SendID` | Número secuencial de envío (número de control del DTE) |
 | `Version` | Versión del formato JSON del tipo de DTE |
 | `Document` | Documento firmado (string) o estructura JSON del DTE |
-| `DTEType` | Código del tipo de DTE (`"01"`, `"03"`, etc.) |
-| `GenerationCode` | UUID del documento (código de generación) |
+| `DTEType` | Código del tipo de DTE (`"01"`, `"03"`, etc.); se omite del JSON si está vacío |
+| `GenerationCode` | UUID del documento (código de generación); se omite del JSON si está vacío |
 | `URL` | Endpoint destino; excluido del JSON (`json:"-"`) |
 
 ---
@@ -82,8 +82,12 @@ type TransmitResult struct {
     MessageCode    string
     MessageDesc    string
     Observations   []string
+    SignedDocument   string // JWS transmitido
+    HaciendaResponse string // respuesta completa de Hacienda en JSON
 }
 ```
+
+`SignedDocument` y `HaciendaResponse` conforman, junto con `ReceptionStamp` y `ProcessingDate`, la evidencia de transmisión (ver `TransmissionEvidence` en [models.md](../models.md)) con la que se arma el Archivo DTE que se entrega al receptor.
 
 Este struct es el que retornan tanto `MHTransmitter.Transmit` como `BaseTransmitter.RetryTransmission`. La capa de aplicación solo trabaja con `TransmitResult`, nunca con `HaciendaResponse` directamente.
 
@@ -91,7 +95,6 @@ Este struct es el que retornan tanto `MHTransmitter.Transmit` como `BaseTransmit
 |---|---|
 | `"PROCESADO"` | DTE aceptado por Hacienda — `ReceptionStamp` contiene el sello |
 | `"RECHAZADO"` | DTE rechazado — `MessageCode` y `Observations` contienen el motivo |
-| `"CONTINGENCIA"` | DTE almacenado en contingencia — no hubo respuesta de Hacienda |
 
 ---
 
@@ -162,7 +165,7 @@ El `BatchTransmitterService` hace polling a Hacienda hasta obtener esta respuest
 
 > **Archivo:** `models/transmission_config.go`
 
-Configuración del servicio de retransmisión por lotes. Define los parámetros del backoff exponencial.
+Configuración específica del servicio de contingencia. Define el tamaño de lote y los parámetros del backoff exponencial. `NewTransmissionConfig(retryInterval, maxInterval, backoffFactor)` toma `Ambient` y `BatchSize` de `config.Server`.
 
 ```go
 type TransmissionConfig struct {
@@ -182,7 +185,7 @@ type TransmissionConfig struct {
 | `MaxInterval` | Parámetro de constructor | Intervalo máximo (techo del backoff) |
 | `BackoffFactor` | Parámetro de constructor | Factor de crecimiento exponencial |
 
-El método `GetRetryPolicy()` construye un `models.RetryPolicy` con `MaxAttempts: 3` fijo, usado por el `ContingencyService`.
+El método `GetRetryPolicy()` construye un `models.RetryPolicy` con `MaxAttempts: 3` fijo, que consume el transmisor de lotes de infraestructura. El `ContingencyService` usa `GetBatchSize()` para dividir los documentos en lotes.
 
 ---
 
@@ -192,7 +195,9 @@ El método `GetRetryPolicy()` construye un `models.RetryPolicy` con `MaxAttempts
 
 > **Archivo:** `batch_transmitter_interface.go`
 
-Puerto que define la transmisión por lotes. Lo implementa `BatchTransmitterService` en la capa de infraestructura.
+Puerto que define la transmisión por lotes. Lo implementa `BatchTransmitterService` en la capa de infraestructura. Los parámetros de credenciales son `authModels.HaciendaCredentials` y el mapa de documentos es `map[string]dte.ContingencyDocument`.
+
+El paquete también define `RealTimeProvider` (`Now()` con `utils.TimeNow()` y `Sleep()`), implementación de `TimeProvider`.
 
 ```go
 type BatchTransmitterPort interface {
@@ -204,9 +209,9 @@ type BatchTransmitterPort interface {
 
 | Método | Descripción |
 |---|---|
-| `TransmitBatch` | Envía el lote y retorna `BatchResponse` y el `batchID` interno |
+| `TransmitBatch` | Envía el lote y retorna `BatchResponse` y el token de Hacienda utilizado |
 | `VerifyContingencyBatchStatus` | Polling del estado hasta confirmación o timeout (2 min) |
-| `GetDTEVersion` | Retorna la versión JSON del tipo: `1` para factura (`01`), `2` para el resto |
+| `GetDTEVersion` | Retorna la versión JSON del tipo: `2` para `01`, `07` y `14`; `3` para `11`; `4` para `03`, `04`, `05` y `06`; `2` para cualquier otro |
 
 ---
 

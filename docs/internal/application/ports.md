@@ -27,23 +27,23 @@ type BaseTransmitter interface {
 }
 ```
 
-Esta es la interfaz que llaman los casos de uso. Abstrae el comportamiento de reintento con backoff para que los casos de uso no necesiten preocuparse por conteos de reintentos ni intervalos.
+Esta es la interfaz que llaman los casos de uso. Encapsula la firma del documento, la transmisión y la lógica de reintento para que los casos de uso no necesiten preocuparse por conteos de reintentos ni intervalos.
 
 **`RetryTransmission`**
 
 Llamado por `GenericDTEUseCase.Create` e `InvalidationUseCase.InvalidateDocument`. Acepta:
 
-- `document interface{}` — el struct del documento en formato MH completamente poblado (o struct de anulación)
+- `document interface{}` — el struct del documento en formato MH completamente poblado (o struct del evento de invalidación)
 - `token string` — el JWT del sistema en crudo, reenviado a `HaciendaAuthManager` para obtener un token de Hacienda
 - `nit string` — el NIT del emisor, necesario por el servicio de firma
 
-Devuelve `*models.TransmitResult` en caso de éxito, que contiene `ReceptionStamp`, `Status`, `ProcessingDate` y mensajes de observación.
+Firma el documento (`SignerManager.SignDTE`), lo transmite y devuelve `*models.TransmitResult`, que contiene `Status`, `ReceptionStamp`, `ProcessingDate`, `MessageCode`, `MessageDesc`, `Observations` y la evidencia de la transmisión: `SignedDocument` (el JWS transmitido, que se guarda como `firmaElectronica` del Archivo DTE) y `HaciendaResponse` (la respuesta completa de Hacienda en JSON). El detalle del flujo está en [Transmitter](dte/transmitter.md).
 
 **`CheckStatus`**
 
-Llamado durante la retransmisión por contingencia para verificar si un documento enviado previamente fue procesado por Hacienda. Ver `ContingencyService.verifyAndUpdateExistingDocuments`.
+Consulta a Hacienda si un documento ya fue procesado. Dentro de `BaseTransmitter` solo se invoca desde `RetryTransmission`; el servicio de contingencia usa su propio método interno `checkDocumentStatus` y no pasa por este puerto.
 
-**Implementación de infraestructura:** `RetryTransmitterService` (envuelve `MHTransmitter`)
+**Implementación:** `dte.BaseTransmitter` en `internal/application/dte/base_transmit.go`, construido con `dte.NewBaseTransmitter(transmitter, signer)`. Envuelve a `DTETransmitter` (`MHTransmitter`) y a `SignerManager`.
 
 ---
 
@@ -57,7 +57,7 @@ type SignerManager interface {
 }
 ```
 
-Usado dentro de `MHTransmitter.Transmit` (indirectamente a través del pipeline de procesadores) para firmar el JSON del documento serializado antes de la transmisión. La firma es manejada por un microservicio externo de Spring Boot.
+Usado por `BaseTransmitter.RetryTransmission` para firmar el JSON del documento serializado antes de la transmisión (`MHTransmitter` no firma: recibe el JWS ya firmado). También lo usan el servicio de contingencia y el transmisor por lotes al retransmitir documentos pendientes. La firma es manejada por un microservicio externo (ruta en `config.Signer.Path`, timeout HTTP de 2 segundos).
 
 **Implementación de infraestructura:** `signer.DTESigner` en `internal/infrastructure/adapters/signing/signer/dte_signer.go`
 
@@ -77,7 +77,7 @@ type DTETransmitter interface {
 
 Esta es la interfaz de transmisor de nivel más bajo. A diferencia de `BaseTransmitter`, no incluye lógica de reintento — eso es responsabilidad de `BaseTransmitter` que envuelve a este.
 
-- `Transmit` — firma el documento, construye la petición a Hacienda y llama a `SendToHacienda`
+- `Transmit(ctx, document, signedDoc, token)` — recibe el documento y su JWS (ya firmado por `BaseTransmitter`), elige el procesador (DTE o invalidación), construye la petición a Hacienda y llama a `SendToHacienda`. Adjunta la respuesta completa en `TransmitResult.HaciendaResponse`
 - `CheckDocumentStatus` — consulta el endpoint de consulta de Hacienda para el estado actual de un documento
 - `SendToHacienda` — el HTTP POST crudo con gestión de token; separado para que los tests puedan sustituirlo
 
@@ -96,20 +96,20 @@ type HaciendaAuthManager interface {
 }
 ```
 
-Esta interfaz gestiona el token OAuth de Hacienda de forma independiente al JWT del sistema. Los tokens de Hacienda son de corta duración y se almacenan en caché en Redis.
+Esta interfaz gestiona el token de autenticación de Hacienda de forma independiente al JWT del sistema. El token de Hacienda se almacena en caché en Redis.
 
 **`GetOrCreateHaciendaToken`**
 
 Usado durante la transmisión normal (no por lotes). La implementación:
 1. Busca en Redis un token de Hacienda en caché con clave `hacienda:token:<systemToken>`
 2. Si no se encuentra, extrae `AuthClaims` del contexto para obtener el NIT
-3. Llama a `AuthManager.GetHaciendaCredentials` para recuperar el usuario/contraseña de Hacienda almacenado para ese NIT
+3. Llama a `AuthManager.GetHaciendaCredentials` para recuperar el usuario/contraseña de Hacienda: se leen descifrados de la caché Redis (clave `hacienda:credentials:<systemToken>`), donde `Login` los guardó cifrados con el tiempo de vida del JWT
 4. Hace un POST a la URL de autenticación de Hacienda usando campos form-encoded `user` + `pwd`
 5. Almacena en caché el token devuelto en Redis con un TTL de 24 horas
 
 **`GetOrCreateHaciendaTokenWithCreds`**
 
-Usado durante la retransmisión por lotes/contingencia, donde las credenciales se pasan explícitamente en lugar de consultarse desde el contexto.
+Usado por el transmisor por lotes (`BatchTransmitterService`) y por el servicio HTTP de eventos de contingencia (`contingencyHTTPService`, creado con `NewContingencyEventService`), donde las credenciales se pasan explícitamente en lugar de consultarse desde el contexto. También consulta primero la caché con la misma clave.
 
 **Implementación de infraestructura:** `HaciendaAuthService` en `internal/infrastructure/adapters/signing/hacienda_auth_service.go`
 
@@ -141,17 +141,13 @@ Los puertos a nivel de dominio describen "qué puede hacer el dominio". Los puer
 En la raíz de inyección de dependencias (`internal/bootstrap/containers/`), las implementaciones concretas se vinculan con estas interfaces:
 
 ```go
-// Adaptador de firma → satisface SignerManager
-signer := signer.NewDTESigner(authRepo)
+// ServicesContainer.Initialize
+signerManager := signer.NewDTESigner(authRepo)                                  // SignerManager
+haciendaAuth := signing.NewHaciendaAuthService(cacheManager, authManager)       // HaciendaAuthManager
+transmitter := adapterTransmitter.NewMHTransmitter(haciendaAuth, failedSeqRepo) // DTETransmitter
 
-// Adaptador de autenticación de Hacienda → satisface HaciendaAuthManager
-haciendaAuth := signing.NewHaciendaAuthService(cache, authManager)
-
-// Transmisor de bajo nivel → satisface DTETransmitter
-mhTransmitter := transmitter.NewMHTransmitter(haciendaAuth, failedSeqRepo)
-
-// Wrapper de reintento → satisface BaseTransmitter
-retryTransmitter := retry.NewRetryTransmitterService(mhTransmitter, signer)
+// UseCaseContainer.Initialize
+baseTransmitter := dte.NewBaseTransmitter(transmitter, signerManager)           // BaseTransmitter
 ```
 
 Desde la perspectiva del caso de uso, solo `BaseTransmitter` es visible. La estratificación garantiza que los detalles de firma, autenticación y HTTP estén completamente encapsulados.

@@ -67,7 +67,7 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
 | `success` | boolean | Siempre `true` en respuestas exitosas |
 | `reception_stamp` | string \| null | Sello de recepción emitido por Hacienda. `null` si el documento fue a contingencia |
 | `qr_link` | string \| null | URL pública para consultar el DTE en el portal de Hacienda |
-| `data` | object | Estructura completa del DTE según el esquema de Hacienda |
+| `data` | object | **Archivo DTE**: la estructura firmada del documento, íntegra y sin alteraciones, más `firmaElectronica` (JWS) y `selloRecibido`. En contingencia (sin sello) es la estructura del DTE sin firma |
 
 ### Respuesta exitosa — otras operaciones
 
@@ -94,8 +94,20 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `error.message` | string | Descripción legible del error |
-| `error.code` | string | Código identificador del error (ver tabla abajo) |
-| `error.details` | string[] | Detalles adicionales; puede ser vacío |
+| `error.code` | string | Código identificador del error, siempre en mayúsculas (ver tabla abajo) |
+| `error.details` | string[] | Detalles adicionales (por ejemplo, el mensaje de cada regla incumplida); puede ser vacío o nulo |
+
+> Con `DEBUG=true` los mensajes de validación se prefijan con el nombre de la regla entre corchetes, por ejemplo `[RelatedDocOutOfPeriod] ...`.
+
+### Códigos de error de validación
+
+Las reglas de negocio no siempre se devuelven con su nombre como `error.code`; el código depende de dónde se detectó el error:
+
+| `error.code` | Significado |
+|--------------|-------------|
+| Nombre de la regla en mayúsculas (`REQUIREDFIELD`, `INVALIDQUERYPARAM`, `NOTMATCHINGRECEIVERNIT`, `PENDINGADJUSTMENTNOTES`...) | Error de un campo, de una consulta o de una regla puntual |
+| `VALIDATIONFAILED` | Falló el validador propio del tipo de documento (por ejemplo Nota de Crédito o Débito); `error.details` lista cada regla incumplida |
+| `MANY_ERRORS` | Fallaron una o varias reglas generales de DTE; `error.details` lista cada una |
 
 ---
 
@@ -103,14 +115,14 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
 
 | Categoría | HTTP Status | Código | Descripción |
 |-----------|-------------|--------|-------------|
-| Validación | `400` | Específico por campo | El request contiene campos inválidos o viola reglas de negocio |
+| Validación | `400` | Específico por regla, `VALIDATIONFAILED` o `MANY_ERRORS` | El request contiene campos inválidos o viola reglas de negocio |
 | Hacienda rechazó | `400` | `HACIENDA_<codigoMsg>` | Hacienda procesó el documento pero lo rechazó |
 | Error HTTP de Hacienda | Varía | `HACIENDA_<httpCode>` | Hacienda retornó un error HTTP (5xx, 429, etc.) |
 | Error de servicio | `400` | `<CODIGO_SERVICIO>` | Error de negocio interno (número secuencial, mapeo, etc.) |
 | Error del sistema | `500` | `SYSTEM_ERROR` | Error interno inesperado del servidor |
 | No autorizado | `401` | `UNAUTHORIZED` | Token JWT ausente, expirado o inválido |
 | No encontrado | `404` | `NOT_FOUND` | Recurso no encontrado |
-| Timeout | `408` | `REQUEST_TIMEOUT` | La petición excedió el tiempo límite |
+| Timeout | `408` | `REQUEST_TIMEOUT` | La petición excedió el tiempo límite (14 segundos) |
 
 ---
 
@@ -134,7 +146,7 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
 | `POST` | `/api/v1/dte/fse` | Factura de Sujeto Excluido | Sí |
 | `POST` | `/api/v1/dte/retention` | Comprobante de Retención | No |
 | `POST` | `/api/v1/dte/remissionnote` | Nota de Remisión Electrónica | Sí |
-| `POST` | `/api/v1/dte/invalidation` | Anulación de DTE | No |
+| `POST` | `/api/v1/dte/invalidation` | Anulación (invalidación) de DTE | No |
 
 ### DTE — Consulta (requieren autenticación)
 
@@ -142,13 +154,17 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
 |--------|------|-------------|
 | `GET` | `/api/v1/dte` | Listar todos los DTEs del sistema |
 | `GET` | `/api/v1/dte/{id}` | Obtener DTE por código de generación (UUID) |
+| `GET` | `/api/v1/dte/{id}/archivo` | Obtener el Archivo DTE (estructura firmada + `firmaElectronica` + `selloRecibido`) |
+| `GET` | `/api/v1/dte/{id}/eventos` | Obtener los eventos del DTE (invalidación) con su Archivo DTE |
 
 ### Otros
 
-| Método | Path | Descripción |
-|--------|------|-------------|
-| `GET` | `/api/v1/health` | Estado del servicio |
-| `GET` | `/api/v1/metrics` | Métricas de uso de endpoints |
+| Método | Path | Autenticación | Descripción |
+|--------|------|:---:|-------------|
+| `GET` | `/health` | No | Estado del servicio. No lleva el prefijo `/api/v1` |
+| `GET` | `/api/v1/metrics` | Sí | Métricas de uso de endpoints (JSON) del sistema autenticado; admite `endpoint` y `method` como filtros |
+| `GET` | `/api/v1/test` | Sí | Prueba de componentes del sistema |
+| `POST` | `/api/v1/debug/notify-test` | Sí | Solo disponible con `DEBUG=true`; envía un correo de prueba al administrador |
 
 ---
 
@@ -158,17 +174,24 @@ Cuando un DTE que soporta contingencia no puede transmitirse a Hacienda (por pro
 
 ### Cuándo se activa
 
+Los tipos corresponden al catálogo CAT-005 (Tipo de Contingencia): `1` No disponibilidad de sistema del MH, `2` No disponibilidad de sistema del emisor, `3` Falla en el suministro de servicio de Internet del emisor, `4` Falla en el suministro de energía eléctrica del emisor, `5` Otro motivo.
+
 | Condición | Tipo de contingencia |
 |-----------|---------------------|
-| Error de red (connection refused, broken pipe) | `1` — Falla de conexión al sistema |
-| Red no disponible (no route to host, timeout de red) | `2` — Falla de servicio de Internet |
-| HTTP 502/503/504 de Hacienda | `3` — No disponibilidad de MH |
-| HTTP 408/504 (timeout de petición) | `3` — No disponibilidad de MH |
-| HTTP 429 (rate limiting) | `3` — No disponibilidad de MH |
-| Mantenimiento / sobrecarga (según descripción) | `3` — No disponibilidad de MH |
-| Timeout de contexto (deadline exceeded) | `3` — No disponibilidad de MH |
-| HTTP 401/403 con token inválido | `1` — Falla de conexión al sistema |
-| Cualquier otro error no clasificado | `5` — Otro motivo |
+| Error de red (connection refused, connection reset, broken pipe) | `2` |
+| Red no disponible (no route to host, network unreachable, i/o timeout, no such host) | `3` |
+| Otro error de red | `2` |
+| HTTP 502/503 de Hacienda | `1` |
+| HTTP 408/504 (timeout de petición) | `1` |
+| HTTP 429 (rate limiting) | `1` |
+| Mantenimiento o sobrecarga (según descripción de Hacienda) | `1` |
+| Timeout de contexto (deadline exceeded) | `1` |
+| HTTP 401/403 con "token" en la descripción | `2` |
+| Cualquier otro error no clasificado | `5` |
+
+El tipo `4` (energía eléctrica) no se asigna automáticamente.
+
+> La clasificación depende del tipo de error recibido: los errores HTTP que no vienen en el cuerpo de respuesta de Hacienda solo clasifican como `1` los códigos 502, 503 y 504; el resto (por ejemplo 408 o 429) se clasifica como `5`.
 
 ### Cuándo NO se activa
 
@@ -178,7 +201,7 @@ Cuando un DTE que soporta contingencia no puede transmitirse a Hacienda (por pro
 
 ### Respuesta durante contingencia
 
-La respuesta es `HTTP 201` con el DTE completo pero `reception_stamp: null`:
+La respuesta es `HTTP 201` con la estructura del DTE (sin firma ni sello) y `reception_stamp: null`. El documento queda en estado `PENDING` con transmisión `CONTINGENCY`:
 
 ```json
 {
@@ -187,8 +210,10 @@ La respuesta es `HTTP 201` con el DTE completo pero `reception_stamp: null`:
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?...",
   "data": {
     "identificacion": {
-      "tipoContingencia": 3,
-      "motivoContin": "No disponibilidad del servicio de MH",
+      "tipoModelo": 2,
+      "tipoOperacion": 2,
+      "tipoContingencia": 1,
+      "motivoContin": "Servicio del Ministerio de Hacienda no disponible",
       ...
     },
     ...
@@ -212,11 +237,11 @@ La API implementa múltiples capas de validación antes de enviar cualquier docu
 
 ### Reglas comunes
 
-- **NIT:** 14 dígitos, sin guiones.
-- **DUI:** 9 dígitos, sin guiones.
-- **NRC:** Máximo 8 caracteres.
+- **NIT:** 14 o 9 dígitos; si se envían guiones, se eliminan.
+- **DUI:** 9 dígitos; si se envían guiones, se eliminan.
+- **NRC:** De 1 a 8 dígitos.
 - **Textos:** Evitar caracteres especiales no estándar o emojis; respetar los límites de longitud.
-- **Cálculos:** La API valida que `Precio Unitario × Cantidad = Venta Gravada` (tolerancia ±$0.01). Enviar los cálculos ya verificados para evitar rechazos por redondeo.
+- **Cálculos:** La API valida los totales y tributos de cada documento con una tolerancia de ±$0.01 (en la Factura, el CCF y la FSE también la venta de cada ítem). Enviar los cálculos ya verificados para evitar rechazos por redondeo. Las fórmulas se detallan en [Reglas de cálculo](./calculations.md).
 
 ---
 
@@ -246,3 +271,8 @@ El Ministerio de Hacienda exige numeración única, consecutiva y sin saltos por
 - [Nota de Remisión Electrónica](./remission-note.md)
 - [Anulación de DTE](./invalidation.md)
 - [Consulta de DTEs](./dte-query.md)
+- [Reglas de cálculo](./calculations.md)
+
+### Plazo de 72 horas y estado `EXPIRED`
+
+Los documentos en contingencia se retransmiten en segundo plano. El plazo para transmitirlos es de **72 horas contadas desde el sello de recepción del evento de contingencia**. Si transcurre ese plazo sin transmitirse, el documento pasa a estado `EXPIRED`, se considera no emitido y se notifica al administrador. Los documentos cuyo evento aún no tiene sello no vencen.

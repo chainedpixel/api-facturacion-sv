@@ -6,249 +6,241 @@
 
 ## Descripción General
 
-Los modelos de base de datos representan la estructura de persistencia del sistema. Se definen como structs de Go con tags de GORM que mapean a tablas de la base de datos. Las migraciones se ejecutan automáticamente al iniciar la aplicación.
+Los modelos de base de datos representan la estructura de persistencia del sistema. Se definen como structs de Go con tags de GORM que mapean a tablas de la base de datos. Las migraciones **no** se ejecutan automáticamente en cada arranque: solo corren cuando la variable de entorno `RUN_MIGRATION=true` (`config.Server.RunMigration`), evaluada en `bootstrap/app.go` justo después de abrir la conexión. Con el valor por defecto (falso) no se crea ni se modifica ninguna tabla o columna.
+
+El sistema define 15 modelos (tablas). Los nombres de tabla y de columna que se listan a continuación son los declarados en los tags `gorm` de cada struct.
 
 ---
 
 ## Modelos de Base de Datos
 
-### User
+### User (`users`)
 
-Representa un usuario/contribuyente del sistema.
+Contribuyente que usa la API.
 
-```go
-type User struct {
-    ID              uint
-    NIT             string           // NIT del contribuyente
-    NRC             string           // Número de Registro de Contribuyente
-    Name            string           // Nombre o razón social
-    ActivityCode    string           // Código de actividad económica
-    AuthType        string           // Tipo de autenticación
-    PrivateKeyPass  string           // Password de clave privada (firma digital)
-    BranchOffices   []BranchOffice   // Sucursales (relación 1:N)
-    CreatedAt       time.Time
-    UpdatedAt       time.Time
-}
-```
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | uint, PK, autoincrement | |
+| `nit` | varchar(17) | único |
+| `nrc` | varchar(10) | único |
+| `status` | tinyint | índice |
+| `auth_type` | varchar(15) | |
+| `password_pri` | varchar(255) | contraseña de la llave privada del certificado (firma) |
+| `commercial_name` | varchar(150) | |
+| `economic_activity` | varchar(6) | |
+| `economic_activity_desc` | varchar(150) | |
+| `business_name` | varchar(200) | |
+| `email` | varchar(100) | único |
+| `phone` | varchar(30) | único |
+| `year_in_dte` | tinyint | si es verdadero, el número de control incluye el año |
+| `token_lifetime` | int | por defecto 14 |
+| `created_at`, `updated_at` | timestamp | |
 
-### BranchOffice
+### BranchOffice (`branch_offices`)
 
-Representa una sucursal del contribuyente.
+Sucursal o establecimiento del contribuyente. Los campos terminados en `_mh` son códigos asignados por Hacienda.
 
-```go
-type BranchOffice struct {
-    ID                uint
-    UserID            uint           // FK al usuario
-    Name              string         // Nombre de la sucursal
-    Phone             string         // Teléfono
-    Email             string         // Correo electrónico
-    CommercialName    string         // Nombre comercial
-    EstablishmentType string         // Tipo de establecimiento (01: casa matriz)
-    EstablishmentCode string         // Código de establecimiento
-    POSCode           string         // Código de punto de venta
-    APIKey            string         // API key (hasheada)
-    APISecret         string         // API secret (hasheado)
-    IsMatrix          bool           // Es casa matriz
-    Address           *Address       // Dirección (relación 1:1)
-    CreatedAt         time.Time
-    UpdatedAt         time.Time
-}
-```
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | uint, PK | |
+| `user_id` | uint | FK a `users`, índice |
+| `establishment_code` | varchar(10), nulo | código interno |
+| `establishment_code_mh` | varchar(4), nulo | código de establecimiento asignado por Hacienda |
+| `email`, `phone` | varchar, nulos | |
+| `api_key` | varchar(255) | único |
+| `api_secret` | varchar(255) | |
+| `establishment_type` | varchar(2) | índice |
+| `pos_code` | varchar(15), nulo | código interno del punto de venta |
+| `pos_code_mh` | varchar(4), nulo | código de punto de venta asignado por Hacienda |
+| `is_active` | tinyint(1) | índice |
 
-### Address
+### Address (`addresses`)
 
-Dirección asociada a una sucursal.
+Dirección de la sucursal (relación 1:1 por `branch_id`).
 
-```go
-type Address struct {
-    ID             uint
-    BranchOfficeID uint       // FK a la sucursal
-    Department     string     // Departamento
-    Municipality   string     // Municipio
-    Complement     string     // Complemento de dirección
-}
-```
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | uint, PK | |
+| `branch_id` | uint | FK a `branch_offices`, índice |
+| `municipality` | varchar(2) | |
+| `department` | varchar(2) | |
+| `district` | varchar(2) | por defecto `'01'` |
+| `complement` | varchar(200) | |
 
-### DTEDocument
+### DTEDocument (`dte_documents`)
 
-Documento tributario electrónico principal.
+Relación entre un documento y la sucursal que lo emitió.
 
-```go
-type DTEDocument struct {
-    ID               uint
-    BranchID         uint           // FK a la sucursal
-    GenerationCode   string         // UUID (código de generación)
-    DTEType          string         // Tipo de DTE (01, 03, etc.)
-    TransmissionType string         // NORMAL o CONTINGENCY
-    Status           string         // RECEIVED, REJECTED, INVALIDATED, PENDING
-    Details          *DTEDetails    // Detalles del documento (relación 1:1)
-    BalanceControl   *DTEBalanceControl // Control de balance (relación 1:1)
-    CreatedAt        time.Time
-    UpdatedAt        time.Time
-}
-```
+| Columna | Tipo | Notas |
+|---|---|---|
+| `document_id` | varchar(36), PK | FK a `dte_details.id` (código de generación) |
+| `branch_id` | uint | FK a `branch_offices`, índice |
+| `created_at`, `updated_at` | timestamp | `created_at` indexado |
 
-### DTEDetails
+Hook `AfterCreate`: si el tipo del documento pertenece a `ValidAdjustmentDTETypes` (hoy `03` CCF y `07` comprobante de retención), se crea automáticamente su `DTEBalanceControl` con los totales gravado, exento y no sujeto leídos del resumen del JSON.
 
-Detalles y contenido completo de un DTE.
+### DTEDetails (`dte_details`)
 
-```go
-type DTEDetails struct {
-    ID              uint
-    DTEDocumentID   uint             // FK al documento DTE
-    ControlNumber   string           // Número de control (DTE-XX-XXXX-XXXXXXXXX)
-    ReceptionStamp  *string          // Sello de recepción de Hacienda (40 chars)
-    JSONContent     json.RawMessage  // JSON completo del DTE (formato Hacienda)
-    Observations    json.RawMessage  // Observaciones de Hacienda (JSON array)
-}
-```
+Contenido y evidencia de transmisión del documento.
 
-### DTEBalanceControl
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | varchar(36), PK | código de generación (UUID) |
+| `dte_type` | varchar(2) | índice |
+| `control_number` | varchar(30) | índice |
+| `reception_stamp` | varchar(40), nulo | sello de recepción de Hacienda |
+| `transmission` | varchar(15) | `NORMAL` o `CONTINGENCY` |
+| `status` | varchar(15) | `RECEIVED`, `REJECTED`, `INVALIDATED`, `PENDING`, `EXPIRED`; índice |
+| `json_data` | json | estructura del DTE (MySQL puede reordenar las llaves del tipo JSON) |
+| `signed_document` | longtext, nulo | JWS transmitido a Hacienda; es la fuente del Archivo DTE (estructura firmada exacta + `firmaElectronica` + `selloRecibido`) |
+| `processing_date` | varchar(30), nulo | fecha y hora de procesamiento informada por Hacienda (`fhProcesamiento`) |
+| `hacienda_response` | text, nulo | respuesta completa de Hacienda en JSON |
 
-Control de balance para documentos que pueden recibir notas de crédito/débito.
+Las columnas `signed_document`, `processing_date` y `hacienda_response` son nulas para documentos creados antes de su incorporación. Se llenan desde `TransmissionEvidence` (ver [transmitter.md](transmitter.md) y [repositories.md](repositories.md)).
 
-```go
-type DTEBalanceControl struct {
-    ID              uint
-    DTEDocumentID   uint              // FK al documento DTE
-    OriginalAmount  float64           // Monto original del documento
-    CurrentBalance  float64           // Balance actual (disminuye con NC, aumenta con ND)
-    Transactions    []DTEBalanceTransaction  // Historial de transacciones
-}
-```
+### DTEEvent (`dte_events`)
 
-### DTEBalanceTransaction
+Eventos transmitidos a Hacienda (invalidación y contingencia) con su evidencia.
 
-Transacción que afecta el balance de un DTE.
+| Columna | Tipo | Notas |
+|---|---|---|
+| `generation_code` | varchar(36), PK | código de generación del evento |
+| `branch_id` | uint | índice |
+| `event_type` | varchar(20) | `INVALIDATION` o `CONTINGENCY`; índice |
+| `related_dte_id` | varchar(36), nulo | documento afectado (invalidación); índice. Es nulo en eventos de contingencia |
+| `replacement_dte_id` | varchar(36), nulo | documento de reemplazo, si existe |
+| `json_data` | json | estructura del evento |
+| `signed_document` | longtext, nulo | JWS transmitido |
+| `reception_stamp` | varchar(40), nulo | sello de recepción del evento |
+| `processing_date` | varchar(30), nulo | |
+| `hacienda_response` | text, nulo | respuesta completa de Hacienda |
+| `status` | varchar(15) | |
+| `created_at` | timestamp | |
 
-```go
-type DTEBalanceTransaction struct {
-    ID                  uint
-    BalanceControlID    uint      // FK al control de balance
-    TransactionType     string    // "05" (NC) o "06" (ND)
-    DocumentNumber      string    // Número del documento que genera la transacción
-    GenerationCode      string    // UUID de la nota de crédito/débito
-    Amount              float64   // Monto de la transacción
-    PreviousBalance     float64   // Balance antes de la transacción
-    NewBalance          float64   // Balance después de la transacción
-    CreatedAt           time.Time
-}
-```
+Con `signed_document` y `reception_stamp` se arma el Archivo DTE del evento. Se consulta mediante `GET /api/v1/dte/{id}/eventos` (por `related_dte_id`).
 
-### ContingencyDocument
+### DTEBalanceControl (`dte_balance_control`)
 
-Documento almacenado durante una contingencia (sin transmitir a Hacienda).
+Saldo remanente de un documento sobre el que se pueden emitir notas de crédito y de débito.
 
-```go
-type ContingencyDocument struct {
-    ID                 uint
-    UUID               string           // UUID generado automáticamente
-    BranchID           uint             // FK a la sucursal
-    NIT                string           // NIT del emisor
-    DTEType            string           // Tipo de DTE
-    ContingencyType    int              // Tipo de contingencia
-    ContingencyReason  string           // Motivo de la contingencia
-    SignedDocument     string           // Documento firmado (base64)
-    JSONContent        json.RawMessage  // JSON del DTE
-    Status             string           // PENDING o PROCESSED
-    BatchID            *string          // ID del lote (asignado al procesar)
-    MHBatchID          *string          // ID del lote en Hacienda
-    ReceptionStamp     *string          // Sello de recepción (post-procesamiento)
-    Observations       json.RawMessage  // Observaciones
-    ReservedSequence   *ReservedSequenceNumber  // Reservación asociada
-    CreatedAt          time.Time
-    UpdatedAt          time.Time
-}
-```
+| Columna | Tipo |
+|---|---|
+| `id` | uint, PK |
+| `branch_id` | uint, índice |
+| `original_dte_id` | varchar(36), índice (FK a `dte_details.id`) |
+| `original_taxed_amount`, `original_exempt_amount`, `original_not_subject_amount` | decimal(18,2) |
+| `remaining_taxed_amount`, `remaining_exempt_amount`, `remaining_not_subject_amount` | decimal(18,2) |
+| `created_at`, `updated_at` | timestamp |
 
-### ControlNumberSequence
+### DTEBalanceTransaction (`dte_balance_transactions`)
 
-Secuencia de números de control por tipo de DTE y sucursal.
+Movimiento de una nota que afecta el saldo.
 
-```go
-type ControlNumberSequence struct {
-    ID         uint
-    BranchID   uint     // FK a la sucursal
-    DTEType    string   // Tipo de DTE
-    Year       int      // Año de la secuencia
-    Current    int      // Último número generado
-    UpdatedAt  time.Time
-}
-```
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | uint, PK | |
+| `balance_control_id` | int | FK a `dte_balance_control` |
+| `adjustment_document_id` | varchar(36) | FK a `dte_details.id` (la nota) |
+| `transaction_type` | varchar(20) | tipo de DTE de la nota (`05` o `06`) |
+| `taxed_amount`, `exempt_amount`, `not_subject_amount` | decimal(18,2) | |
+| `created_at` | timestamp | |
 
-### ReservedSequenceNumber
+Hook `AfterCreate`: si el tipo es `05` (nota de crédito) se **resta** de los saldos remanentes; en caso contrario (nota de débito) se **suma**, y se guarda el `DTEBalanceControl`.
 
-Reservación de un número secuencial.
+### ContingencyDocument (`contingency_documents`)
 
-```go
-type ReservedSequenceNumber struct {
-    ID                  uint
-    BranchID            uint
-    DTEType             string
-    SequenceNumber      int
-    Year                int
-    Status              string     // RELEASED, RESERVED, CONFIRMED, REJECTED
-    ExpiresAt           *time.Time // Expiración de la reservación
-    DocumentID          *string    // ID del documento asociado
-    ContingencyDocID    *uint      // FK al documento de contingencia
-    FailureReason       *string    // Motivo de fallo
-    HaciendaCode        *string    // Código de respuesta de Hacienda
-    CreatedAt           time.Time
-    UpdatedAt           time.Time
-}
-```
+Documento emitido en contingencia, pendiente de transmitir.
 
-### FailedSequenceNumber
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | varchar(36), PK | UUID |
+| `document_id` | varchar(36) | FK a `dte_details.id`, índice |
+| `branch_id` | uint | FK, índice |
+| `type` | tinyint | tipo de contingencia, índice |
+| `reason` | varchar(150) | índice |
+| `batch_id` | varchar(36), nulo | lote interno |
+| `mh_batch_id` | varchar(36), nulo | lote de Hacienda |
+| `observations` | text, nulo | observaciones (incluye el motivo de vencimiento) |
+| `event_stamped_at` | timestamp, nulo, índice | fecha del sello del evento de contingencia; inicia la ventana de transmisión de 72 horas. Es nulo mientras el evento no se haya enviado |
+| `created_at`, `updated_at` | timestamp | `created_at` indexado |
 
-Registro de un intento fallido de uso de número secuencial.
+`event_stamped_at` solo se escribe una vez (ver `MarkEventStamped` en [repositories.md](repositories.md)), de modo que reenviar el evento no reinicia la ventana.
 
-```go
-type FailedSequenceNumber struct {
-    ID                  uint
-    BranchID            uint
-    DTEType             string
-    SequenceNumber      int
-    Year                int
-    FailureReason       string           // Motivo del fallo
-    ResponseCode        string           // Código de Hacienda
-    OriginalRequestData json.RawMessage  // JSON del request original
-    MHResponse          json.RawMessage  // JSON de la respuesta de Hacienda
-    CreatedAt           time.Time
-}
-```
+### ControlNumberSequence (`control_number_sequences`)
 
-### DomainEvent
+Contador del número de control por sucursal, tipo de DTE y año.
 
-Evento de dominio para event sourcing.
+| Columna | Tipo | Notas |
+|---|---|---|
+| `id` | uint, PK | |
+| `branch_id` | uint | parte del índice único `idx_branch_dte_year` |
+| `dte_type` | varchar(2) | parte del índice único |
+| `year` | int | parte del índice único |
+| `last_number` | int | último número usado |
+| `created_at`, `updated_at` | timestamp | |
 
-```go
-type DomainEvent struct {
-    ID        uint
-    Type      string           // Tipo de evento
-    Payload   json.RawMessage  // Datos del evento
-    CreatedAt time.Time
-}
-```
+### ReservedSequenceNumber (`reserved_sequence_numbers`)
 
-### UserNotification / NotifiableUser
+Reserva de un correlativo antes de emitir el documento. Esta tabla no declara el nombre de columna en los tags; GORM usa la convención snake_case.
 
-Modelos para el sistema de notificaciones.
+| Campo | Notas |
+|---|---|
+| `id` | PK |
+| `branch_id`, `dte_type` (varchar(2)), `sequence_number`, `year` | índice único `idx_reservation_unique` |
+| `status` | varchar(20), por defecto `RESERVED`; valores usados: `RESERVED`, `CONFIRMED`, `RELEASED` |
+| `document_id` | varchar(36), nulo |
+| `reserved_at` | creación automática |
+| `confirmed_at`, `released_at` | nulos |
+| `expires_at` | nulo, índice |
+| `rejection_reason` (text), `hacienda_code` (varchar(10)) | nulos |
+| `is_contingency` | bool, por defecto falso, índice |
+| `contingency_document_id` | varchar(36), nulo |
+
+### FailedSequenceNumber (`failed_sequence_numbers`)
+
+Correlativo cuyo intento de transmisión falló.
+
+| Columna | Tipo |
+|---|---|
+| `id` | uint, PK |
+| `branch_id`, `dte_type` (varchar(2)), `sequence_number`, `year` | índice compuesto `idx_failed_seq` |
+| `failure_reason` | text |
+| `response_code` | varchar(10) |
+| `original_request_data` | json |
+| `mh_response` | text |
+| `created_at` | timestamp |
+
+### DomainEvent (`domain_events`)
+
+Evento de dominio persistido (por ejemplo, contingencia activada).
+
+| Columna | Tipo |
+|---|---|
+| `id` | uint, PK |
+| `user_id`, `branch_id` | uint, FK, índices |
+| `event_type` | varchar(50), índice |
+| `payload` | json |
+| `occurred_at` | timestamp, índice |
+
+### UserNotification (`user_notifications`) y NotifiableUser (`notification_users`)
 
 ```go
 type UserNotification struct {
-    ID        uint
-    UserID    uint
-    Type      string
-    Message   string
-    Read      bool
-    CreatedAt time.Time
+    ID               uint
+    UserID           uint     // FK a users
+    EventID          uint     // FK a domain_events
+    NotificationType string   // varchar(15)
+    Message          string   // text
+    DeliveryStatus   string   // varchar(15)
+    DeliveryAt       time.Time
 }
 
-type NotifiableUser struct {
-    ID     uint
-    UserID uint
-    Email  string
-    Active bool
+type NotifiableUser struct {   // tabla notification_users
+    ID          uint
+    UserID      uint
+    EntityType  string  // varchar(10), polimórfico (usuario cliente o administrador)
+    Email       string  // varchar(255)
+    EnabledPush bool
 }
 ```
 
@@ -267,30 +259,31 @@ func RunMigrations(db *gorm.DB) error
 ### Flujo
 
 ```
-RunMigrations(db)
+RunMigrations(db)   (solo si RUN_MIGRATION=true)
   │
-  ├── Definir lista de modelos:
-  │   [User, BranchOffice, Address, DTEDocument, DTEDetails,
-  │    ContingencyDocument, ControlNumberSequence, ReservedSequenceNumber,
-  │    FailedSequenceNumber, DomainEvent, UserNotification,
-  │    NotifiableUser, DTEBalanceControl, DTEBalanceTransaction]
+  ├── Lista de modelos (en este orden):
+  │   [User, BranchOffice, Address, DTEDetails, DTEDocument,
+  │    ContingencyDocument, ControlNumberSequence, FailedSequenceNumber,
+  │    ReservedSequenceNumber, DomainEvent, UserNotification,
+  │    NotifiableUser, DTEBalanceControl, DTEBalanceTransaction, DTEEvent]
   │
   └── Por cada modelo:
-        ├── Log: "Migrando {ModelName}..."
+        ├── Log: "Starting model migration #N: {tabla}"
         ├── db.AutoMigrate(&model)
-        │   → Crear tabla si no existe
-        │   → Agregar columnas nuevas
+        │   → Crea la tabla si no existe
+        │   → Agrega columnas nuevas
         │   → NO elimina columnas existentes
-        └── Log: "Migración de {ModelName} completada"
+        └── Ante un error se registra y se aborta (el arranque falla con Fatal)
 ```
 
 ### Comportamiento de AutoMigrate
 
-- Se **crean** tablas que no existen
-- Se **agregan** columnas nuevas a tablas existentes
-- **No se eliminan** columnas que ya no están en el modelo
-- **No se modifican** tipos de columnas existentes
-- Las foreign keys se crean automáticamente basándose en los tags de GORM
+- Se **crean** tablas que no existen (incluida `dte_events`).
+- Se **agregan** columnas nuevas a tablas existentes (por ejemplo `signed_document`, `processing_date` y `hacienda_response` en `dte_details`, o `event_stamped_at` en `contingency_documents`).
+- **No se eliminan** columnas que ya no están en el modelo.
+- Las foreign keys se crean automáticamente basándose en los tags de GORM.
+
+> Al desplegar una versión que agrega columnas o tablas (por ejemplo `dte_events`, las columnas de evidencia o `event_stamped_at`), la base de datos debe migrarse arrancando una vez con `RUN_MIGRATION=true`; de lo contrario, las consultas que usan esas columnas fallan.
 
 ---
 
@@ -299,20 +292,18 @@ RunMigrations(db)
 ```
 User (1)
   │
-  ├── (N) BranchOffice
-  │         ├── (1) Address
-  │         ├── (N) DTEDocument
-  │         │         ├── (1) DTEDetails
-  │         │         └── (1) DTEBalanceControl
-  │         │                   └── (N) DTEBalanceTransaction
-  │         ├── (N) ContingencyDocument
-  │         │         └── (1) ReservedSequenceNumber
-  │         ├── (N) ControlNumberSequence
-  │         ├── (N) ReservedSequenceNumber
-  │         └── (N) FailedSequenceNumber
-  │
-  ├── (N) UserNotification
-  └── (N) NotifiableUser
+  └── (N) BranchOffice
+            ├── (1) Address
+            ├── (N) DTEDocument ── (1) DTEDetails
+            │                          ├── (1) DTEBalanceControl ── (N) DTEBalanceTransaction
+            │                          └── (N) ContingencyDocument
+            ├── (N) ContingencyDocument
+            ├── (N) DTEEvent               (related_dte_id referencia lógica a dte_details.id)
+            ├── (N) ControlNumberSequence
+            ├── (N) ReservedSequenceNumber
+            └── (N) FailedSequenceNumber
+
+DomainEvent (N) ── (N) UserNotification        User (1) ── (N) UserNotification
 ```
 
 ---
@@ -320,7 +311,7 @@ User (1)
 ## Notas
 
 1. **AutoMigrate no destructivo**: GORM AutoMigrate nunca elimina columnas ni tablas. Los cambios destructivos requieren migraciones manuales.
-2. **JSON en columnas**: `DTEDetails.JSONContent`, `ContingencyDocument.JSONContent`, y los campos de `FailedSequenceNumber` almacenan JSON como `json.RawMessage` (tipo `[]byte` en Go, `JSON` o `TEXT` en BD).
-3. **Soft deletes**: Los modelos no usan `gorm.DeletedAt` (soft delete). Las eliminaciones son permanentes.
-4. **Índices**: Los campos frecuentemente consultados (`GenerationCode`, `BranchID`, `DTEType`, `Status`) deben tener índices para rendimiento óptimo.
-5. **Balance control**: Solo se crea un `DTEBalanceControl` para documentos que pueden recibir notas de crédito/débito (facturas, CCF). Los demás tipos no lo necesitan.
+2. **Evidencia de transmisión**: `signed_document` (JWS) es la fuente del Archivo DTE; `json_data` no se usa para ello porque el tipo JSON de MySQL reordena las llaves.
+3. **Soft deletes**: Los modelos no usan `gorm.DeletedAt`. Las eliminaciones son permanentes.
+4. **Balance control**: Solo se crea un `DTEBalanceControl` para los tipos de `ValidAdjustmentDTETypes` (hoy `03` y `07`), vía el hook `AfterCreate` de `DTEDocument`.
+5. **Convención de IDs**: `dte_details.id` y `dte_documents.document_id` almacenan el código de generación (UUID), no un entero autoincremental.

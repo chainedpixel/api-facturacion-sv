@@ -3,112 +3,108 @@
 > **Validador:** `CCFRulesValidator`
 > **Paquete:** `internal/domain/dte/ccf/validator`
 
+Las fórmulas, decimales y holguras se detallan en [Cálculos que valida la API](../../../api/calculations.md); aquí se resumen por estrategia.
+
 ## Estrategias Compuestas
+
+Todas se ejecutan y los errores de estrategias distintas se agrupan:
 
 1. **CCFItemStrategy** — Validación de ítems, tipos de venta y reglas de impuestos
 2. **CCFTaxStrategy** — Validación de cálculos fiscales, IVA y percepción
 3. **CCFReceiverStrategy** — Validación del receptor (NRC obligatorio)
 4. **CCFRelatedDocStrategy** — Validación de documentos relacionados
 
+Luego se aplican las [estrategias comunes](./README.md) (incluida `DocumentTypeStrategy`, que también exige NRC en CCF).
+
 ---
 
 ## 1. CCFItemStrategy
 
-**Archivo:** `internal/domain/dte/ccf/validator/ccf_item_strategy.go`
+**Archivo:** `internal/domain/dte/ccf/validator/strategy/ccf_item_strategy.go`
+
+Por cada ítem se evalúan, en orden: exclusividad de ventas, reglas de impuestos, reglas del tipo 4, no gravado y fórmula de la venta. Se devuelve el primer error.
 
 ### Exclusividad de Tipos de Venta
 
-| Tipo | Restricción con otros tipos | Restricción de impuestos |
-|---|---|---|
-| `NonTaxed` | No mezclar con otros | No puede tener impuestos |
-| `Exempt` | No mezclar con otros | No puede tener impuestos |
-| `NonSubject` | No mezclar con otros | No puede tener impuestos |
-| `Taxed` | Puede estar solo | Debe tener impuestos |
+| Tipo | Restricción con otros tipos | Restricción de impuestos | Error |
+|---|---|---|---|
+| `NonTaxed` | No mezclar con otros; `UnitPrice = 0` | No puede tener impuestos | `InvalidMixedSalesWithNonTaxed`, `InvalidTaxesWithNonTaxed`, `InvalidUnitPriceWithNonTaxed` |
+| `Exempt` | No mezclar con otros | No puede tener impuestos | `InvalidMixedSalesWithExempt`, `InvalidTaxesWithExempt` |
+| `NonSubject` | No mezclar con otros | No puede tener impuestos | `InvalidMixedSalesWithNonSubject`, `InvalidTaxesWithNonSubject` |
+| `Taxed` | Puede estar solo | Debe tener impuestos (`MissingTaxesItem`) | — |
 
 ### Reglas de Impuestos por Tipo de Ítem
 
-| Tipo de Ítem | Código | Restricción |
-|---|---|---|
-| Producto | 1 | Solo IVA (código `20`) |
-| Servicio | 2 | Cualquier impuesto permitido |
-| Producto y Servicio | 3 | Cualquier impuesto permitido |
-| Impuesto | 4 | Solo IVA (código `20`), unidad de medida = `99` |
+| Tipo de Ítem | Código | Restricción | Error |
+|---|---|---|---|
+| Producto | 1 | Solo IVA (código `20`) | `InvalidTaxCodeOnly20` |
+| Servicio | 2 | Cualquier código del catálogo soportado | `UnsupportedTaxCode` (estrategia común) |
+| Producto y Servicio | 3 | Cualquier código del catálogo soportado | `UnsupportedTaxCode` (estrategia común) |
+| Impuesto | 4 | Solo IVA (`taxes = ["20"]`), unidad de medida = `99` | `InvalidUnitMeasure`, `InvalidTaxRulesCCF`, `InvalidTaxCodeOnly20` |
 
-### Validación de Precio Unitario
+### Fórmula de la Venta y Precio Unitario
 
-- Si `TaxedSale > 0` → `UnitPrice` no puede ser 0
-- Si `NonTaxed > 0` y `UnitPrice == 0` → `UnitPrice` debe ser igual a `TaxedSale`
+- `NonSubjectSale + ExemptSale + TaxedSale ≈ (UnitPrice * Quantity) - Discount` (±0.01, campos 90 a 92), omitida si `UnitPrice = 0`. Error: `InvalidItemSaleAmount`.
+- Si `TaxedSale > 0` → `UnitPrice` no puede ser 0 (`InvalidUnitPriceZero`).
 
 ### Documentos Relacionados en Ítems
 
-- Si existen docs relacionados → todos los ítems deben referenciar uno
-- Cada referencia debe existir en la lista de documentos
-
-### Total a Pagar con No Gravado
-
-```
-TotalToPay = TotalOperation + TotalNonTaxed + IVAPerception - IVARetention - IncomeRetention
-```
-Tolerancia: ±0.01
+- Si existen docs relacionados → todos los ítems deben referenciar uno (`MissingItemRelatedDoc`)
+- Cada referencia debe existir en la lista de documentos (`InvalidItemRelatedDoc`)
 
 ---
 
 ## 2. CCFTaxStrategy
 
-**Archivo:** `internal/domain/dte/ccf/validator/ccf_tax_strategy.go`
+**Archivo:** `internal/domain/dte/ccf/validator/strategy/ccf_tax_strategy.go`
+
+Orden interno: totales base, IVA, percepción, montos monetarios, totales y consistencia de no gravado. Se devuelve el primer error.
 
 ### Validación de Totales Base
 
 ```
-Sum(item.TaxedSale)      == Summary.TotalTaxed       (±0.01)
-Sum(item.ExemptSale)     == Summary.TotalExempt       (±0.01)
-Sum(item.NonSubjectSale) == Summary.TotalNonSubject   (±0.01)
+Sum(item.TaxedSale)      == Summary.TotalTaxed        (±0.01)   InvalidTotalTaxed
+Sum(item.ExemptSale)     == Summary.TotalExempt       (exacto)  InvalidTotalExempt
+Sum(item.NonSubjectSale) == Summary.TotalNonSubject   (exacto)  InvalidTotalNonSubject
+SubTotalSales = TotalTaxed + TotalExempt + TotalNonSubject      (±0.01)   InvalidSubTotalSales
 ```
 
 ### Descuentos
 
 ```
-TaxedDiscount    <= TotalTaxed
-ExemptDiscount   <= TotalExempt
-NonSubjectDiscount <= TotalNonSubject
+TaxedDiscount      <= TotalTaxed         DiscountExceedsBase
+ExemptDiscount     <= TotalExempt        DiscountExceedsBase
+NonSubjectDiscount <= TotalNonSubject    DiscountExceedsBase
 ```
 
-### SubTotal Sales
+`TotalDiscount` no se contrasta contra la suma de descuentos.
+
+### Tributos del Resumen
+
+Si `TotalTaxed = 0` y existen tributos → `InvalidTaxes`. Si `TotalTaxed > 0` y no hay tributos → `MissingTaxes`.
+
+El IVA del CCF se calcula **después del descuento** global (error `InvalidTaxCalculation`, ±0.01):
 
 ```
-SubTotalSales = TotalTaxed + TotalExempt + TotalNonSubject    (±0.01)
+IVA (20) = (TotalTaxed - TaxedDiscount) * 0.13
 ```
 
-### Cálculo de IVA (diferente a Factura)
+> **Diferencia con la Factura:** En FE el IVA va incluido en el precio y se informa en `TotalIva`; el CCF informa el IVA como tributo `20` del resumen.
 
-El IVA del CCF se calcula **después del descuento**:
-
-```
-IVA = (TotalTaxed - TaxedDiscount) * 0.13    (±0.01)
-```
-
-> **Diferencia clave con Factura:** En factura el IVA se calcula sobre `TotalTaxed`, en CCF sobre `TotalTaxed - TaxedDiscount`.
-
-### Otros Impuestos
-
-| Código | Fórmula |
-|---|---|
-| `C3` (IVA Export) | `TotalTaxed * 0.00` |
-| `59` (Tourism) | `TotalTaxed * 0.01` |
-| `71` (Tourism Airport) | Monto fijo |
-| `D1` (FOVIAL) | `TotalTaxed * 0.005` |
-| `C8` (COTRANS) | Monto fijo |
+Los demás tributos usan `TotalTaxed` sin restar el descuento; las tasas están en [Cálculos, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138).
 
 ### Percepción de IVA
 
 ```
-Si IVAPerception > 0:
-    IVAPerception = TotalTaxed * 0.01    (±0.01)
+Si IVAPerception != 0:
+    IVAPerception = TotalTaxed * 0.01    (±0.01)    InvalidPerceptionAmount
 ```
 
-### Validación de Montos Monetarios
+La retención de IVA (`IVARetention`) no se recalcula: su valor solo interviene en el total a pagar.
 
-Máximo 2 decimales para todos los montos.
+### Montos Monetarios
+
+`IVAPerception`, `TotalOperation`, `TotalToPay` y cada monto de pago deben ser múltiplos de 0.01 (`InvalidMonetaryAmount`). Los montos del resumen también se leen con 2 decimales exactos (`InvalidDecimals`).
 
 ### SubTotal
 
@@ -117,54 +113,65 @@ SubTotal = TotalTaxed - TaxedDiscount
          + TotalExempt - ExemptDiscount
          + TotalNonSubject - NonSubjectDiscount
 ```
-Tolerancia: ±0.01
+Holgura ±0.01. Error: `InvalidSubTotalCalculation`.
 
 ### IVA Obligatorio
 
 ```
-Si TotalTaxed > 0 → debe existir IVA con valor > 0 en impuestos
+Si TotalTaxed > 0 → debe existir el tributo 20 con valor > 0    MissingIVAForTaxedAmount
 ```
 
-### Total a Pagar
+### Monto Total de la Operación (campo 150)
 
 ```
-TotalToPay = SubTotal + IVAPerception - IVARetention - IncomeRetention + TotalNonTaxed
+TotalOperation = SubTotal + Sum(Taxes)    (±0.01)    InvalidTotalOperation
 ```
-Tolerancia: ±0.01
+
+### Retención de Renta
+
+`IncomeRetention` debe ser `0` (eliminada para el CCF por la Normativa v2.0): `IncomeRetentionNotAllowed`.
+
+### Total a Pagar (campo 153)
+
+```
+TotalToPay = TotalOperation + IVAPerception - IVARetention + TotalNonTaxed
+```
+Holgura ±0.01; si el resultado es negativo se espera `0`. Error: `InvalidTotalToPayCalculation`.
 
 ### Consistencia de No Gravado
 
 ```
-Si Summary.TotalNonTaxed > 0:
-    Sum(item.NonTaxed) debe ser > 0
-    Sum(item.NonTaxed) == Summary.TotalNonTaxed    (±0.01)
+Si Summary.TotalNonTaxed > 0 y Sum(item.NonTaxed) == 0  → InvalidNonTaxedAmount
+Sum(item.NonTaxed) == Summary.TotalNonTaxed (comparación exacta)  → InvalidTotalNonTaxed
 ```
 
 ---
 
 ## 3. CCFReceiverStrategy
 
-**Archivo:** `internal/domain/dte/ccf/validator/ccf_receiver_strategy.go`
+**Archivo:** `internal/domain/dte/ccf/validator/strategy/ccf_receiver_strategy.go`
 
-| Campo | Requerido | Descripción |
-|---|---|---|
-| Receptor | Sí | Debe existir |
-| NRC | **Sí** | Número de Registro de Contribuyente |
-| ActivityCode | **Sí** | Código de actividad económica |
-| ActivityDescription | **Sí** | Descripción de la actividad |
+| Campo | Requerido | Descripción | Error |
+|---|---|---|---|
+| Receptor | Sí | Debe existir | — |
+| NRC | **Sí** | Número de Registro de Contribuyente | `MissingNRC` |
+| ActivityCode | **Sí** | Código de actividad económica | `RequiredField` |
+| ActivityDescription | **Sí** | Descripción de la actividad | `RequiredField` |
 
 ---
 
 ## 4. CCFRelatedDocStrategy
 
-**Archivo:** `internal/domain/dte/ccf/validator/ccf_related_doc_strategy.go`
+**Archivo:** `internal/domain/dte/ccf/validator/strategy/ccf_related_doc_strategy.go`
 
-| Validación | Regla |
-|---|---|
-| Máximo docs | 50 |
-| Tipos válidos | Solo `04` (Remisión), `08` (Liquidación), `09` (Doc. Contable Liquidación) |
-| Ítems | Todos deben referenciar un doc relacionado |
-| Referencias | Deben existir en la lista del documento |
+| Validación | Regla | Error |
+|---|---|---|
+| Máximo docs | 50 | `ExceededRelatedDocsLimit` |
+| Tipos válidos | `04` (Remisión), `08` (Liquidación), `09` (Doc. Contable Liquidación) | `InvalidRelatedDocDTEType` |
+| Ítems | Todos deben referenciar un doc relacionado | `MissingItemRelatedDoc` |
+| Referencias | Deben existir en la lista del documento | `InvalidItemRelatedDoc` |
+
+La estrategia común `RelatedDocsStrategy` aplica además el plazo de generación respecto de la NR (fin del mes del relacionado más 3 días) y del documento contable de liquidación (fin del mes). Ver [README, RelatedDocsStrategy](./README.md#relateddocsstrategy).
 
 ---
 
@@ -176,15 +183,22 @@ Si Summary.TotalNonTaxed > 0:
 | `InvalidTaxCodeOnly20` | Producto con impuesto diferente a IVA |
 | `InvalidMixedSalesWithNonTaxed` | No gravado mezclado con otros |
 | `InvalidTaxesWithNonTaxed` | Impuestos en ítem no gravado |
-| `InvalidUnitPriceWithNonTaxed` | Precio unitario incorrecto con no gravado |
+| `InvalidUnitPriceWithNonTaxed` | Precio unitario distinto de 0 con no gravado |
 | `InvalidMixedSalesWithExempt` | Exento mezclado con otros |
 | `InvalidTaxesWithExempt` | Impuestos en ítem exento |
 | `InvalidMixedSalesWithNonSubject` | No sujeto mezclado con otros |
 | `InvalidTaxesWithNonSubject` | Impuestos en ítem no sujeto |
 | `MissingTaxesItem` | Gravado sin impuestos |
+| `InvalidItemSaleAmount` | Venta del ítem no coincide con `(UnitPrice * Quantity) - Discount` |
 | `InvalidPerceptionAmount` | Percepción no coincide con 1% |
-| `MissingIVAForTaxedAmount` | Gravado > 0 sin IVA |
-| `InvalidTotalToPayNonTaxedCCF` | Total con no gravado incorrecto |
+| `MissingTaxes`, `InvalidTaxes` | Gravado sin tributos en el resumen; tributos sin gravado |
+| `MissingIVAForTaxedAmount` | Gravado > 0 sin tributo `20` |
+| `InvalidTaxCalculation` | Valor de un tributo del resumen incorrecto |
+| `InvalidSubTotalSales`, `InvalidSubTotalCalculation` | Suma de operaciones o subtotal incorrectos |
+| `InvalidTotalOperation` | `TotalOperation` incorrecto |
+| `InvalidTotalToPayCalculation` | `TotalToPay` incorrecto |
+| `IncomeRetentionNotAllowed` | `IncomeRetention` distinto de 0 |
+| `InvalidNonTaxedAmount`, `InvalidTotalNonTaxed` | `TotalNonTaxed` no coincide con los ítems |
 
 ---
 
@@ -192,12 +206,13 @@ Si Summary.TotalNonTaxed > 0:
 
 ```
 FACTURA:
-  IVA por ítem = (TaxedSale / 1.13) * 0.13
-  IVA en resumen = baseTaxed * 0.13
-  (baseTaxed = TotalTaxed, SIN descontar)
+  IVA por ítem = (TaxedSale / 1.13) * 0.13        (iva_item)
+  IVA en resumen = total_iva = Sum(IVAItem) - (TaxedDiscount / 1.13) * 0.13
+  Los tributos del resumen NO incluyen 20 ni C3
+  Monto total = SubTotal + Sum(otros tributos)
 
 CCF:
   No hay IVA por ítem
-  IVA en resumen = (TotalTaxed - TaxedDiscount) * 0.13
-  (baseTaxed = TotalTaxed - TaxedDiscount, CON descuento)
+  IVA en resumen = tributo 20 = (TotalTaxed - TaxedDiscount) * 0.13
+  Monto total = SubTotal + Sum(tributos, incluido el 20)
 ```

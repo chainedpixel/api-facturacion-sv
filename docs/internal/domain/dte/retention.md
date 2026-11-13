@@ -14,7 +14,8 @@ Características principales:
 - **Referencia documentos existentes** — Cada ítem contiene tipo, número y fecha del documento retenido
 - **Códigos de retención** — Cada retención tiene un código que determina el porcentaje aplicado
 - **Validación de fechas** — La fecha del documento retenido debe estar dentro del período permitido
-- **Conversión a letras** — El total se convierte automáticamente a palabras
+- **Conversión a letras** — El total de IVA retenido se convierte automáticamente a palabras
+- **Sin validación genérica** — `Create` ejecuta solo `RetentionRulesValidator`; no invoca `ValidateDTEDocument`
 
 ---
 
@@ -56,14 +57,16 @@ func (s *retentionService) Create(ctx context.Context, input interface{}, branch
 ### Flujo de Ejecución
 
 ```
-1. Cast del input → InputRetentionData
-2. Crear documento base (DTEDocument) SIN ítems
-3. Ensamblar RetentionModel con ítems y resumen de retención
-4. Convertir total a letras (TotalInWords)
-5. Validar reglas de negocio
-6. Generar código de generación (UUID) y número de control
+1. Cast del input → *InputRetentionData
+2. Convertir TotalIVARetention a letras (TotalIVARetentionLetters, utils.InLetters)
+3. Crear documento base (DTEDocument) SIN ítems
+4. Ensamblar RetentionModel con ítems y resumen de retención
+5. Validar reglas de negocio (RetentionRulesValidator)
+6. Generar número de control (SequentialNumberManager) y código de generación (UUID)
 7. Retornar RetentionModel validado
 ```
+
+El cast no está protegido y `RetentionSummary` se desreferencia sin verificación de nulo en el paso 2: un resumen ausente produce un pánico.
 
 ### Diferencia clave en la creación del documento base
 
@@ -73,7 +76,8 @@ func (s *retentionService) createBaseDocument(data *retention_models.InputRetent
 
 A diferencia de otros DTEs, la retención:
 - **No mapea ítems** al documento base (los ítems de retención son una estructura diferente)
-- **No tiene resumen financiero estándar** — El resumen se maneja con `RetentionSummary`
+- **No asigna resumen estándar** al documento base — El resumen se maneja con `RetentionSummary`
+- Si no se envía receptor, usa un receptor vacío con dirección vacía
 
 ---
 
@@ -113,7 +117,7 @@ type InputRetentionData struct {
 func (d *InputRetentionData) IsAllPhysical() bool
 ```
 
-Retorna `true` si todos los ítems referencian documentos físicos (no electrónicos). Se usa para determinar reglas de validación especiales.
+Retorna `true` si todos los ítems referencian documentos físicos (no electrónicos). El método existe en el modelo, pero no se invoca desde el código de dominio ni de aplicación actual.
 
 ### RetentionItem
 
@@ -134,7 +138,7 @@ type RetentionItem struct {
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `Number` | `ItemNumber` | Número secuencial (1, 2, 3...) |
-| `DTEType` | `DTEType` | Tipo del DTE retenido (`01`, `03`, `11`) |
+| `DTEType` | `DTEType` | Tipo del DTE retenido (`01`, `03`, `14`) |
 | `DocumentType` | `OperationType` | `1` = Físico, `2` = Electrónico |
 | `DocumentNumber` | `DocumentNumber` | Número de control del documento retenido |
 | `EmissionDate` | `EmissionDate` | Fecha de emisión del documento original |
@@ -148,8 +152,10 @@ type RetentionItem struct {
 ```go
 type RetentionSummary struct {
     TotalSubjectRetention    financial.Amount  // Total sujeto a retención
+    TotalIVA                 financial.Amount  // Total IVA 13% (campo del resumen del CRE)
     TotalIVARetention        financial.Amount  // Total IVA retenido
     TotalIVARetentionLetters string            // Total en letras
+    Observations             *string           // Observaciones
 }
 ```
 
@@ -163,7 +169,9 @@ Los códigos de retención (`ReceptionCodeMH`) determinan el porcentaje a aplica
 |---|---|---|
 | `22` | Retención IVA 1% | 1% |
 | `C4` | Retención IVA 13% | 13% |
-| `C9` | Retención IVA otros | Variable |
+| `C9` | Retención IVA otros | Sin porcentaje en `GetRetentionAmount` |
+
+El value object `RetentionCode` acepta los tres códigos (`AllowedRetentionCodes`), pero `GetRetentionAmount` solo define `22` y `C4`. Con `C9` el valor esperado de IVA retenido por ítem resulta `0`, por lo que solo se acepta un `RetentionIVA` igual a `0`.
 
 ### Fórmula de Cálculo del IVA Retenido
 
@@ -171,9 +179,7 @@ Los códigos de retención (`ReceptionCodeMH`) determinan el porcentaje a aplica
 RetentionIVA = RetentionAmount * GetRetentionAmount(ReceptionCodeMH)
 ```
 
-Donde `GetRetentionAmount()` retorna el porcentaje asociado al código de retención.
-
-Tolerancia: `±0.01`
+La tolerancia (`±0.01`) y las demás fórmulas se documentan en [calculations.md](../../../api/calculations.md).
 
 ---
 
@@ -185,9 +191,9 @@ Solo se pueden retener los siguientes tipos de DTE:
 |---|---|
 | `01` | Factura Electrónica |
 | `03` | CCF Electrónico |
-| `11` | Factura de Exportación Electrónica |
+| `14` | Factura de Sujeto Excluido Electrónica |
 
-Definidos en `ValidRetentionDTETypes`.
+Definidos en `ValidRetentionDTETypes` y expuestos por el value object `DTEType` mediante `NewDTETypeForRetention` (error `InvalidDTETypeForRetention`); las estrategias del validador de retención no revisan este tipo.
 
 ---
 
@@ -197,15 +203,18 @@ La fecha de emisión del documento retenido debe estar dentro del período permi
 
 ### Reglas de Período
 
-1. **Mismo mes**: La fecha del documento puede ser del mismo mes que la retención
-2. **Mes anterior**: Se permite hasta **10 días hábiles** del mes siguiente
-3. **Días hábiles**: Se excluyen fines de semana del cálculo
+Se aplica a cada ítem (físico o electrónico), comparando la fecha de emisión del documento retenido con la fecha de emisión del comprobante de retención:
+
+1. **Mismo mes**: Se acepta cualquier fecha del mismo mes que la retención
+2. **Mes anterior**: Se acepta si el comprobante de retención se emite dentro de los primeros **10 días hábiles** del mes siguiente al del documento
+3. **Días hábiles**: Solo se excluyen sábados y domingos (no se consideran asuetos ni el calendario `BusinessCalendar`)
 
 ```
 Si RetentionDate = 2024-03-15
 Documentos válidos:
   - Cualquier fecha de marzo 2024
-  - Fechas de febrero 2024 (si están dentro de 10 días hábiles del inicio de marzo)
+  - Fechas de febrero 2024 solo si RetentionDate cae dentro de los 10 días hábiles
+    posteriores al 1 de marzo (2024-03-15 es el día hábil 11: no sería válido)
 ```
 
 ---
@@ -224,6 +233,12 @@ TotalSubjectRetention = Sum(item.RetentionAmount)    para cada ítem
 TotalIVARetention = Sum(item.RetentionIVA)    para cada ítem
 ```
 
+Ambos totales del resumen se comparan con la suma de los ítems (`GetTotalByItems`), con tolerancia `±0.01`.
+
+### Total IVA 13% del resumen (`TotalIVA`)
+
+`retention_models.ExpectedTotalIVA` define el valor esperado: `TotalSubjectRetention * 0.13` solo cuando el código de retención del último ítem es `C4` y todos los documentos son electrónicos; en cualquier otro caso se espera `0.00`. Un valor distinto produce `InvalidTotalIVA`.
+
 ### Conversión a Letras
 
 El `TotalIVARetention` se convierte automáticamente a palabras y se almacena en `TotalIVARetentionLetters`.
@@ -234,11 +249,14 @@ El `TotalIVARetention` se convierte automáticamente a palabras y se almacena en
 
 | Error | Causa |
 |---|---|
-| Cast fallido | El `interface{}` no es `*InputRetentionData` |
-| `RequiredField` | Campos obligatorios faltantes en ítems |
-| `InvalidRetentionIVA` | Cálculo de IVA retenido no coincide con fórmula |
-| `DateOutOfAllowedRange` | Fecha del documento fuera del período permitido |
-| Error de validación | Reglas de negocio no cumplidas |
+| Pánico por cast (cast sin comprobación) | El `interface{}` no es `*InputRetentionData` |
+| `RequiredField` | Sin ítems de retención |
+| `InvalidRetentionIVA` | IVA retenido del ítem no coincide con la fórmula (parámetros: ítem, valor declarado, valor esperado) |
+| `DateOutOfAllowedRange` | Fecha del documento fuera del período permitido (parámetros: ítem, número de documento) |
+| `InvalidTotalSubjectRetention` | Total sujeto a retención distinto de la suma de ítems |
+| `InvalidTotalIVARetention` | Total de IVA retenido distinto de la suma de ítems |
+| `InvalidTotalIVA` | `TotalIVA` distinto del esperado |
+| `ValidationFailed` | Envoltorio de los errores de validación anteriores |
 
 ---
 
@@ -257,7 +275,7 @@ RetentionModel {
     RetentionSummary     ← Solo totales de retención
 }
     │
-    ├── Convertir total a letras
+    ├── Convertir total a letras (antes de ensamblar el modelo)
     │
     ▼
 validate() ──→ RetentionRulesValidator
@@ -267,7 +285,8 @@ validate() ──→ RetentionRulesValidator
     │     └── Validar fechas en período permitido
     │
     └── RetentionTotalStrategy
-          └── Validar totales vs suma de ítems
+          ├── Validar totales vs suma de ítems
+          └── Validar TotalIVA (ExpectedTotalIVA)
     │
     ▼
 generateCodeAndIdentifiers()
@@ -280,7 +299,7 @@ generateCodeAndIdentifiers()
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/retention/retention_service.go` | Servicio principal |
-| `internal/domain/dte/retention/models/` | Modelos de retención |
+| `internal/domain/dte/retention/retention_models/` | Modelos de retención |
 | `internal/domain/dte/retention/validator/` | Estrategias de validación |
 
 ---
@@ -288,7 +307,7 @@ generateCodeAndIdentifiers()
 ## Notas
 
 1. **Estructura diferente**: Los ítems de retención NO heredan de `models.Item`. Tienen su propia estructura completamente diferente.
-2. **Sin resumen financiero estándar**: El `RetentionSummary` solo tiene 3 campos, no el resumen completo con descuentos, condiciones de pago, etc.
-3. **IsAllPhysical()**: Se verifica si todos los documentos retenidos son físicos, lo que puede afectar validaciones específicas.
+2. **Sin resumen financiero estándar**: El `RetentionSummary` solo contiene totales de retención, `TotalIVA` y observaciones, no el resumen completo con descuentos, condiciones de pago, etc.
+3. **IsAllPhysical()**: Indica si todos los documentos retenidos son físicos; actualmente no se usa. La regla equivalente de `TotalIVA` está en `RetentionTotalStrategy.validateTotalIVA`.
 4. **Conversión a letras**: Se ejecuta automáticamente como parte del flujo de creación, antes de la validación.
 5. **Códigos de retención**: Son específicos del Ministerio de Hacienda de El Salvador y determinan el porcentaje a aplicar.

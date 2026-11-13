@@ -5,7 +5,7 @@
 
 ## Descripción General
 
-Las operaciones adicionales son funciones que se ejecutan **después de la transmisión exitosa** de un DTE a Hacienda. Se implementan como un hook configurable que el `GenericDTEUseCase` invoca como último paso.
+Las operaciones adicionales son funciones que se ejecutan **después de la transmisión exitosa y de guardar el documento** (con su evidencia de transmisión). Se implementan como un hook configurable que el `GenericDTEUseCase` invoca antes de armar la respuesta del Archivo DTE.
 
 ---
 
@@ -66,7 +66,9 @@ Por cada relatedDoc donde GetGenerationType() == ElectronicDocument:
   )
 ```
 
-**Efecto:** Se registra una **reducción** en el balance del documento original referenciado.
+**Efecto:** Se inserta una transacción de balance (`dte_balance_transactions`) sobre el control de saldo del documento original (`dte_balance_control`). El hook `AfterCreate` de `DTEBalanceTransaction` resta los montos gravado, exento y no sujeto de los saldos restantes cuando el tipo de transacción es `05`.
+
+Los montos se extraen del resumen del modelo Hacienda (`utils.ExtractSummaryTotalAmounts`).
 
 ---
 
@@ -82,7 +84,7 @@ Idéntico a la operación de crédito pero:
 - Se type-asserts a `*DebitNoteModel`
 - Se usa `constants.NotaDebitoElectronica` (`"06"`) como tipo de transacción
 
-**Efecto:** Se registra un **incremento** en el balance del documento original referenciado.
+**Efecto:** Se inserta una transacción de balance con tipo `06`. El hook `AfterCreate` de `DTEBalanceTransaction` suma los montos a los saldos restantes para cualquier tipo distinto de `05`.
 
 ---
 
@@ -97,11 +99,11 @@ additionalOps(ctx, result, branchID, mhModel)
   ▼
 Por cada documento relacionado:
   │
-  ├── ¿Es documento electrónico?
+  ├── ¿Es documento electrónico? (GetGenerationType() == ElectronicDocument)
   │     │
-  │     ├── Sí → GenerateBalanceTransaction()
-  │     │        ├── Extrae montos del mhModel
-  │     │        └── Registra transacción de balance
+  │     ├── Sí → DTEManager.GenerateBalanceTransaction()
+  │     │        ├── Extrae montos del resumen del mhModel
+  │     │        └── Inserta la transacción (bajo bloqueo de la fila de control de saldo)
   │     │
   │     └── No (físico) → Saltar
   │
@@ -114,5 +116,7 @@ Retornar nil o error
 ## Notas
 
 1. **Solo documentos electrónicos**: Los documentos físicos (tipo 1) no generan transacciones de balance porque no están en el sistema.
-2. **Error no bloqueante**: Si una transacción de balance falla, se loguea un warning pero se retorna error, lo que puede necesitar atención manual.
+2. **Error devuelto al llamador**: Si una transacción de balance falla, se registra un warning y se devuelve el error. En ese punto el documento ya fue transmitido y guardado, por lo que el consumidor recibe un error aunque Hacienda ya otorgó el sello y puede requerir atención manual. Si hay varios documentos relacionados, las transacciones ya insertadas no se revierten.
 3. **Múltiples documentos**: Una nota de crédito/débito puede referenciar múltiples documentos, generando una transacción por cada uno.
+4. **Tipo del resultado**: Si `result` no es `*CreditNoteModel` (o `*DebitNoteModel`) se devuelve el error `invalid result type`.
+5. **Reversión por invalidación**: Al invalidar una nota, `InvalidationManager.InvalidateDocument` genera una transacción con tipo `INVALIDATED` (`GenerateBalanceTransactionWithAmounts`); el hook de `AfterCreate` la suma al saldo (ver [invalidation-use-case.md](./invalidation-use-case.md)).

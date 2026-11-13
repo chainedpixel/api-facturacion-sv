@@ -7,13 +7,13 @@
 
 ## Descripción General
 
-La Nota de Débito es un documento de ajuste que **incrementa** el valor de un documento tributario previamente emitido (CCF). Se utiliza para cargos adicionales, intereses por mora, o correcciones a favor del emisor.
+La Nota de Débito es un documento de ajuste que **incrementa** el valor de un documento tributario previamente emitido (CCF o Comprobante de Retención). Se utiliza para cargos adicionales, intereses por mora, o correcciones a favor del emisor.
 
 Características principales:
-- **Siempre referencia un CCF** — Debe tener documentos relacionados válidos
-- **Incrementa el saldo** — Genera una transacción de balance que aumenta el monto adeudado
-- **Cálculo especial de TotalToPay** — Incluye lógica de cálculo propia con impuestos, percepciones y retenciones
-- **Validación de estado** — El documento original debe estar en estado `RECEIVED`
+- **Siempre referencia un CCF o un Comprobante de Retención** — Debe tener documentos relacionados de tipo `03` o `07` (`ValidAdjustmentDTETypes`)
+- **Incrementa el saldo** — Genera una transacción de balance sobre el documento original
+- **Cálculo propio de TotalToPay** — El servicio fija el total a pagar con `calculateTotalToPay` al final de `Create`
+- **Validación de estado y NIT** — Cada documento relacionado debe estar en estado `RECEIVED` y el NIT del receptor debe coincidir con el del documento original
 
 ---
 
@@ -55,17 +55,19 @@ func (s *debitNoteService) Create(ctx context.Context, input interface{}, branch
 ### Flujo de Ejecución
 
 ```
-1. Cast del input → DebitNoteInput
-2. Validar documentos relacionados (estado)
+1. Cast del input → *DebitNoteInput
+2. Validar documentos relacionados (existencia, estado y NIT)
 3. Crear documento base (DTEDocument)
 4. Ensamblar DebitNoteModel con ítems y resumen
-5. Calcular TotalToPay
-6. Validar reglas de negocio
-7. Generar código de generación (UUID) y número de control
-8. Retornar DebitNoteModel validado
+5. Validar reglas específicas de la nota de débito (DebitNoteRulesValidator)
+6. Validar reglas genéricas de DTE (ValidateDTEDocument)
+7. Por cada documento relacionado electrónico: ValidateForDebitNote (existe control de balance)
+8. Generar código de generación (UUID) y número de control
+9. Calcular TotalToPay (calculateTotalToPay)
+10. Retornar DebitNoteModel validado
 ```
 
-> **Diferencia con Nota de Crédito**: La Nota de Débito incluye un paso adicional (paso 5) de cálculo del `TotalToPay` antes de la validación.
+> **Diferencia con Nota de Crédito**: La Nota de Débito incluye un paso final (paso 9) que fija el `TotalToPay` con `SetForceTotalToPay`, después de la validación y de generar los identificadores.
 
 ### Paso 2: Validación de Documentos Relacionados
 
@@ -77,23 +79,24 @@ func (s *debitNoteService) validateRelatedDocs(
 ) error
 ```
 
-Similar a la nota de crédito:
-1. Se verifica que exista al menos un documento relacionado
-2. Por cada documento, se verifica el estado `RECEIVED`
+Igual que en la nota de crédito:
+1. Se verifica que exista al menos un documento relacionado (`NoRelatedDocs`)
+2. Por cada documento relacionado se busca el original (`GetByGenerationCode`), se verifica el estado `RECEIVED` (`RelatedDocumentNotReceived`, con código y estado actual), se asigna a la referencia la fecha de generación del original y se valida que el NIT del receptor coincida con el del original (`NotMatchingReceiverNIT`)
 
-### Paso 5: Cálculo del Total a Pagar
+### Paso 9: Cálculo del Total a Pagar
 
 ```go
 func (s *debitNoteService) calculateTotalToPay(debitNote *debit_note_models.DebitNoteModel) error
 ```
 
-El cálculo del `TotalToPay` en la nota de débito incluye una lógica específica:
+Se calcula a partir del resumen y se fija con `SetForceTotalToPay`:
 
-```
-SubTotal = (TotalTaxed - TaxedDiscount) + (TotalExempt - ExemptDiscount) + (TotalNonSubject - NonSubjectDiscount)
+1. Subtotal: gravado, exento y no sujeto, cada uno menos su descuento.
+2. Si el total gravado es mayor que cero, se suma `IVAPerception` y se restan `IVARetention` e `IncomeRetention`.
+3. Se suman los tributos del resumen (`TotalTaxes`).
+4. Si `TotalNonTaxed` es mayor que cero, se suma.
 
-TotalOperation = SubTotal + IVAPerception - IVARetention - IncomeRetention + OtherTaxes + NonTaxedAmount
-```
+Las fórmulas generales y la tolerancia se documentan en [calculations.md](../../../api/calculations.md).
 
 ---
 
@@ -146,32 +149,13 @@ type DebitNoteSummary struct {
 
 ---
 
-## Fórmulas de Cálculo
+## Cálculos
 
-### SubTotal
+Las fórmulas (IVA, percepción, subtotales, total de la operación y total a pagar) se documentan en [calculations.md](../../../api/calculations.md). Reglas específicas del resumen de la nota de débito (las mismas que la nota de crédito):
 
-```
-SubTotal = (TotalTaxed - TaxedDiscount)
-         + (TotalExempt - ExemptDiscount)
-         + (TotalNonSubject - NonSubjectDiscount)
-```
-
-### Total Operación (con impuestos)
-
-```
-TotalOperation = SubTotal
-               + IVAPerception
-               - IVARetention
-               - IncomeRetention
-               + Sum(OtherTaxes)
-               + NonTaxedAmount
-```
-
-### IVA
-
-```
-IVA = (TotalTaxed - TaxedDiscount) * 0.13
-```
+- No se admiten descuentos globales ni porcentaje de descuento (`GlobalDiscountNotAllowedInAdjustment`).
+- `IncomeRetention` debe ser cero (`IncomeRetentionNotAllowed`).
+- El total de la operación es el subtotal de ventas más los tributos del resumen y el total a pagar se valida con la regla compartida `ValidateAdjustmentTotals`.
 
 ---
 
@@ -180,9 +164,9 @@ IVA = (TotalTaxed - TaxedDiscount) * 0.13
 | Aspecto | Nota de Crédito (05) | Nota de Débito (06) |
 |---|---|---|
 | **Efecto** | Disminuye saldo | Incrementa saldo |
-| **Transacción** | `CREDIT` | `DEBIT` |
-| **Cálculo TotalToPay** | Delegado al validador | Calculado en servicio (`calculateTotalToPay`) |
-| **Validación de balance** | Verifica saldo disponible | Verifica documento existe |
+| **Transacción** | Tipo `05` (resta del saldo restante) | Tipo `06` (suma al saldo restante) |
+| **Cálculo TotalToPay** | Validado por el validador | Fijado en el servicio (`calculateTotalToPay`) |
+| **Validación de balance** | Verifica saldo disponible | Verifica que exista el control de balance |
 | **Paso adicional** | No | Sí (cálculo de TotalToPay) |
 
 ---
@@ -195,15 +179,15 @@ IVA = (TotalTaxed - TaxedDiscount) * 0.13
 dteManager.ValidateForDebitNote(ctx, branchID, originalDTE, document)
 ```
 
-Se verifica que el documento original existe y está en estado válido.
+Se ejecuta dentro de `Create` por cada documento relacionado electrónico. Solo verifica que exista el control de balance del documento original (`GetDTEBalanceControl`); no compara montos.
 
 ### Transacción de Balance Post-Emisión
 
 ```go
-dteManager.GenerateBalanceTransaction(ctx, branchID, "DEBIT", originalDTE, debitNoteID, document)
+dteManager.GenerateBalanceTransaction(ctx, branchID, constants.NotaDebitoElectronica, originalDTE, debitNoteID, document)
 ```
 
-Se registra un incremento en el balance del documento original. A diferencia de la nota de crédito que reduce, la nota de débito **incrementa** el monto adeudado.
+Se registra la transacción por cada documento relacionado electrónico. En el modelo de persistencia (`DTEBalanceTransaction.AfterCreate`) solo el tipo `05` resta del saldo restante; cualquier otro tipo, incluido `06`, suma.
 
 ---
 
@@ -216,8 +200,9 @@ Las reglas de ítems son **idénticas a las de la nota de crédito**:
 - `UnitPrice` no puede ser 0 cuando `TaxedSale > 0`
 - Todos los ítems deben referenciar un documento relacionado
 - Impuestos requeridos si `TaxedSale > 0`
-- Producto (tipo 1): solo IVA (código `20`)
-- Impuesto (tipo 4): solo IVA, unidad de medida `99`
+- Impuesto (tipo 4): exactamente un impuesto, IVA, y unidad de medida `99`
+- Los impuestos de un ítem que no es de tipo Impuesto deben ser códigos permitidos (`InvalidTaxType`)
+- Los documentos relacionados son obligatorios (máximo 50) y su tipo debe ser `03` o `07`; el error usado es `InvalidRelatedDocTypeForCreditNote`
 
 ---
 
@@ -225,10 +210,13 @@ Las reglas de ítems son **idénticas a las de la nota de crédito**:
 
 | Error | Causa |
 |---|---|
-| Cast fallido | El `interface{}` no es `*DebitNoteInput` |
+| Pánico por cast (cast sin comprobación) | El `interface{}` no es `*DebitNoteInput` |
 | `NoRelatedDocs` | Sin documentos relacionados |
-| `DocumentNotReceived` | Documento original no en estado `RECEIVED` |
-| Error de cálculo | Falla al calcular `TotalToPay` |
+| `RelatedDocumentNotReceived` | Documento relacionado no en estado `RECEIVED` |
+| `NotMatchingReceiverNIT` | NIT del receptor no coincide con el del documento original |
+| `InvalidRelatedDocTypeForCreditNote` | Documento relacionado distinto de CCF o Comprobante de Retención |
+| `GlobalDiscountNotAllowedInAdjustment` | Descuento global o porcentaje de descuento distinto de cero |
+| `IncomeRetentionNotAllowed` | Retención de renta distinta de cero |
 | Errores de validación de ítems | Mismos que nota de crédito |
 
 ---
@@ -241,15 +229,19 @@ Request
   ▼
 DebitNoteService.Create()
   │
-  ├── validateRelatedDocs()       ← Verifica estado doc original
+  ├── validateRelatedDocs()       ← Verifica estado y NIT del doc original
   │
   ├── createBaseDocument()        ← Convierte input a DTEDocument
   │
-  ├── calculateTotalToPay()       ← Cálculo específico de nota de débito
-  │
   ├── validate()                  ← Reglas de negocio
   │
-  └── generateCodeAndIdentifiers()
+  ├── ValidateDTEDocument()       ← Reglas genéricas
+  │
+  ├── ValidateForDebitNote()      ← Existe control de balance (docs electrónicos)
+  │
+  ├── generateCodeAndIdentifiers()
+  │
+  └── calculateTotalToPay()       ← Cálculo específico de nota de débito
         │
         ▼
 Application Layer
@@ -257,10 +249,9 @@ Application Layer
   ├── Transmit to Hacienda
   │
   └── [Si éxito]:
-        ├── ValidateForDebitNote()
         ├── ConfirmReservation()
         ├── Create() en BD
-        └── GenerateBalanceTransaction("DEBIT")  ← Incrementa balance
+        └── GenerateBalanceTransaction(tipo 06)  ← Registra la transacción de balance
 ```
 
 ---
@@ -270,14 +261,14 @@ Application Layer
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/debit_note/debit_note_service.go` | Servicio principal |
-| `internal/domain/dte/debit_note/models/` | Modelos de nota de débito |
+| `internal/domain/dte/debit_note/debit_note_models/` | Modelos de nota de débito |
 | `internal/domain/dte/debit_note/validator/` | Estrategias de validación |
 
 ---
 
 ## Notas
 
-1. **Paso adicional**: El `calculateTotalToPay()` se ejecuta **antes** de la validación, diferenciándolo de la nota de crédito.
-2. **Balance invertido**: Mientras la nota de crédito genera transacción `CREDIT` (resta), la nota de débito genera `DEBIT` (suma).
-3. **Invalidación reversa**: Si una nota de débito es invalidada, se **revierte** el incremento de balance.
+1. **Paso adicional**: El `calculateTotalToPay()` se ejecuta **después** de la validación y de generar los identificadores, diferenciándolo de la nota de crédito.
+2. **Balance**: La nota de crédito genera una transacción de tipo `05` (resta) y la nota de débito de tipo `06` (suma).
+3. **Invalidación**: Al invalidar una nota de débito se registra una transacción de balance de tipo `INVALIDATED` (ver [invalidation.md](invalidation.md)), que el modelo de persistencia suma al saldo restante.
 4. **Validadores compartidos**: El `DebitNoteItemStrategy` es idéntico al `CreditNoteItemStrategy`.

@@ -4,7 +4,7 @@
 
 ## Descripción General
 
-El paquete `utils` contiene funciones utilitarias puras que se reutilizan a lo largo de todo el proyecto. Se organizan en 6 archivos por área funcional.
+El paquete `utils` contiene funciones utilitarias puras que se reutilizan a lo largo de todo el proyecto. Se organizan en 7 archivos por área funcional.
 
 ---
 
@@ -22,6 +22,20 @@ var timezone *time.Location  // Inicializado con "America/El_Salvador"
 |---|---|
 | `TimeInit()` | Se inicializa la zona horaria a `America/El_Salvador`. Se debe llamar una vez durante el bootstrap |
 | `TimeNow()` | Se retorna la hora actual en la zona horaria de El Salvador |
+| `ParseProcessingDate(value)` | Se interpreta la fecha de procesamiento devuelta por Hacienda en la zona horaria configurada. Retorna `(time.Time, bool)`; `false` si el valor está vacío o su formato es desconocido |
+| `ExtractGenerationDateTime(jsonData)` | Se obtiene la fecha y hora de generación (`identificacion.fecEmi` + `identificacion.horEmi`) de un JSON de DTE en la zona horaria configurada. Retorna `(time.Time, bool)`; `false` si el JSON no es válido o no trae `fecEmi`. Si falta `horEmi` se usa `00:00:00` |
+| `GenerationDateOrDefault(jsonData, fallback)` | Se retorna la fecha de generación del JSON o `fallback` cuando no se puede extraer |
+
+### Formatos de `ParseProcessingDate`
+
+Se prueban en orden los formatos `dd/MM/yyyy HH:mm:ss`, `yyyy-MM-dd HH:mm:ss` y RFC 3339, todos interpretados en la zona horaria de El Salvador.
+
+### Consumidores
+
+| Función | Uso |
+|---|---|
+| `ParseProcessingDate` | Mapper de invalidación (fecha del sello) y servicio de eventos de contingencia (evidencia de transmisión) |
+| `GenerationDateOrDefault` | Mapper de invalidación y servicios de NC y ND (fecha de emisión de los documentos relacionados, usando `CreatedAt` como respaldo) |
 
 ### Uso
 
@@ -34,7 +48,7 @@ now := utils.TimeNow()
 // → 2024-01-15 14:30:05 -0600 CST (America/El_Salvador)
 ```
 
-> **Importante:** Todas las fechas y horas del sistema (emisión de DTEs, timestamps de contingencia, etc.) usan `TimeNow()`, nunca `time.Now()` directamente.
+> **Importante:** Todas las fechas y horas del sistema (emisión de DTEs, timestamps de contingencia, etc.) usan `TimeNow()`, nunca `time.Now()` directamente. `TimeInit()` debe haberse ejecutado antes: sin zona horaria cargada `TimeNow()` no es válido.
 
 ---
 
@@ -56,7 +70,7 @@ Se usan extensivamente en los response mappers para convertir campos opcionales 
 ```go
 // Campo opcional en JSON Hacienda
 receiver.NRC = utils.ToStringPointer(domain.GetNRC())
-// → Si NRC = "" → nil (se omite en JSON con omitempty)
+// → Si NRC = "" → nil (se serializa como null)
 // → Si NRC = "12345" → &"12345" (se incluye en JSON)
 ```
 
@@ -156,9 +170,13 @@ type AuxiliarIdentificationExtractor struct {
 
 type AuxiliarReceiverExtractor struct {
     Receiver struct {
-        NIT string `json:"nit"`
+        NIT          string `json:"nit"`
+        NumDocumento string `json:"numDocumento"`
     } `json:"receptor"`
 }
+
+// ReceiverID devuelve el NIT del receptor: "nit" (CCF) o, si está vacío, "numDocumento" (Comprobante de Retención)
+func (a AuxiliarReceiverExtractor) ReceiverID() string
 
 type AuxiliarTotalAmountsExtractor struct {
     Summary struct {
@@ -168,9 +186,18 @@ type AuxiliarTotalAmountsExtractor struct {
     } `json:"resumen"`
 }
 
+// Mismos totales, pero leídos del formato interno (claves en inglés)
+type AuxiliarDTETotalAmountsExtractor struct {
+    Summary struct {
+        TotalTaxed      float64 `json:"total_taxed"`
+        TotalExempt     float64 `json:"total_exempt"`
+        TotalNotSubject float64 `json:"total_non_subject"`
+    } `json:"summary"`
+}
+
 type AuxiliarRelatedDocAndItemsExtractor struct {
-    RelatedDocs []struct { ... } `json:"documentoRelacionado"`
-    Items       []struct { ... } `json:"cuerpoDocumento"`
+    RelatedDocs []struct { GenerationType int; DocumentNumber string } `json:"documentoRelacionado"`
+    Items       []struct { TaxedAmount, ExemptAmount, NotSubjectAmount float64; RelatedDoc string } `json:"cuerpoDocumento"`
 }
 ```
 
@@ -183,7 +210,7 @@ type AuxiliarRelatedDocAndItemsExtractor struct {
 | `ExtractSummaryTotalAmounts(doc)` | `interface{}` (Go object) | Totales financieros |
 | `ExtractSummaryTotalAmountsFromStringJSON(doc)` | `interface{}` (JSON string) | Totales financieros |
 | `ExtractRelatedDocAndItemsFromStringJSON(doc)` | `interface{}` (JSON string) | Docs relacionados + ítems |
-| `ExtractDTEReceiverFromString(doc)` | `interface{}` (JSON string) | NIT del receptor |
+| `ExtractDTEReceiverFromString(doc)` | `interface{}` (JSON string) | NIT del receptor (`nit` o `numDocumento`, ver `ReceiverID()`) |
 
 ### Patrón de Dos Variantes
 
@@ -191,7 +218,9 @@ Cada extractor tiene dos variantes:
 - **Desde objeto Go**: Se serializa a JSON con `json.Marshal()` y luego se deserializa a la estructura extractora
 - **Desde string JSON**: Se deserializa directamente desde el string
 
-Se usan en el servicio de invalidación, contingencia y operaciones adicionales donde se necesita leer campos específicos de un DTE ya serializado.
+Las variantes `FromStringJSON` hacen type assertion a `string` y entran en pánico si reciben otro tipo. `ExtractRelatedDocAndItemsFromStringJSON` ignora errores de deserialización y retorna la estructura vacía.
+
+Se usan en el servicio de invalidación, notas de crédito y débito (receptor del CCF o CR relacionado), contingencia y operaciones adicionales donde se necesita leer campos específicos de un DTE ya serializado.
 
 ---
 
@@ -205,16 +234,13 @@ Se usan en el servicio de invalidación, contingencia y operaciones adicionales 
 | `TranslateHealthUp(key)` | Se traduce mensaje de health check UP |
 | `TranslateHealthDown(key)` | Se traduce mensaje de health check DOWN |
 | `TranslateHealthError(key, params...)` | Se traduce error de health check |
+| `TranslateHealthNotConfigured(key)` | Se traduce mensaje de health check no configurado |
 
 ### Uso
 
 ```go
-msg := utils.TranslateMessage("validation", "required_field", "nombre")
-// Clave: "validation.required_field"
-// → "El campo nombre es requerido"
-
 msg := utils.TranslateHealthUp("database")
-// → "La base de datos está operativa"
+// Clave: "health.up.database" (se pasa a minúsculas)
 ```
 
 ---
@@ -245,31 +271,12 @@ Se modifica el JSON de un DTE para agregar información de contingencia:
 
 Se acepta el documento como `string`, `[]byte`, o `interface{}`.
 
-### `SetReceptionStampIntoAppendix`
-
-```go
-func SetReceptionStampIntoAppendix(document string, receptionStamp *string) (string, error)
-```
-
-Se agrega el sello de recepción de Hacienda al apéndice del DTE:
-
-```json
-// Se agrega al array "apendice":
-{
-  "campo": "Datos del documento",
-  "etiqueta": "Sello de recepción",
-  "valor": "2024011514300500000..."
-}
-```
-
-Si el apéndice no existe, se crea. Si ya existe, se agrega al final del array.
-
 ---
 
 ## Notas
 
 1. **TimeNow() siempre**: Nunca usar `time.Now()` directamente. Siempre usar `utils.TimeNow()` para garantizar la zona horaria correcta.
-2. **Punteros nil = omitir en JSON**: `ToStringPointer("")` retorna `nil`, lo que con `omitempty` omite el campo en la serialización JSON.
-3. **InLetters para TotalLetras**: Se usa automáticamente en los mappers de factura cuando el campo `TotalEnLetras` no se proporciona en el request.
+2. **Punteros nil**: `ToStringPointer("")` retorna `nil`; en los response mappers los campos sin `omitempty` se serializan como `null`.
+3. **InLetters para TotalLetras**: Se usa automáticamente en los request mappers de todos los DTE con resumen (Factura, CCF, NC, ND, Nota de Remisión y FSE) cuando `TotalInWords` no se proporciona en el request. Ver [Request Mappers](request-mappers.md).
 4. **Extractors para DTE serializado**: Los extractors se usan cuando ya se tiene un DTE en formato JSON (almacenado en BD o en cache de contingencia) y se necesitan campos específicos sin deserializar todo el documento.
 5. **FindProjectRoot en tests**: Se usa en `TestMain` para localizar archivos de configuración y traducción desde cualquier directorio de ejecución de tests.

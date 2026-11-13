@@ -7,14 +7,14 @@
 
 ## Descripción General
 
-La Nota de Crédito es un documento de ajuste que **disminuye** el valor de un documento tributario previamente emitido (CCF). Se utiliza para devoluciones, descuentos posteriores, o correcciones a favor del receptor.
+La Nota de Crédito es un documento de ajuste que **disminuye** el valor de un documento tributario previamente emitido (CCF o Comprobante de Retención). Se utiliza para devoluciones, descuentos posteriores, o correcciones a favor del receptor.
 
 Características principales:
-- **Siempre referencia un CCF** — Debe tener documentos relacionados válidos
+- **Siempre referencia un CCF o un Comprobante de Retención** — Debe tener documentos relacionados de tipo `03` o `07` (`ValidAdjustmentDTETypes`)
 - **Reduce el saldo** — Genera una transacción de balance que disminuye el monto original
-- **Validación de estado** — El documento original debe estar en estado `RECEIVED`
-- **Validación de NIT** — El NIT del receptor debe coincidir con el del documento original
-- **Control de balance** — No puede exceder el saldo disponible del documento original
+- **Validación de estado** — Cada documento relacionado debe estar en estado `RECEIVED`
+- **Validación de NIT** — El NIT del receptor debe coincidir con el del documento relacionado
+- **Control de balance** — No puede exceder el saldo disponible del documento original (solo para documentos relacionados electrónicos)
 
 ---
 
@@ -58,13 +58,15 @@ func (s *creditNoteService) Create(ctx context.Context, input interface{}, branc
 ### Flujo de Ejecución
 
 ```
-1. Cast del input → CreditNoteInput
-2. Validar documentos relacionados (estado + NIT)
+1. Cast del input → *CreditNoteInput
+2. Validar documentos relacionados (existencia, estado y NIT)
 3. Crear documento base (DTEDocument)
 4. Ensamblar CreditNoteModel con ítems y resumen
-5. Validar reglas de negocio
-6. Generar código de generación (UUID) y número de control
-7. Retornar CreditNoteModel validado
+5. Validar reglas específicas de la nota de crédito (CreditNoteRulesValidator)
+6. Validar reglas genéricas de DTE (ValidateDTEDocument)
+7. Por cada documento relacionado electrónico: ValidateForCreditNote (saldo disponible)
+8. Generar código de generación (UUID) y número de control
+9. Retornar CreditNoteModel validado
 ```
 
 ### Paso 2: Validación de Documentos Relacionados
@@ -81,16 +83,17 @@ Esta validación es **crítica** y se ejecuta antes de cualquier otra operación
 
 1. **Verificar existencia**: Se debe tener al menos un documento relacionado
 2. **Por cada documento relacionado**:
-   - Se busca el documento original usando `dteManager.VerifyStatus()`
-   - Se verifica que el estado sea `RECEIVED` (no `REJECTED`, `INVALIDATED`, ni `PENDING`)
-   - Se valida que el NIT del receptor coincida con el del documento original
+   - Se busca el documento original con `dteManager.GetByGenerationCode()` (si no existe, se propaga el error)
+   - Se consulta su estado con `dteManager.VerifyStatus()` y debe ser `RECEIVED` (no `REJECTED`, `INVALIDATED`, `PENDING` ni `EXPIRED`)
+   - Se asigna a la referencia la fecha de emisión (generación) del documento original, tomada de su JSON o, en su defecto, de su fecha de registro
+   - Se valida que el NIT del receptor coincida con el del receptor del documento original
 
 #### Errores de Validación de Documentos Relacionados
 
 | Error | Causa |
 |---|---|
 | `NoRelatedDocs` | No se proporcionaron documentos relacionados |
-| `DocumentNotReceived` | El documento original no está en estado `RECEIVED` |
+| `RelatedDocumentNotReceived` | El documento relacionado no está en estado `RECEIVED` (parámetros: código del documento y estado actual) |
 | `NotMatchingReceiverNIT` | El NIT del receptor no coincide con el del documento original |
 
 ---
@@ -144,31 +147,14 @@ type CreditNoteSummary struct {
 
 ---
 
-## Fórmulas de Cálculo
+## Cálculos
 
-### IVA (igual que CCF)
+Las fórmulas (IVA, percepción, subtotales, total de la operación y total a pagar) se documentan en [calculations.md](../../../api/calculations.md). Reglas específicas del resumen de la nota de crédito:
 
-```
-IVA = (TotalTaxed - TaxedDiscount) * 0.13    (tolerancia ±0.01)
-```
-
-### Percepción de IVA
-
-```
-IVAPerception = TotalTaxed * 0.01    (cuando aplica, tolerancia ±0.01)
-```
-
-### SubTotal
-
-```
-SubTotal = TotalTaxed - TaxedDiscount + TotalExempt - ExemptDiscount + TotalNonSubject - NonSubjectDiscount
-```
-
-### Total Operación
-
-```
-TotalOperation = SubTotal + Sum(Taxes)
-```
+- No se admiten descuentos globales ni porcentaje de descuento (`GlobalDiscountNotAllowedInAdjustment`); los descuentos por ítem siguen permitidos.
+- `IncomeRetention` debe ser cero (`IncomeRetentionNotAllowed`).
+- Si `IVAPerception` es distinto de cero, debe corresponder al 1% del gravado.
+- El total de la operación es el subtotal de ventas más los tributos del resumen; el total a pagar suma además `IVAPerception` y `TotalNonTaxed` y resta `IVARetention` (regla compartida `ValidateAdjustmentTotals`).
 
 ---
 
@@ -184,21 +170,17 @@ Antes de confirmar la nota de crédito, se ejecuta `ValidateForCreditNote()`:
 dteManager.ValidateForCreditNote(ctx, branchID, originalDTE, document)
 ```
 
-Se verifica que los montos de la nota de crédito no excedan el **saldo disponible** del documento original. El saldo disponible se calcula como:
-
-```
-SaldoDisponible = MontoOriginal - Sum(NotasDeCréditoPrevias)
-```
+Se ejecuta dentro de `Create` por cada documento relacionado de tipo electrónico (`ElectronicDocument`). Se verifica que cada monto de la nota (gravado, exento, no sujeto) no exceda el **saldo restante** del control de balance del documento original (`InvalidCreditNoteTransaction`). El saldo restante se reduce con cada nota de crédito registrada y se restituye cuando una nota es invalidada.
 
 ### Transacción de Balance Post-Emisión
 
 Después de la transmisión exitosa, se genera la transacción de balance en la capa de aplicación:
 
 ```go
-dteManager.GenerateBalanceTransaction(ctx, branchID, "CREDIT", originalDTE, creditNoteID, document)
+dteManager.GenerateBalanceTransaction(ctx, branchID, constants.NotaCreditoElectronica, originalDTE, creditNoteID, document)
 ```
 
-Se extraen los montos `TaxedSale`, `ExemptSale` y `NonSubjectSale` del documento y se registran como reducción del balance original.
+Por cada documento relacionado electrónico se extraen los totales gravado, exento y no sujeto del resumen y se registran como reducción del balance original (el tipo de transacción `05` resta del saldo).
 
 ---
 
@@ -206,19 +188,20 @@ Se extraen los montos `TaxedSale`, `ExemptSale` y `NonSubjectSale` del documento
 
 ### Tipos de Venta
 
-- Cada ítem puede tener solo un tipo de venta activo (misma regla que CCF)
-- Si `TaxedSale > 0`: `UnitPrice` no puede ser 0
-- Si `TaxedSale > 0`: debe tener impuestos asignados
+- Máximo 2000 ítems (`ExceededItemsLimit`)
+- Cada ítem puede tener solo un tipo de venta activo entre gravada, exenta y no sujeta (`MixedSalesTypesNotAllowed`)
+- Si `TaxedSale > 0`: `UnitPrice` no puede ser 0 y debe tener impuestos asignados (`MissingItemTaxes`)
+- Los impuestos de un ítem que no es de tipo Impuesto deben ser códigos permitidos (`InvalidTaxType`)
 
 ### Documentos Relacionados en Ítems
 
-- Si existen documentos relacionados, **todos los ítems deben referenciar uno**
-- La referencia del ítem debe existir en la lista de documentos relacionados del DTE
+- **Todos los ítems deben referenciar un documento relacionado** (`MissingItemRelatedDoc`)
+- La referencia del ítem debe existir en la lista de documentos relacionados del DTE (`InvalidItemRelatedDoc`)
+- Los documentos relacionados son obligatorios (máximo 50) y su tipo debe ser `03` o `07` (`InvalidRelatedDocTypeForCreditNote`)
 
 ### Reglas de Impuestos por Tipo
 
-- **Producto (tipo 1):** Solo IVA (código `20`)
-- **Impuesto (tipo 4):** Solo IVA, unidad de medida debe ser `99`
+- **Impuesto (tipo 4):** Exactamente un impuesto, IVA (código `20`), y unidad de medida `99`
 
 ---
 
@@ -237,6 +220,10 @@ CreditNoteService.Create()
   │
   ├── validate()                ← Reglas de negocio de nota de crédito
   │
+  ├── ValidateDTEDocument()     ← Reglas genéricas
+  │
+  ├── dteManager.ValidateForCreditNote() ← Saldo disponible (documentos relacionados electrónicos)
+  │
   └── generateCodeAndIdentifiers()
         │
         ▼
@@ -246,7 +233,6 @@ Application Layer (GenericDTEUseCase)
   ├── Transmit to Hacienda
   │
   ├── [Si éxito]:
-  │     ├── dteManager.ValidateForCreditNote()  ← Valida balance disponible
   │     ├── ConfirmReservation()
   │     ├── Create() en BD
   │     └── GenerateBalanceTransaction()  ← Registra reducción de balance
@@ -260,12 +246,14 @@ Application Layer (GenericDTEUseCase)
 
 | Error | Causa |
 |---|---|
-| Cast fallido | El `interface{}` no es `*CreditNoteInput` |
+| Pánico por cast (cast sin comprobación) | El `interface{}` no es `*CreditNoteInput` |
 | `NoRelatedDocs` | Sin documentos relacionados |
-| `DocumentNotReceived` | Documento original no recibido |
+| `RelatedDocumentNotReceived` | Documento relacionado no recibido |
 | `NotMatchingReceiverNIT` | NIT del receptor no coincide |
 | `InvalidCreditNoteTransaction` | Montos exceden saldo disponible |
-| `InvalidTaxCodeOnly20` | Producto con impuesto diferente a IVA |
+| `InvalidRelatedDocTypeForCreditNote` | Documento relacionado distinto de CCF o Comprobante de Retención |
+| `GlobalDiscountNotAllowedInAdjustment` | Descuento global o porcentaje de descuento distinto de cero |
+| `IncomeRetentionNotAllowed` | Retención de renta distinta de cero |
 | `MissingItemRelatedDoc` | Ítem sin referencia a documento relacionado |
 
 ---
@@ -275,7 +263,7 @@ Application Layer (GenericDTEUseCase)
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/credit_note/credit_note_service.go` | Servicio principal |
-| `internal/domain/dte/credit_note/models/` | Modelos de nota de crédito |
+| `internal/domain/dte/credit_note/credit_note_models/` | Modelos de nota de crédito |
 | `internal/domain/dte/credit_note/validator/` | Estrategias de validación |
 | `internal/domain/dte/dte_documents/dte_service.go` | DTEManager (balance) |
 
@@ -283,7 +271,8 @@ Application Layer (GenericDTEUseCase)
 
 ## Notas
 
-1. **Dependencia del DTEManager**: Es el único DTE (junto con Nota de Débito) que requiere acceso a documentos existentes para validar.
-2. **Balance**: La validación de balance ocurre en **dos momentos**: al validar (pre-emisión) y al registrar (post-transmisión).
-3. **Invalidación reversa**: Si una nota de crédito es invalidada, se **recupera** el balance del documento original.
+1. **Dependencia del DTEManager**: Es, junto con la Nota de Débito, el DTE que requiere acceso a documentos existentes para validar.
+2. **Balance**: La validación de balance ocurre en **dos momentos**: antes de la emisión (dentro de `Create`) y al registrar la transacción (post-transmisión).
+3. **Invalidación reversa**: Si una nota de crédito es invalidada, se **recupera** el balance del documento original (ver [invalidation.md](invalidation.md)).
+4. **Invalidación del documento original**: Mientras la nota esté vigente (`RECEIVED` o `PENDING`), el CCF o Comprobante de Retención al que ajusta no puede invalidarse.
 4. **No confundir con pagos**: La nota de crédito no aplica al `PaymentTotalStrategy` (no requiere formas de pago).

@@ -20,7 +20,7 @@ type DTEDocument struct {
     Receiver         interfaces.Receiver
     Items            []interfaces.Item
     Summary          interfaces.Summary
-    Extension        interfaces.Extension
+    Extension        interfaces.Extension // remanente sin uso
     Appendix         []interfaces.Appendix
     RelatedDocuments []interfaces.RelatedDocument
     OtherDocuments   []interfaces.OtherDocuments
@@ -43,7 +43,7 @@ type InputDataCommon struct {
     Identification *Identification
     Issuer         *Issuer
     Receiver       *Receiver
-    Extension      *Extension
+    Extension      *Extension // remanente sin uso
     RelatedDocs    []RelatedDocument
     OtherDocs      []OtherDocument
     ThirdPartySale *ThirdPartySale
@@ -189,6 +189,7 @@ type Summary struct {
     TotalInWords       string
     ElectronicPayment  *string
     PaymentTypes       []interfaces.PaymentType
+    Observations       *string
 }
 ```
 
@@ -231,6 +232,7 @@ type PaymentType struct {
 type Address struct {
     Department   location.Department
     Municipality location.Municipality
+    District     location.District
     Complement   location.Address
 }
 ```
@@ -239,14 +241,16 @@ type Address struct {
 
 ```go
 type Extension struct {
-    DeliveryName     *document.DeliveryName
-    DeliveryDocument *document.DeliveryDocument
-    ReceiverName     *document.DeliveryName
-    ReceiverDocument *document.DeliveryDocument
+    DeliveryName     document.DeliveryName
+    DeliveryDocument document.DeliveryDocument
+    ReceiverName     document.DeliveryName
+    ReceiverDocument document.DeliveryDocument
     Observation      *document.Observation
     VehiculePlate    *string
 }
 ```
+
+Código remanente sin uso: ningún request recibe `Extension`, ningún mapper la pasa a `CommonOptionalFields` (por lo que siempre es nil) y no se envía a Hacienda (el mapeo de respuesta y `DTEExtension` se eliminaron). Permanecen `interfaces.Extension`, `DTEDocument.Extension`, `InputDataCommon.Extension` y la asignación en algunos servicios (por ejemplo CCF y FSE).
 
 ### RelatedDocument
 
@@ -291,8 +295,9 @@ type DoctorInfo struct {
 
 ```go
 type ThirdPartySale struct {
-    NIT  identification.NIT
-    Name string
+    NIT            identification.NIT
+    Name           string
+    FiscalDomicile int // CAT-032: 1 domiciliado, 2 no domiciliado
 }
 ```
 
@@ -379,10 +384,17 @@ type DTEDetails struct {
     ControlNumber  string
     ReceptionStamp *string
     Transmission   string     // "NORMAL" o "CONTINGENCY"
-    Status         string     // "RECEIVED", "REJECTED", "INVALIDATED", "PENDING"
+    Status         string     // "RECEIVED", "REJECTED", "INVALIDATED", "PENDING", "EXPIRED"
     JSONData       string
+
+    // Evidencia de la transmisión (vacía en documentos emitidos antes de guardarla)
+    SignedDocument   string
+    ProcessingDate   string
+    HaciendaResponse string
 }
 ```
+
+`SignedDocument` es el JWS transmitido (`firmaElectronica` del Archivo DTE), `ProcessingDate` es `fhProcesamiento` y `HaciendaResponse` es la respuesta completa de Hacienda en JSON. Ver `TransmissionEvidence` más abajo.
 
 ### ReservedSequence
 
@@ -410,14 +422,16 @@ type ReservedSequence struct {
 
 ```go
 type DomainEvent struct {
-    ID         string
+    ID         uint
     UserID     uint
     BranchID   uint
     EventType  string
     Payload    string      // JSON serializado
-    OccurredAt time.Time
+    OccurredAt string
 }
 ```
+
+`ID` es `uint` y `OccurredAt` es `string` en el modelo de dominio. Ver [event-system.md](core/event-system.md).
 
 ### DTEResponse (Consulta)
 
@@ -453,6 +467,134 @@ type ListSummary struct {
     ByNormal      int64
 }
 ```
+
+### ContingencyDocument
+
+```go
+type ContingencyDocument struct {
+    ID              string
+    DocumentID      string
+    BranchID        uint
+    ContingencyType int8
+    Reason          string
+    BatchID         *string
+    MHBatchID       *string
+    Observations    *string
+    EventStampedAt  *time.Time  // sello del evento de contingencia; inicio de la ventana de 72 horas
+    CreatedAt       time.Time
+    UpdatedAt       time.Time
+    Document        *DTEDetails
+    Branch          *user.BranchOffice
+}
+```
+
+`EventStampedAt` se guarda una sola vez, cuando Hacienda otorga el sello al evento de contingencia. Ver [contingency.md](dte/contingency.md).
+
+### TransmissionEvidence
+
+```go
+type TransmissionEvidence struct {
+    ReceptionStamp   *string
+    SignedDocument   string
+    ProcessingDate   string
+    HaciendaResponse string
+}
+```
+
+Agrupa lo que Hacienda devuelve al recibir un DTE o evento y lo que se transmitió. Con ella se arma el Archivo DTE que se entrega al receptor: estructura firmada, `firmaElectronica` (`SignedDocument`) y `selloRecibido` (`ReceptionStamp`). `DTEService.Create` la recibe junto con el documento.
+
+### ReceptionResult
+
+```go
+type ReceptionResult struct {
+    ReceptionStamp string
+    ProcessingDate string  // fhProcesamiento
+}
+```
+
+Resultado por documento procesado en un lote o consulta de contingencia.
+
+### DTEEvent y EventArchiveResponse
+
+```go
+const (
+    EventInvalidation = "INVALIDATION"
+    EventContingency  = "CONTINGENCY"
+)
+
+type DTEEvent struct {
+    GenerationCode   string
+    BranchID         uint
+    EventType        string   // EventInvalidation o EventContingency
+    RelatedDTEID     *string
+    ReplacementDTEID *string
+    JSONData         string   // no se serializa
+    SignedDocument   string   // no se serializa
+    ReceptionStamp   *string
+    ProcessingDate   string
+    HaciendaResponse string   // no se serializa
+    Status           string
+    CreatedAt        time.Time
+}
+
+type EventArchiveResponse struct {
+    DTEEvent
+    HaciendaResponse json.RawMessage  // "hacienda_response"
+    Archive          json.RawMessage  // "archivo_dte"
+}
+```
+
+Registra un evento transmitido a Hacienda (invalidación o contingencia) con su evidencia: se conservan la estructura firmada, el sello y la respuesta completa porque los eventos de invalidación y retorno se entregan al receptor como Archivo DTE (Normativa de Cumplimiento DTE v2.0, regla 11). `EventArchiveResponse` es lo que se devuelve al consumidor: los datos del evento, la respuesta de Hacienda y el Archivo DTE.
+
+### BalanceControl y BalanceTransaction
+
+```go
+type BalanceControl struct {
+    ID, BranchID                                                  uint
+    OriginalDTEID                                                 string
+    OriginalTaxedAmount, OriginalExemptAmount, OriginalNotSubjectAmount     float64
+    RemainingTaxedAmount, RemainingExemptAmount, RemainingNotSubjectAmount  float64
+    CreatedAt, UpdatedAt                                          time.Time
+    OriginalDTE                                                   *DTEDetails
+    Branch                                                        *user.BranchOffice
+    Transactions                                                  []BalanceTransaction
+}
+
+type BalanceTransaction struct {
+    BalanceControlID     uint
+    AdjustmentDocumentID string
+    TransactionType      string   // tipo de la nota ("05", "06") o "INVALIDATED"
+    TaxedAmount          float64
+    ExemptAmount         float64
+    NotSubjectAmount     float64
+    CreatedAt            time.Time
+    AdjustmentDocument   *DTEDetails
+    BalanceControl       *BalanceControl
+}
+```
+
+El control de balance registra el saldo restante de un documento original frente a las notas que lo ajustan. Ver [credit-note.md](dte/credit-note.md) y [invalidation.md](dte/invalidation.md).
+
+### DTEFilters
+
+```go
+type DTEFilters struct {
+    BranchID     uint        // no proviene de la query
+    IncludeAll   bool        // query "all"
+    StartDate    *time.Time  // "startDate"
+    EndDate      *time.Time  // "endDate"
+    Status       string      // "status"
+    Transmission string      // "transmission"
+    DTEType      string      // "type"
+    DTETypes     []string    // "types"
+    Page         int
+    PageSize     int
+}
+```
+
+### IssuerDTE y ControlNumberSequence
+
+`IssuerDTE` agrupa los datos del emisor obtenidos de la sucursal y su usuario (NIT, NRC, nombre comercial, razón social, actividad económica, códigos de establecimiento y punto de venta, correo, teléfono, tipo de establecimiento y dirección). `ControlNumberSequence` (`BranchID`, `DTEType`, `Year`, `LastNumber`) representa el contador de números de control por sucursal, tipo y año; ver [sequential-numbers.md](sequential-numbers.md).
 
 ---
 

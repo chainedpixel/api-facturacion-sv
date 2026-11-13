@@ -57,15 +57,14 @@ err := shared_error.NewGeneralServiceError(
 func NewFormattedGeneralServiceError(serviceType, op, code string, args ...interface{}) *ServiceError
 ```
 
-Se crea un ServiceError con mensaje traducido automáticamente. Se usa el `code` como clave de traducción:
+Se crea un ServiceError con mensaje traducido automáticamente. El `code` se convierte a minúsculas y se usa como clave bajo el prefijo `service_errors.` en `assets/i18n/es.yaml`; `args` se aplican como parámetros de la plantilla. El `code` también se guarda en `ServiceError.Code`:
 
 ```go
 err := shared_error.NewFormattedGeneralServiceError(
-    "invoice",
-    "Create",
-    "invalid_receiver",     // Se traduce via config.TranslateServiceArgs()
+    "CommonMapper",
+    "MapCommonRequestAddress",
+    "AddressWithReceiver",  // clave service_errors.addresswithreceiver
 )
-// Message = "El receptor es inválido" (según i18n)
 ```
 
 #### `NewFormattedGeneralServiceWithError`
@@ -74,27 +73,32 @@ err := shared_error.NewFormattedGeneralServiceError(
 func NewFormattedGeneralServiceWithError(serviceType, op string, err error, code string, args ...interface{}) *ServiceError
 ```
 
-Se crea un ServiceError con mensaje traducido **y** error subyacente. Se usa cuando se necesitan ambos:
+Se crea un ServiceError con mensaje traducido **y** error subyacente. Es el constructor usado por los request mappers para envolver errores de cada componente:
 
 ```go
 err := shared_error.NewFormattedGeneralServiceWithError(
-    "auth",
-    "Login",
-    repositoryErr,          // Error subyacente
-    "invalid_credentials",  // Código para traducción
+    "InvoiceMapper",
+    "MapToInvoiceData",
+    err,                     // Error subyacente
+    "ErrorMapping",          // Código para traducción
+    "Invoice->Items",        // Parámetro de la plantilla
 )
 ```
 
+Si la clave no existe en el idioma activo se busca en inglés; si tampoco existe, el mensaje es `[clave] <mensaje de error desconocido>` (ver `config.Translate`).
+
 ### Método `Error()`
 
-Se formatea el mensaje según el modo de la aplicación:
+El formato depende de `config.Server.Debug`:
 
 ```
-Modo normal (DEBUG=false):
-  → "El receptor es inválido"
+Sin causa (Err == nil):
+  DEBUG=false → "<Message>"
+  DEBUG=true  → "[<Code>] <Message>"
 
-Modo debug (DEBUG=true):
-  → "[ServiceError] Type: invoice | Operation: Create | Code: invalid_receiver | Message: El receptor es inválido | Cause: field 'NRC' is required"
+Con causa:
+  DEBUG=false → "<Message> -> <Err>"
+  DEBUG=true  → "[<Type>] <Operation>: <Message> | cause: <Err>"
 ```
 
 ### Método `GetErrError()`
@@ -103,7 +107,7 @@ Modo debug (DEBUG=true):
 func (e *ServiceError) GetErrError() []string
 ```
 
-Se extraen los detalles del error subyacente. Si el error contiene múltiples mensajes separados por `;`, se dividen:
+Se extraen los detalles del error subyacente (`Err`). El texto de `Err.Error()` se divide por `;`, se recorta cada fragmento y se descartan los vacíos:
 
 ```go
 // Error subyacente: "campo1 inválido; campo2 faltante; campo3 fuera de rango"
@@ -111,7 +115,7 @@ details := err.GetErrError()
 // → ["campo1 inválido", "campo2 faltante", "campo3 fuera de rango"]
 ```
 
-Se limpian las comillas y se recortan espacios en cada detalle.
+Si `Err` es `nil` se retorna un único elemento con la traducción de `service_errors.NoDetailsAvailable` ("No hay más detalles disponibles").
 
 ### Método `GetCode()`
 
@@ -121,7 +125,7 @@ func (e *ServiceError) GetCode() string
 
 Se extrae el código de error para clasificación:
 
-1. Si el error subyacente es `ValidationError` → se retorna su código
+1. Si el error subyacente es (o contiene, con `errors.As`) un `ValidationError` → se retorna su tipo (`GetType()`, por ejemplo `RequiredField`)
 2. Si `Code` no está vacío → se retorna `Code`
 3. Fallback → se retorna `Type` en minúsculas
 
@@ -129,21 +133,23 @@ Se extrae el código de error para clasificación:
 
 ## Integración con ResponseWriter
 
-```
-ServiceError generado en dominio/aplicación
-  │
-  ▼
-ResponseWriter.HandleError(rw, err)
-  │
-  ├── ¿Es ServiceError?
-  │     ├── err.GetCode() → determina tipo de error
-  │     ├── err.Error() → mensaje principal
-  │     ├── err.GetErrError() → detalles adicionales
-  │     └── → 400 Bad Request con detalles
-  │
-  └── ¿Es otro error?
-        → 500 Internal Server Error
-```
+> **Archivo:** `internal/infrastructure/api/response/writer.go`
+
+`ResponseWriter.HandleError` clasifica el error por tipo concreto (`getErrorType`) y construye el cuerpo `APIResponse` con `success: false` y un objeto `error` con `message`, `details` y `code`:
+
+| Tipo de error | Estado HTTP | `error.message` | `error.details` | `error.code` |
+|---|---|---|---|---|
+| `DTEError` | 400 | `GetMessage()` | `GetValidationErrorsString()` | `GetCode()` |
+| `ValidationError` | 400 | `Error()` | `["No hay más detalles disponibles"]` | tipo en mayúsculas (`GetType()`) |
+| `HaciendaResponseError` | 400 | descripción de Hacienda | `State: <estado>`, `Processed at: <fecha>` y las observaciones | `HACIENDA_<código>` |
+| `ServiceError` | 400 | `ServiceError.Message` | `GetErrError()` | `GetCode()` en mayúsculas |
+| `HTTPResponseError` | código HTTP del error | `Error()` | traducción de `service_errors.ContingencyActiveTransmission` | `HACIENDA_<código HTTP>` |
+| Otro error de negocio no clasificado | 400 | `err.Error()` | (sin detalles) | `BUSINESS_ERROR` |
+| Cualquier otro error | 500 | traducción de `validation_errors.ServerError` | (sin detalles) | `SYSTEM_ERROR` |
+
+Los errores `DTEError` y `ValidationError` se clasifican como validación; `ServiceError`, `HaciendaResponseError` y `HTTPResponseError` como negocio; el resto como sistema. Como `getErrorType` compara por tipo concreto, un `ServiceError` que envuelve un `ValidationError` se responde como `ServiceError`: el `message` es el texto traducido del `ServiceError`, el `code` es el tipo del `ValidationError` interno en mayúsculas (por ejemplo `REQUIREDFIELD`) y los `details` provienen del texto del error interno.
+
+`ResponseWriter.Error(rw, status, message, details)` genera respuestas con la forma `{"error": {message, details, code}}` (sin `success`) y deriva `code` del estado HTTP (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `METHOD_NOT_ALLOWED`, `INTERNAL_SERVER_ERROR`, `REQUEST_TIMEOUT`; cualquier otro, `UNKNOWN_ERROR`).
 
 ---
 
@@ -223,17 +229,18 @@ Caso de Uso (Aplicación)
 Handler HTTP
   │
   └── ResponseWriter.HandleError(err)
-        ├── ServiceError → 400 + detalles
-        ├── ValidationError → 400 + campos
-        └── Otro → 500 genérico
+        ├── DTEError / ValidationError → 400 + detalles de validación
+        ├── ServiceError / HaciendaResponseError → 400 + detalles
+        ├── HTTPResponseError → código HTTP del error
+        └── Otro → 500 genérico (SYSTEM_ERROR)
 ```
 
 ---
 
 ## Notas
 
-1. **Modo debug**: En producción (`DEBUG=false`), solo se muestra el mensaje traducido. En desarrollo (`DEBUG=true`), se incluye tipo, operación, código y causa raíz.
-2. **Traducción automática**: Los constructores `NewFormatted*` traducen automáticamente el `code` usando el sistema i18n. El código debe existir en el archivo de traducciones con prefijo `service_errors.`.
+1. **Modo debug**: En producción (`DEBUG=false`), `Error()` muestra el mensaje traducido (y la causa, si existe). En desarrollo (`DEBUG=true`), se incluye tipo, operación y causa raíz (o código, si no hay causa). El cuerpo HTTP usa `ServiceError.Message` y `GetErrError()`, no `Error()`.
+2. **Traducción automática**: Los constructores `NewFormatted*` traducen automáticamente el `code` usando el sistema i18n. El código debe existir en `assets/i18n/es.yaml` con prefijo `service_errors.` (la clave se busca en minúsculas).
 3. **Errores centinela por capa**: Cada capa define sus propios errores centinela. Se comparan con `errors.Is()` para mantener el desacoplamiento.
 4. **Semicolons como separador**: `GetErrError()` divide errores compuestos por `;`. Los servicios de validación usan este separador al concatenar múltiples errores.
 5. **No envolver dos veces**: Si un error ya es `ServiceError`, no se debe envolver en otro `ServiceError`. Se propaga directamente.
