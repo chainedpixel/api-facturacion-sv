@@ -24,9 +24,10 @@ import (
 // Configuracion en .env: E2E_API_URL, E2E_API_KEY, E2E_API_SECRET, E2E_MH_USER, E2E_MH_PASSWORD.
 
 type apiClient struct {
-	baseURL string
-	token   string
-	http    *http.Client
+	baseURL     string
+	token       string
+	http        *http.Client
+	evidenceDir string
 }
 
 type apiError struct {
@@ -93,7 +94,13 @@ func newAPIClient(t *testing.T) *apiClient {
 	client := &apiClient{
 		baseURL: strings.TrimRight(requireEnv(t, "E2E_API_URL"), "/"),
 		// La API reintenta la transmision a Hacienda; se deja margen para esos reintentos
-		http: &http.Client{Timeout: 90 * time.Second},
+		http:        &http.Client{Timeout: 90 * time.Second},
+		evidenceDir: os.Getenv("E2E_EVIDENCE_DIR"),
+	}
+	if client.evidenceDir != "" {
+		if err := os.MkdirAll(client.evidenceDir, 0o700); err != nil {
+			t.Fatalf("no se pudo crear E2E_EVIDENCE_DIR: %v", err)
+		}
 	}
 
 	login := map[string]interface{}{
@@ -124,7 +131,20 @@ func (c *apiClient) post(t *testing.T, path string, body interface{}) (int, apiR
 		t.Fatalf("no se pudo serializar el request: %v", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.baseURL+path, bytes.NewReader(payload))
+	status, raw := c.do(t, http.MethodPost, path, payload)
+	var resp apiResponse
+	_ = json.Unmarshal(raw, &resp)
+	return status, resp, raw
+}
+
+func (c *apiClient) do(t *testing.T, method, path string, payload []byte) (int, []byte) {
+	t.Helper()
+
+	var body io.Reader
+	if payload != nil {
+		body = bytes.NewReader(payload)
+	}
+	req, err := http.NewRequest(method, c.baseURL+path, body)
 	if err != nil {
 		t.Fatalf("request invalido: %v", err)
 	}
@@ -140,9 +160,67 @@ func (c *apiClient) post(t *testing.T, path string, body interface{}) (int, apiR
 	defer res.Body.Close()
 
 	raw, _ := io.ReadAll(res.Body)
-	var resp apiResponse
-	_ = json.Unmarshal(raw, &resp)
-	return res.StatusCode, resp, raw
+	c.recordEvidence(t, method, path, payload, res.StatusCode, raw)
+	return res.StatusCode, raw
+}
+
+type evidenceRecord struct {
+	Test       string          `json:"test"`
+	RecordedAt string          `json:"recorded_at"`
+	Method     string          `json:"method"`
+	Path       string          `json:"path"`
+	Request    json.RawMessage `json:"request"`
+	HTTPStatus int             `json:"http_status"`
+	Response   json.RawMessage `json:"response"`
+}
+
+func (c *apiClient) recordEvidence(t *testing.T, method, path string, payload []byte, status int, raw []byte) {
+	if c.evidenceDir == "" {
+		return
+	}
+	request := json.RawMessage("null")
+	response := json.RawMessage(raw)
+	if strings.HasPrefix(path, "/auth/") {
+		request = json.RawMessage(`"credentials omitted"`)
+		response = json.RawMessage(`"token omitted"`)
+	} else {
+		if json.Valid(payload) {
+			request = payload
+		}
+		if !json.Valid(raw) {
+			quoted, _ := json.Marshal(string(raw))
+			response = quoted
+		}
+	}
+
+	record, err := json.MarshalIndent(evidenceRecord{
+		Test: t.Name(), RecordedAt: time.Now().Format(time.RFC3339), Method: method, Path: path,
+		Request: request, HTTPStatus: status, Response: response,
+	}, "", "  ")
+	if err != nil {
+		t.Logf("no se pudo serializar la evidencia: %v", err)
+		return
+	}
+	name := fmt.Sprintf("%s_%s.json", time.Now().Format("20060102T150405.000000"), evidenceFileName(t.Name()))
+	if err := os.WriteFile(filepath.Join(c.evidenceDir, name), record, 0o600); err != nil {
+		t.Logf("no se pudo guardar la evidencia: %v", err)
+	}
+}
+
+func evidenceFileName(testName string) string {
+	var b strings.Builder
+	for _, r := range testName {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
+		}
+	}
+	name := b.String()
+	if len(name) > 120 {
+		name = name[:120]
+	}
+	return name
 }
 
 // emit envia un documento y exige que Hacienda devuelva sello de recepcion
@@ -256,18 +334,7 @@ type eventResponse struct {
 // getJSON hace un GET autenticado y devuelve el codigo HTTP y el cuerpo
 func (c *apiClient) getJSON(t *testing.T, path string) (int, []byte) {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+path, nil)
-	if err != nil {
-		t.Fatalf("request invalido: %v", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	res, err := c.http.Do(req)
-	if err != nil {
-		t.Fatalf("la API no respondio (%s): %v", path, err)
-	}
-	defer res.Body.Close()
-	raw, _ := io.ReadAll(res.Body)
-	return res.StatusCode, raw
+	return c.do(t, http.MethodGet, path, nil)
 }
 
 // events consulta GET /dte/{id}/eventos
@@ -353,7 +420,8 @@ func assertArchive(t *testing.T, archive json.RawMessage, generationCode, stamp 
 }
 
 // expectInvalidationRejected exige que la invalidacion sea rechazada (por la API o por Hacienda)
-func (c *apiClient) expectInvalidationRejected(t *testing.T, inv invalidation) {
+// expectInvalidationRejected expects the invalidation to be rejected with an error containing every wantTexts fragment.
+func (c *apiClient) expectInvalidationRejected(t *testing.T, inv invalidation, wantTexts ...string) {
 	t.Helper()
 
 	req := map[string]interface{}{
@@ -370,6 +438,11 @@ func (c *apiClient) expectInvalidationRejected(t *testing.T, inv invalidation) {
 	if status < 300 && resp.Success {
 		t.Errorf("se esperaba rechazo de la invalidacion de %s y fue aceptada", inv.target.GenerationCode)
 		return
+	}
+	for _, text := range wantTexts {
+		if !strings.Contains(strings.ToLower(string(raw)), strings.ToLower(text)) {
+			t.Errorf("el rechazo no contiene %q: %s", text, describeError(resp, raw))
+		}
 	}
 	t.Logf("RECHAZO esperado de invalidacion (HTTP %d): %s", status, describeError(resp, raw))
 }
@@ -412,16 +485,7 @@ func (c *apiClient) emitInContingency(t *testing.T, path string, body interface{
 func (c *apiClient) consultStatus(t *testing.T, generationCode string) (stamp, status string) {
 	t.Helper()
 
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/dte/"+generationCode, nil)
-	if err != nil {
-		t.Fatalf("request invalido: %v", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	res, err := c.http.Do(req)
-	if err != nil {
-		t.Fatalf("la API no respondio: %v", err)
-	}
-	defer res.Body.Close()
+	_, raw := c.do(t, http.MethodGet, "/dte/"+generationCode, nil)
 
 	var resp struct {
 		Data struct {
@@ -429,7 +493,6 @@ func (c *apiClient) consultStatus(t *testing.T, generationCode string) (stamp, s
 			Status         string  `json:"status"`
 		} `json:"data"`
 	}
-	raw, _ := io.ReadAll(res.Body)
 	_ = json.Unmarshal(raw, &resp)
 	if resp.Data.ReceptionStamp != nil {
 		stamp = *resp.Data.ReceptionStamp

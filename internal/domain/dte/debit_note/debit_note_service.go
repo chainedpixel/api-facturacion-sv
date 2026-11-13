@@ -107,7 +107,7 @@ func (s *debitNoteService) validateRelatedDocs(ctx context.Context, data *debit_
 			)
 		}
 
-		data.RelatedDocs[i].EmissionDate = *temporal.NewValidatedEmissionDate(doc.CreatedAt)
+		data.RelatedDocs[i].EmissionDate = *temporal.NewValidatedEmissionDate(utils.GenerationDateOrDefault(doc.Details.JSONData, doc.CreatedAt))
 		extractor, err := utils.ExtractDTEReceiverFromString(doc.Details.JSONData)
 		if err != nil {
 			return err

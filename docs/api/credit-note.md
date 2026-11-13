@@ -82,10 +82,10 @@ Ver estructura en [Factura Electrónica](./invoice.md#receiver--receptor). No re
 | `total_exempt` | float | Sí | Total exento |
 | `total_taxed` | float | Sí | Total gravado |
 | `sub_total_sales` | float | Sí | Subtotal de ventas |
-| `non_subject_discount` | float | Sí | Descuento no sujeto |
-| `exempt_discount` | float | Sí | Descuento exento |
-| `taxed_discount` | float | Sí | Descuento gravado |
-| `discount_percentage` | float | Sí | Porcentaje de descuento |
+| `non_subject_discount` | float | Sí | Debe ser `0`: las NC/ND no admiten descuentos globales (`GlobalDiscountNotAllowedInAdjustment`) |
+| `exempt_discount` | float | Sí | Debe ser `0` |
+| `taxed_discount` | float | Sí | Debe ser `0` |
+| `discount_percentage` | float | Sí | Debe ser `0`; los descuentos se aplican por ítem |
 | `total_discount` | float | Sí | Total descuentos |
 | `sub_total` | float | Sí | Subtotal neto |
 | `total_operation` | float | Sí | Total de la operación |
@@ -104,12 +104,14 @@ Ver estructura en [Factura Electrónica](./invoice.md#receiver--receptor). No re
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `document_type` | string | Sí | Tipo de DTE ajustado (solo FE `01` o CCF `03`) |
-| `generation_type` | integer | Sí | `1`=Normal, `2`=Contingencia |
+| `document_type` | string | Sí | Tipo de DTE ajustado (CCF `03` o CR `07`) |
+| `generation_type` | integer | Sí | `1`=Físico, `2`=Electrónico (código de generación UUID) |
 | `document_number` | string | Sí | Número del DTE original |
-| `emission_date` | string | Sí | Fecha de emisión original (`YYYY-MM-DD`) |
+| `emission_date` | string | Sí | Fecha de generación original (`YYYY-MM-DD`); para documentos electrónicos se toma del `fecEmi` guardado |
 
-> **Regla:** Solo se permiten tipos de DTE `01` (Factura) y `03` (CCF) en los documentos relacionados.
+> **Regla:** Solo se permiten tipos de DTE `03` (CCF) y `07` (CR) en los documentos relacionados.
+> **Regla:** La nota debe generarse a más tardar 3 meses después de la generación del CCF o CR (`RelatedDocOutOfPeriod`).
+> **Regla:** El documento electrónico relacionado debe estar en estado `RECEIVED` y tener el mismo receptor.
 > **Regla:** Máximo 50 documentos relacionados.
 > **Regla:** No se puede mezclar tipos de documento (todos deben ser del mismo tipo).
 

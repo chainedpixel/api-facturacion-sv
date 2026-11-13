@@ -5,6 +5,7 @@ const (
 	DocumentRejected = "REJECTED"
 	DocumentInvalid  = "INVALIDATED"
 	DocumentPending  = "PENDING"
+	DocumentExpired  = "EXPIRED"
 )
 
 const (
@@ -23,6 +24,7 @@ var (
 		DocumentPending:  true,
 		DocumentRejected: true,
 		DocumentInvalid:  true,
+		DocumentExpired:  true,
 	}
 
 	ValidTransmissionTypes = map[string]bool{

@@ -31,7 +31,7 @@ Content-Type: application/json
 | `summary` | `RemissionSummary` | Sí | Resumen del traslado |
 | `extension` | `Extension` | No* | **Obligatoria si `total_operation ≥ 1095.00`** |
 | `third_party_sale` | `ThirdPartySale` | No | Venta a nombre de tercero |
-| `related_docs` | `RelatedDocument[]` | No | Documentos relacionados |
+| `related_docs` | `RelatedDocument[]` | No | Documentos relacionados; solo FE `01`, CCF `03` o FEXE `11` (`InvalidRelatedDocDTEType`) |
 | `appendixes` | `Appendix[]` | No | Apéndices |
 
 ---

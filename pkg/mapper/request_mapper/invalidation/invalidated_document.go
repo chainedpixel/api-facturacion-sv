@@ -15,11 +15,16 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 )
 
 func MapInvalidatedDocument(baseDTE *dte.DTEDetails, request *structs.CreateInvalidationRequest, emissionDate time.Time) (*invalidation_models.InvalidatedDocument, error) {
 	if baseDTE == nil {
 		return nil, shared_error.NewFormattedGeneralServiceError("InvalidationMapper", "MapToInvalidatedDocument", "InvalidBaseDTE")
+	}
+
+	if baseDTE.ReceptionStamp == nil || *baseDTE.ReceptionStamp == "" {
+		return nil, shared_error.NewFormattedGeneralServiceError("InvalidationMapper", "MapToInvalidatedDocument", "DocumentWithoutStamp", baseDTE.ID)
 	}
 
 	var dteData map[string]interface{}
@@ -37,13 +42,22 @@ func MapInvalidatedDocument(baseDTE *dte.DTEDetails, request *structs.CreateInva
 		return nil, err
 	}
 
+	generation := utils.GenerationDateOrDefault(baseDTE.JSONData, emissionDate)
+	stampDate := emissionDate
+	if processed, ok := utils.ParseProcessingDate(baseDTE.ProcessingDate); ok {
+		stampDate = processed
+	}
+
 	doc := &invalidation_models.InvalidatedDocument{
-		Type:           *document.NewValidatedDTEType(baseDTE.DTEType),
-		GenerationCode: *identification.NewValidatedGenerationCode(baseDTE.ID),
-		ControlNumber:  *identification.NewValidatedControlNumber(baseDTE.ControlNumber),
-		ReceptionStamp: *baseDTE.ReceptionStamp,
-		EmissionDate:   *temporal.NewValidatedEmissionDate(emissionDate),
-		IVAAmount:      financial.NewValidatedAmount(montoIVA),
+		Type:               *document.NewValidatedDTEType(baseDTE.DTEType),
+		GenerationCode:     *identification.NewValidatedGenerationCode(baseDTE.ID),
+		ControlNumber:      *identification.NewValidatedControlNumber(baseDTE.ControlNumber),
+		ReceptionStamp:     *baseDTE.ReceptionStamp,
+		EmissionDate:       *temporal.NewValidatedEmissionDate(generation),
+		IVAAmount:          financial.NewValidatedAmount(montoIVA),
+		GenerationDateTime: generation,
+		StampDate:          stampDate,
+		IssuerActivity:     extractIssuerActivity(dteData),
 	}
 
 	if phone != nil {
@@ -68,6 +82,15 @@ func MapInvalidatedDocument(baseDTE *dte.DTEDetails, request *structs.CreateInva
 	}
 
 	return doc, nil
+}
+
+func extractIssuerActivity(dteData map[string]interface{}) string {
+	emisor, ok := dteData["emisor"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	activity, _ := emisor["codActividad"].(string)
+	return activity
 }
 
 func extractReceptorData(dteData map[string]interface{}) (*string, *string, *string, *string, *string, error) {

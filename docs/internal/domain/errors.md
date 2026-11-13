@@ -237,8 +237,19 @@ Los tipos de error se definen como constantes string que se mapean a mensajes de
 | `DocumentReject` | Documento rechazado |
 | `DocumentPending` | Documento pendiente |
 | `InvalidDTETypeForInvalidation` | Tipo no invalidable |
-| `InvalidDateForFEFX` | Factura fuera de 90 días |
-| `InvalidDateForAllDTE` | DTE fuera de 24 horas |
+| `InvalidationDeadlineExpired` | Plazo de invalidación vencido |
+| `InvalidationEventDateOutOfRange` | Fecha del evento fuera de periodo (FE, FEXE, FSE) |
+| `InvalidationEventDateMismatch` | Fecha del evento distinta a la generación |
+| `MissingStampDate` | Sin fecha de sello |
+| `DocumentWithoutStamp` | Documento sin sello de recepción |
+| `PendingAdjustmentNotes` | CCF o CR con NC/ND vigentes |
+
+### Errores de Documentos Relacionados y Ajustes
+
+| Tipo | Descripción |
+|---|---|
+| `RelatedDocOutOfPeriod` | Documento relacionado fuera del plazo permitido |
+| `GlobalDiscountNotAllowedInAdjustment` | NC/ND con descuento global o porcentaje |
 
 ### Errores de FSE
 

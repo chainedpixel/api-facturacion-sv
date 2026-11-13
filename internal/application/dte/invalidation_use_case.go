@@ -61,6 +61,10 @@ func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request st
 		return nil, err
 	}
 
+	if err := u.invalidationManager.ValidateDependencies(ctx, claims.BranchID, originalDTE); err != nil {
+		return nil, err
+	}
+
 	issuer, err := u.authManager.GetIssuer(ctx, claims.BranchID)
 	if err != nil {
 		return nil, err

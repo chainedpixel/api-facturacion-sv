@@ -4317,6 +4317,57 @@
 					]
 				},
 				{
+					"name": "7.1 Invalidar el CCF con NC vigente (rechazo esperado)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"generation_code\": \"{{inv_ccf_generation_code}}\",\n    \"reason\": {\n        \"type\": 2,\n        \"reason_field\": \"Intento con nota de credito vigente\",\n        \"responsible_name\": \"Responsable de Facturacion\",\n        \"responsible_doc_type\": \"36\",\n        \"responsible_num_doc\": \"{{mh_username}}\",\n        \"requestor_name\": \"{{receptor_name}}\",\n        \"requestor_doc_type\": \"36\",\n        \"requestor_num_doc\": \"{{receptor_nit}}\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invalidation",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invalidation"
+							]
+						},
+						"description": "Un CCF con NC o ND vigentes se rechaza con PendingAdjustmentNotes y la lista de notas. El consumidor invalida cada nota (paso 8) y luego vuelve a invalidar el CCF (paso 9)."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Rechazo local por notas vigentes', function () {",
+									"    pm.expect(pm.response.code).to.eql(400);",
+									"    pm.expect(JSON.stringify(json).toLowerCase()).to.include('pendingadjustmentnotes');",
+									"    pm.expect(JSON.stringify(json)).to.include(pm.environment.get('inv_nc_generation_code') || '');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
 					"name": "8. Invalidar la NC (tipo 2)",
 					"request": {
 						"method": "POST",

@@ -9,7 +9,6 @@ type CommonDTEDocument struct {
 	OtrosDocumentos      []DTEOtherDocument   `json:"otrosDocumentos"`
 	VentaTercero         *DTEThirdPartySale   `json:"ventaTercero"`
 	CuerpoDocumento      []DTEItem            `json:"cuerpoDocumento"`
-	Extension            *DTEExtension        `json:"extension,omitempty"`
 	Apendice             []DTEApendice        `json:"apendice"`
 }
 
@@ -149,15 +148,6 @@ type DTEPayment struct {
 	Referencia *string `json:"referencia"`
 	Plazo      *string `json:"plazo"`
 	Periodo    *int    `json:"periodo"`
-}
-
-type DTEExtension struct {
-	NombreEntrega    string  `json:"nombEntrega"`
-	DocumentoEntrega string  `json:"docuEntrega"`
-	NombreRecibe     string  `json:"nombRecibe"`
-	DocumentoRecibe  string  `json:"docuRecibe"`
-	Observacion      *string `json:"observaciones"`
-	PlacaVehiculo    *string `json:"placaVehiculo"`
 }
 
 type DTEApendice struct {

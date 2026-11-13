@@ -100,21 +100,15 @@ Los `ResponsibleDocType` y `RequesterDocType` deben ser tipos válidos del recep
 
 ### Ventanas Temporales
 
-| Tipo de DTE | Ventana |
-|---|---|
-| `01` (Factura) | 90 días |
-| `11` (Factura Exportación) | 90 días |
-| Todos los demás | 24 horas |
+| Tipo de DTE | Plazo para transmitir la invalidación (contado desde el sello) | Fecha del evento (`fecEmi`/`horEmi`) |
+|---|---|---|
+| FE (`01`), FEXE (`11`), FSE (`14`) | Hasta las 23:59:59 del mismo día, 3 meses después (2 años para FE y FEXE de emisores con actividad 21001, 21008, 46482, 46484, 46491 o 47721) | Fecha y hora actual; no puede superar el mismo periodo contado desde la generación |
+| Resto (`03`, `04`, `05`, `06`, `07`) | Hasta el décimo día hábil del mes siguiente al mes del sello | Misma fecha y hora de generación del documento (la hora actual si se generó hoy) |
 
-### Cálculo
+- La fecha del sello es `processing_date` (`fhProcesamiento`); para documentos antiguos sin ese dato se usa la fecha de registro.
+- Días hábiles: lunes a viernes sin asuetos nacionales fijos, Semana Santa (de Lunes Santo a Lunes de Pascua), ni los asuetos de `MH_EXTRA_HOLIDAYS`.
 
-```
-Para Facturas (01, 11):
-  FechaInvalidación - FechaEmisiónOriginal <= 90 días
-
-Para otros DTEs:
-  FechaInvalidación - FechaEmisiónOriginal <= 24 horas
-```
+Se valida por separado el plazo de transmisión (fecha actual contra la fecha del sello) y la fecha del evento (contra la fecha de generación).
 
 ---
 
@@ -127,5 +121,7 @@ Para otros DTEs:
 | `InvalidDTETypeForInvalidation` | Tipo de DTE no válido |
 | `InvalidEnum` | Tipo de invalidación fuera de rango (1-3) |
 | `InvalidField` | ReplacementCode presente cuando no debe (tipo 2) |
-| `InvalidDateForFEFX` | Factura fuera de ventana de 90 días |
-| `InvalidDateForAllDTE` | DTE fuera de ventana de 24 horas |
+| `InvalidationDeadlineExpired` | Plazo de transmisión vencido |
+| `InvalidationEventDateOutOfRange` | Fecha del evento de FE/FEXE/FSE fuera de periodo |
+| `InvalidationEventDateMismatch` | Fecha del evento distinta a la generación |
+| `MissingStampDate` | No se conoce la fecha del sello |

@@ -335,6 +335,28 @@ func (D *DTERepository) GetByGenerationCode(ctx context.Context, branchID uint, 
 	}, nil
 }
 
+// GetActiveAdjustmentNotes returns the received or pending credit and debit notes registered in the balance
+// control of the given document.
+func (D *DTERepository) GetActiveAdjustmentNotes(ctx context.Context, branchID uint, originalDTE string) ([]string, error) {
+	var notes []string
+
+	result := D.db.WithContext(ctx).
+		Table("dte_balance_transactions AS t").
+		Joins("JOIN dte_balance_control AS c ON c.id = t.balance_control_id").
+		Joins("JOIN dte_details AS d ON d.id = t.adjustment_document_id").
+		Where("c.branch_id = ? AND c.original_dte_id = ?", branchID, originalDTE).
+		Where("d.dte_type IN ?", []string{constants.NotaCreditoElectronica, constants.NotaDebitoElectronica}).
+		Where("d.status IN ?", []string{constants.DocumentReceived, constants.DocumentPending}).
+		Distinct().
+		Order("t.adjustment_document_id").
+		Pluck("t.adjustment_document_id", &notes)
+	if result.Error != nil {
+		return nil, handleGormErr(result.Error, "GetActiveAdjustmentNotes")
+	}
+
+	return notes, nil
+}
+
 func loadFilters(query *gorm.DB, filters *dte.DTEFilters) {
 	if filters.BranchID != 0 {
 		query = query.Where("dte_documents.branch_id = ?", filters.BranchID)

@@ -7,11 +7,14 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	identificationVO "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/invalidation"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"github.com/google/uuid"
 )
 
@@ -47,6 +50,10 @@ func (i *InvalidationMapper) MapToInvalidationData(req *structs.CreateInvalidati
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("InvalidationMapper", "MapToInvalidationData", err, "ErrorMapping", "Invalidation->Identification")
 	}
+
+	eventDateTime := policy.EventDateTime(baseDte.DTEType, document.GenerationDateTime, utils.TimeNow())
+	identification.EmissionDate = *temporal.NewValidatedEmissionDate(eventDateTime)
+	identification.EmissionTime = *temporal.NewValidatedEmissionTime(eventDateTime)
 
 	newUUID := uuid.New().String()
 	identification.GenerationCode = *identificationVO.NewValidatedGenerationCode(strings.ToUpper(newUUID))

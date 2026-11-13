@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	errPackage "github.com/chainedpixel/ordo-factus/config/error"
 	"github.com/spf13/viper"
@@ -175,7 +176,7 @@ func validateServerFields() error {
 		"FORCECONTINGENCY": true,
 		"RUNMIGRATION":     true,
 	}
-	ex := []string{"ADMINEMAIL", "APIVERSION", "NOTIFYCOOLDOWNMINUTES"}
+	ex := []string{"ADMINEMAIL", "APIVERSION", "NOTIFYCOOLDOWNMINUTES", "EXTRAHOLIDAYS"}
 	v := reflect.ValueOf(EnvConfig.Server)
 
 	if err := validateEnvVariables(v, bt, ex); err != nil {
@@ -188,6 +189,16 @@ func validateServerFields() error {
 
 	if EnvConfig.Server.MaxBatchSize <= 0 || EnvConfig.Server.MaxBatchSize > 100 {
 		return fmt.Errorf("MH_MAX_BATCH_SIZE must be between 1 and 100")
+	}
+
+	for _, holiday := range strings.Split(EnvConfig.Server.ExtraHolidays, ",") {
+		holiday = strings.TrimSpace(holiday)
+		if holiday == "" {
+			continue
+		}
+		if _, err := time.Parse("2006-01-02", holiday); err != nil {
+			return fmt.Errorf("MH_EXTRA_HOLIDAYS must be a comma separated list of dates YYYY-MM-DD, got %q", holiday)
+		}
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"regexp"
+	"time"
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
@@ -37,13 +38,32 @@ func (s *RelatedDocsStrategy) Validate() *dte_errors.DTEError {
 		}
 	}
 
+	dteType, generation := s.documentTypeAndGeneration()
 	for _, doc := range s.Document.GetRelatedDocuments() {
 		if err := s.validateRelatedDoc(doc); err != nil {
+			return err
+		}
+		if err := ValidateRelatedDocType(dteType, doc.GetDocumentType()); err != nil {
+			return err
+		}
+		if err := ValidateRelatedDocPeriod(dteType, doc.GetDocumentType(), doc.GetEmissionDate(), generation); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (s *RelatedDocsStrategy) documentTypeAndGeneration() (string, time.Time) {
+	identification := s.Document.GetIdentification()
+	if identification == nil {
+		return "", utils.TimeNow()
+	}
+	generation := identification.GetEmissionDate()
+	if generation.IsZero() {
+		generation = utils.TimeNow()
+	}
+	return identification.GetDTEType(), generation
 }
 
 // validateRelatedDoc validates a related document
@@ -68,7 +88,7 @@ func (s *RelatedDocsStrategy) validateRelatedDoc(doc interfaces.RelatedDocument)
 // validateElectronicDocNumber validates the electronic document number
 func validateElectronicDocNumber(number string, generationType int) *dte_errors.DTEError {
 
-	if generationType == constants.TransmisionContingencia {
+	if generationType == constants.ElectronicDocument {
 		if !isValidUUID(number) {
 			return dte_errors.NewDTEErrorSimple("InvalidRelatedDocNumberContingency", number)
 		}

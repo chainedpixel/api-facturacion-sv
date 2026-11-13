@@ -13,4 +13,5 @@ type ContingencyRepositoryPort interface {
 	GetPending(ctx context.Context, limit int) ([]dte.ContingencyDocument, error)
 	UpdateBatch(ctx context.Context, ids []string, observations []string, results map[string]dte.ReceptionResult, batchID string, mhBatchID string, status string) error
 	GetFirstContingencyTimestamp(ctx context.Context, branchID uint) (*time.Time, error)
+	MarkEventStamped(ctx context.Context, ids []string, stampedAt time.Time) error
 }

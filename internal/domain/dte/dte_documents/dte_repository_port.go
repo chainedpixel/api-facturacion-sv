@@ -17,4 +17,5 @@ type DTERepositoryPort interface {
 	GetTotalCount(ctx context.Context, filters *dte.DTEFilters) (int64, error)
 	GetSummaryStats(ctx context.Context, filters *dte.DTEFilters) (*dte.ListSummary, error)
 	GetPagedDocuments(ctx context.Context, filters *dte.DTEFilters) ([]dte.DTEModelResponse, error)
+	GetActiveAdjustmentNotes(ctx context.Context, branchID uint, originalDTE string) ([]string, error)
 }

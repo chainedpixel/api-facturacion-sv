@@ -65,6 +65,7 @@ Authorization: Bearer <token>
 | `PENDING` | En contingencia pendiente de transmisión a Hacienda |
 | `REJECTED` | Rechazado por Hacienda |
 | `INVALIDATED` | Anulado exitosamente |
+| `EXPIRED` | Generado en contingencia y no transmitido dentro de las 72 horas desde el sello del evento; se considera no emitido |
 
 #### Respuestas de error
 
@@ -110,6 +111,7 @@ Retorna todos los DTEs de la sucursal autenticada, con soporte para filtros y pa
 | `PENDING` | En contingencia, pendientes |
 | `REJECTED` | Rechazados por Hacienda |
 | `INVALIDATED` | Anulados |
+| `EXPIRED` | Contingencia vencida (72 horas) |
 
 **`transmission`** (case-insensitive):
 

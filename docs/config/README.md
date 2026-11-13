@@ -55,6 +55,7 @@ var SMTP      *smtp
 | `ADMIN_EMAIL` | string | No | Email del administrador (destinatario de notificaciones de eventos de dominio) |
 | `API_VERSION` | string | No | Versión de la API mostrada en el footer de los correos (default `3.0.0`) |
 | `NOTIFY_COOLDOWN_MINUTES` | int | No | TTL del cooldown de notificaciones por correo (default `15`) |
+| `MH_EXTRA_HOLIDAYS` | string | No | Asuetos adicionales a los nacionales (`YYYY-MM-DD` separados por comas, p. ej. asuetos locales o decretados). Se excluyen de los días hábiles del plazo de invalidación. Los asuetos nacionales fijos y la Semana Santa (de Lunes Santo a Lunes de Pascua) ya están incluidos |
 | `APP_LANG` | string | Sí | Código de idioma (`"es"`, `"en"`) |
 | `APP_LANG_PATH` | string | Sí | Ruta a archivos de traducción |
 

@@ -76,10 +76,10 @@ Ver estructura en [Factura Electrónica](./invoice.md#receiver--receptor).
 | `total_exempt` | float | Sí | Total exento |
 | `total_taxed` | float | Sí | Total gravado |
 | `sub_total_sales` | float | Sí | Subtotal de ventas |
-| `non_subject_discount` | float | Sí | Descuento no sujeto |
-| `exempt_discount` | float | Sí | Descuento exento |
-| `taxed_discount` | float | Sí | Descuento gravado |
-| `discount_percentage` | float | Sí | Porcentaje de descuento |
+| `non_subject_discount` | float | Sí | Debe ser `0`: las NC/ND no admiten descuentos globales (`GlobalDiscountNotAllowedInAdjustment`) |
+| `exempt_discount` | float | Sí | Debe ser `0` |
+| `taxed_discount` | float | Sí | Debe ser `0` |
+| `discount_percentage` | float | Sí | Debe ser `0`; los descuentos se aplican por ítem |
 | `total_discount` | float | Sí | Total descuentos |
 | `sub_total` | float | Sí | Subtotal neto |
 | `total_operation` | float | Sí | Total de la operación |

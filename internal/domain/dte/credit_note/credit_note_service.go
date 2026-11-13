@@ -98,13 +98,13 @@ func (s *creditNoteService) validateRelatedDocs(ctx context.Context, data *credi
 			return shared_error.NewFormattedGeneralServiceError(
 				"CreditNoteService",
 				"validateRelatedDocs",
-				"DocumentNotReceived",
+				"RelatedDocumentNotReceived",
 				relatedDoc.GetDocumentNumber(),
 				status,
 			)
 		}
 
-		data.RelatedDocs[i].EmissionDate = *temporal.NewValidatedEmissionDate(doc.CreatedAt)
+		data.RelatedDocs[i].EmissionDate = *temporal.NewValidatedEmissionDate(utils.GenerationDateOrDefault(doc.Details.JSONData, doc.CreatedAt))
 		extractor, err := utils.ExtractDTEReceiverFromString(doc.Details.JSONData)
 		if err != nil {
 			return err

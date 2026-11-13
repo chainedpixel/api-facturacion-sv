@@ -34,6 +34,7 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `DocumentRejected` | `"REJECTED"` | Rechazado por Hacienda |
 | `DocumentInvalid` | `"INVALIDATED"` | Invalidado después de ser recibido |
 | `DocumentPending` | `"PENDING"` | Pendiente de transmisión (contingencia) |
+| `DocumentExpired` | `"EXPIRED"` | Contingencia no transmitida dentro de 72 horas desde el sello del evento |
 
 ### Transiciones de Estado
 

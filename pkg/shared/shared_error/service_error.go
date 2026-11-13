@@ -60,7 +60,7 @@ func NewGeneralServiceError(serviceType, op, msg string, err error) *ServiceErro
 }
 
 func NewFormattedGeneralServiceError(serviceType, op, code string, args ...interface{}) *ServiceError {
-	message := config.Translate(fmt.Sprintf("service_errors.%s", strings.ToLower(code)), args)
+	message := config.Translate(fmt.Sprintf("service_errors.%s", strings.ToLower(code)), args...)
 	return &ServiceError{
 		Type:      serviceType,
 		Operation: op,
@@ -70,7 +70,7 @@ func NewFormattedGeneralServiceError(serviceType, op, code string, args ...inter
 }
 
 func NewFormattedGeneralServiceWithError(serviceType, op string, err error, code string, args ...interface{}) *ServiceError {
-	message := config.Translate(fmt.Sprintf("service_errors.%s", strings.ToLower(code)), args)
+	message := config.Translate(fmt.Sprintf("service_errors.%s", strings.ToLower(code)), args...)
 	return &ServiceError{
 		Type:      serviceType,
 		Operation: op,

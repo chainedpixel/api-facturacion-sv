@@ -76,7 +76,8 @@ func TestE2E_Invalidacion(t *testing.T) {
 		if note == nil {
 			t.Fatal("no se pudo emitir la NC")
 		}
-		client.expectInvalidationRejected(t, invalidation{target: ccf, kind: 2, reason: "Intento con nota vigente"})
+		client.expectInvalidationRejected(t, invalidation{target: ccf, kind: 2, reason: "Intento con nota vigente"},
+			"PendingAdjustmentNotes", note.GenerationCode)
 	})
 
 	t.Run("FSE tipo 2", func(t *testing.T) {

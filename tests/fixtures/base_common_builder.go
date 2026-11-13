@@ -1799,6 +1799,9 @@ func (b *DTEBuilder) createInvalidatedDocument() (*invalidation_models.Invalidat
 		Email:          email,
 		Phone:          phone,
 		Name:           &name,
+
+		GenerationDateTime: emissionDate.GetValue(),
+		StampDate:          emissionDate.GetValue(),
 	}, nil
 }
 

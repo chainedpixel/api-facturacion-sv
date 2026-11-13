@@ -231,8 +231,8 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 
 			return dte_errors.NewDTEErrorSimple("InvalidTaxCalculation",
 				tax.GetCode(),
-				actualTax.InexactFloat64(),
-				expectedTax.InexactFloat64())
+				expectedTax.InexactFloat64(),
+				actualTax.InexactFloat64())
 		}
 	}
 
@@ -249,8 +249,8 @@ func (s *CCFTaxStrategy) validatePerception() *dte_errors.DTEError {
 		diff := expectedPerception.Sub(actualPerception).Abs()
 		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 			return dte_errors.NewDTEErrorSimple("InvalidPerceptionAmount",
-				actualPerception.InexactFloat64(),
-				expectedPerception.InexactFloat64())
+				actualPerception.StringFixed(2),
+				expectedPerception.StringFixed(2))
 		}
 	}
 

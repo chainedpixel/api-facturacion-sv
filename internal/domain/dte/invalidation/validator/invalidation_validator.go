@@ -1,9 +1,12 @@
 package validator
 
 import (
+	"time"
+
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/validator/strategy"
 )
 
@@ -12,14 +15,16 @@ type InvalidationRulesValidator struct {
 	strategies []interfaces.DTEValidationStrategy
 }
 
-func NewInvalidationRulesValidator(doc *invalidation_models.InvalidationDocument) *InvalidationRulesValidator {
+// NewInvalidationRulesValidator creates the event rules validator; now is the instant used to evaluate
+// the transmission deadline.
+func NewInvalidationRulesValidator(doc *invalidation_models.InvalidationDocument, deadlines *policy.Deadlines, now time.Time) *InvalidationRulesValidator {
 	validator := &InvalidationRulesValidator{
 		document: doc,
 		strategies: []interfaces.DTEValidationStrategy{
 			&strategy.InvalidationBasicStrategy{Document: doc},
 			&strategy.InvalidationDocumentStrategy{Document: doc},
 			&strategy.InvalidationReasonStrategy{Document: doc},
-			&strategy.InvalidationDateStrategy{Document: doc},
+			&strategy.InvalidationDateStrategy{Document: doc, Deadlines: deadlines, Now: now},
 		},
 	}
 	return validator

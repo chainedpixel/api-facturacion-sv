@@ -19,6 +19,12 @@ func (s *DebitNoteTaxStrategy) Validate() *dte_errors.DTEError {
 		return dte_errors.NewDTEErrorSimple("NullDocument", "DebitNoteTaxStrategy")
 	}
 
+	summary := s.Document.DebitSummary
+	if err := commonStrategy.ValidateNoGlobalDiscounts(summary.NonSubjectDiscount.GetValue(), summary.ExemptDiscount.GetValue(),
+		summary.TaxedDiscount.GetValue(), summary.DiscountPercentage.GetValue()); err != nil {
+		return err
+	}
+
 	validations := []func() *dte_errors.DTEError{
 		s.validateBaseTotals,
 		s.validateDiscounts,
@@ -219,8 +225,8 @@ func (s *DebitNoteTaxStrategy) validatePerception() *dte_errors.DTEError {
 		diff := expectedPerception.Sub(actualPerception).Abs()
 		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 			return dte_errors.NewDTEErrorSimple("InvalidPerceptionAmount",
-				actualPerception.InexactFloat64(),
-				expectedPerception.InexactFloat64())
+				actualPerception.StringFixed(2),
+				expectedPerception.StringFixed(2))
 		}
 	}
 

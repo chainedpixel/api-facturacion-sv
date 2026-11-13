@@ -133,7 +133,12 @@ Se retransmiten los documentos pendientes de contingencia. Este es el método m�
 ### Flujo de Retransmisión
 
 ```
-1. Obtener documentos pendientes (límite configurable)
+1. Obtener documentos pendientes (límite configurable), primero los que ya tienen sello del evento
+   (event_stamped_at más antiguo) y después los que aún no están en un evento
+1.1 Vencidos: si pasaron más de 72 horas desde event_stamped_at, el documento pasa a EXPIRED,
+    no se reintenta y se publica RetransmissionJobFailedEvent (job contingency_72h_expired)
+1.2 Si el documento más antiguo supera 3 días en contingencia, se publica la alerta de
+    Informe Técnico (job contingency_technical_report)
 2. Agrupar documentos por NIT del sistema y tipo de DTE
 3. Por cada grupo (NIT + tipo):
    │
@@ -415,3 +420,4 @@ groupBySystemAndType()
 3. **Agrupamiento por NIT**: El sistema puede manejar múltiples contribuyentes (multi-tenant), por lo que los documentos se agrupan por NIT del emisor.
 4. **Sin intervención manual**: La retransmisión es automática y se ejecuta como proceso de fondo.
 5. **Modelo de facturación diferido**: Los documentos en contingencia usan `ModeloFacturacionDiferido` (modelo 2) en lugar de `ModeloFacturacionPrevio` (modelo 1).
+6. **Plazo de 72 horas**: `contingency_documents.event_stamped_at` guarda la fecha del sello del evento de contingencia (solo la primera vez). Desde ahí corren 72 horas (`contingency.TransmissionWindow`); al vencer, el documento queda `EXPIRED` y se considera no emitido. Los documentos registrados antes de esta columna no tienen fecha y no vencen.

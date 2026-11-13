@@ -58,6 +58,8 @@ func (r *ContingencyRepository) GetPending(ctx context.Context, limit int) ([]dt
 		Joins("JOIN dte_details ON contingency_documents.document_id = dte_details.id").
 		Where("dte_details.status = ?", constants.DocumentPending).
 		Limit(limit).
+		Order("contingency_documents.event_stamped_at IS NULL").
+		Order("contingency_documents.event_stamped_at asc").
 		Order("contingency_documents.created_at asc").
 		Find(&dbDocs).Error
 	if err != nil {
@@ -133,6 +135,21 @@ func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, o
 	return tx.Commit().Error
 }
 
+// MarkEventStamped stores the contingency event stamp date on the given documents, only when it was not set
+// before, so a resent event does not restart the transmission window.
+func (r *ContingencyRepository) MarkEventStamped(ctx context.Context, ids []string, stampedAt time.Time) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Model(&db_models.ContingencyDocument{}).
+		Where("id IN ? AND event_stamped_at IS NULL", ids).
+		Updates(map[string]interface{}{
+			"event_stamped_at": stampedAt,
+			"updated_at":       utils.TimeNow(),
+		}).Error
+}
+
 func (r *ContingencyRepository) GetFirstContingencyTimestamp(ctx context.Context, branchID uint) (*time.Time, error) {
 	var doc db_models.ContingencyDocument
 
@@ -174,6 +191,8 @@ func convertToDomainModel(doc *db_models.ContingencyDocument) dte.ContingencyDoc
 		DocumentID:      doc.DocumentID,
 		ContingencyType: doc.ContingencyType,
 		Reason:          doc.Reason,
+		EventStampedAt:  doc.EventStampedAt,
+		CreatedAt:       doc.CreatedAt,
 		Document:        document,
 		Branch: &user.BranchOffice{
 			User: &user.User{

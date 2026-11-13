@@ -104,11 +104,23 @@ func TestInvalidationServiceValidate(t *testing.T) {
 
 				oldDate, _ := temporal.NewEmissionDate(time.Now().AddDate(0, -6, 0))
 				doc.Document.EmissionDate = *oldDate
+				doc.Document.StampDate = oldDate.GetValue()
+				doc.Document.GenerationDateTime = oldDate.GetValue()
 
 				return doc, nil
 			},
 			wantErr:   true,
-			errorCode: "InvalidDateForFEFX",
+			errorCode: "InvalidationDeadlineExpired",
+		},
+		{
+			name: "Error - Invalidation without Stamp Date",
+			setupInvalidation: func() (*invalidation_models.InvalidationDocument, error) {
+				doc, _ := fixtures.BuildInvalidationWithReplacement()
+				doc.Document.StampDate = time.Time{}
+				return doc, nil
+			},
+			wantErr:   true,
+			errorCode: "MissingStampDate",
 		},
 		{
 			name: "Error - Invalidation with Invalid Reception Stamp",
@@ -146,7 +158,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDTEManager := mocks.NewMockDTEManager(ctrl)
-			service := invalidation.NewInvalidationService(mockDTEManager)
+			service := invalidation.NewInvalidationService(mockDTEManager, nil)
 
 			err = service.Validate(context.Background(), 1, invalidationDoc)
 
@@ -343,7 +355,7 @@ func TestInvalidationServiceValidateStatus(t *testing.T) {
 			mockDTEManager := mocks.NewMockDTEManager(ctrl)
 			tt.setupMock(mockDTEManager)
 
-			service := invalidation.NewInvalidationService(mockDTEManager)
+			service := invalidation.NewInvalidationService(mockDTEManager, nil)
 
 			err := service.ValidateStatus(context.Background(), 1, request)
 
@@ -423,7 +435,7 @@ func TestInvalidationServiceInvalidateDocument(t *testing.T) {
 			mockDTEManager := mocks.NewMockDTEManager(ctrl)
 			tt.setupMock(mockDTEManager)
 
-			service := invalidation.NewInvalidationService(mockDTEManager)
+			service := invalidation.NewInvalidationService(mockDTEManager, nil)
 
 			err := service.InvalidateDocument(context.Background(), 1, "DTE-01-00000001-000000000000001")
 

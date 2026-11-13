@@ -92,7 +92,7 @@ PrepareAndSendContingencyEvent(ctx, docs)
   ├── [5] Firmar y enviar evento
   │     httpSvc.SignAndSend(ctx, event, nit, token)
   │     │
-  │     ├── Éxito → return nil
+  │     ├── Éxito → registrar evento y repo.MarkEventStamped(ids, fecha del sello) → return nil
   │     └── Duplicado → return ContingencyEventExistsError
   │
   └── [6] Retornar resultado

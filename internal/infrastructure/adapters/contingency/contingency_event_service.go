@@ -176,6 +176,24 @@ func (s *ContingencyEventService) registerEvent(ctx context.Context, event *mode
 	}
 }
 
+func (s *ContingencyEventService) markDocumentsStamped(ctx context.Context, docs []dte.ContingencyDocument, evidence *dte.TransmissionEvidence) {
+	stampedAt := s.timeProvider.Now()
+	if evidence != nil {
+		if processed, ok := utils.ParseProcessingDate(evidence.ProcessingDate); ok {
+			stampedAt = processed
+		}
+	}
+
+	ids := make([]string, len(docs))
+	for i, doc := range docs {
+		ids[i] = doc.ID
+	}
+
+	if err := s.repo.MarkEventStamped(ctx, ids, stampedAt); err != nil {
+		logs.Error("Failed to store contingency event stamp date", map[string]interface{}{"error": err.Error()})
+	}
+}
+
 func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, docs []dte.ContingencyDocument) error {
 	client, err := s.authManager.GetByNIT(ctx, event.Issuer.NIT)
 	if err != nil {
@@ -194,6 +212,7 @@ func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, even
 
 	if !isDuplicate {
 		s.registerEvent(ctx, event, branchID, evidence)
+		s.markDocumentsStamped(ctx, docs, evidence)
 	}
 
 	if isDuplicate {

@@ -162,12 +162,13 @@ Content-Type: application/json
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `document_type` | string | Sí | Tipo de DTE relacionado |
-| `generation_type` | integer | Sí | `1`=Normal (número ≤ 20 chars), `2`=Contingencia (UUID) |
+| `document_type` | string | Sí | Tipo de DTE relacionado: NR `04`, CL `08` o DCL `09` |
+| `generation_type` | integer | Sí | `1`=Físico (número ≤ 20 chars), `2`=Electrónico (UUID) |
 | `document_number` | string | Sí | Número del documento relacionado |
-| `emission_date` | string | Sí | Fecha de emisión (`YYYY-MM-DD`, no puede ser futura) |
+| `emission_date` | string | Sí | Fecha de generación (`YYYY-MM-DD`, no puede ser futura) |
 
 > **Regla:** Si se envían `related_docs`, **todos los ítems** deben tener el campo `related_doc` apuntando a uno de los documentos listados.
+> **Regla:** El documento debe generarse en el mismo periodo tributario de la NR relacionada o, a más tardar, dentro de los 3 días siguientes a ese periodo; con un DCL, en el mismo periodo (`RelatedDocOutOfPeriod`). Aplica igual al CCF.
 
 ---
 

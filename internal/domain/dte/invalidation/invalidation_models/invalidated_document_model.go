@@ -1,6 +1,8 @@
 package invalidation_models
 
 import (
+	"time"
+
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
@@ -21,4 +23,8 @@ type InvalidatedDocument struct {
 	ReplacementCode *identification.GenerationCode `json:"replacementCode,omitempty"`
 	IVAAmount       *financial.Amount              `json:"IVAAmount,omitempty"`
 	Phone           *base.Phone                    `json:"phone,omitempty"`
+
+	GenerationDateTime time.Time `json:"-"`
+	StampDate          time.Time `json:"-"`
+	IssuerActivity     string    `json:"-"`
 }

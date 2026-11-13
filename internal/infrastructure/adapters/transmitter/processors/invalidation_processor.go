@@ -10,7 +10,7 @@ import (
 type InvalidationProcessor struct{}
 
 func (p *InvalidationProcessor) ProcessRequest(signedDoc string, document interface{}) (*models2.HaciendaRequest, error) {
-	version, dteType, generationCode, sequenceNumber, err := GetDocumentRequestData(document)
+	version, _, _, sequenceNumber, err := GetDocumentRequestData(document)
 	if err != nil {
 		logs.Error("Failed to get document request data", map[string]interface{}{
 			"error": err.Error(),
@@ -19,13 +19,11 @@ func (p *InvalidationProcessor) ProcessRequest(signedDoc string, document interf
 	}
 
 	return &models2.HaciendaRequest{
-		Ambient:        config.Server.AmbientCode,
-		SendID:         sequenceNumber,
-		Version:        version,
-		Document:       signedDoc,
-		DTEType:        dteType,
-		GenerationCode: generationCode,
-		URL:            config.MHPaths.NullifyURL,
+		Ambient:  config.Server.AmbientCode,
+		SendID:   sequenceNumber,
+		Version:  version,
+		Document: signedDoc,
+		URL:      config.MHPaths.NullifyURL,
 	}, nil
 }
 

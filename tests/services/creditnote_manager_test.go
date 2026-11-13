@@ -375,7 +375,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 				).Return(constants.DocumentRejected, nil)
 			},
 			wantErr:   true,
-			errorCode: "DocumentNotReceived",
+			errorCode: "RelatedDocumentNotReceived",
 		},
 		{
 			name: "Error - CreditNote with NIT mismatch in related document",
@@ -827,7 +827,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 			errorCode: "InvalidTaxRulesCCF",
 		},
 		{
-			name: "Error - CreditNote with invalid discount exceeding subtotal",
+			name: "Error - CreditNote with global discount",
 			setupCreditNoteData: func() (*credit_note_models.CreditNoteInput, error) {
 				creditNote, err := fixtures.BuildValidCreditNote()
 				if err != nil {
@@ -865,7 +865,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
-			errorCode: "DiscountExceedsSubtotal",
+			errorCode: "GlobalDiscountNotAllowedInAdjustment",
 		},
 		{
 			name: "Error - CreditNote with inconsistent total taxed",

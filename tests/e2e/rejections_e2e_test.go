@@ -189,6 +189,11 @@ func TestE2E_RechazosEsperados(t *testing.T) {
 			req.Summary.TotalOperation = 40.00
 			client.expectRejected(t, "/dte/creditnote", req, "InvalidTotalOperation")
 		})
+		t.Run("NC con descuento global", func(t *testing.T) {
+			req := validNote()
+			req.Summary.TaxedDiscount = 5.00
+			client.expectRejected(t, "/dte/creditnote", req, "GlobalDiscountNotAllowedInAdjustment")
+		})
 		t.Run("NC sobre un CCF que no existe", func(t *testing.T) {
 			req := validNote()
 			req.RelatedDocs[0].DocumentNumber = "00000000-0000-4000-8000-000000000000"

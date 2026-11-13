@@ -20,6 +20,12 @@ func (s *CreditNoteTaxStrategy) Validate() *dte_errors.DTEError {
 		return nil
 	}
 
+	summary := s.Document.CreditSummary
+	if err := commonStrategy.ValidateNoGlobalDiscounts(summary.NonSubjectDiscount.GetValue(), summary.ExemptDiscount.GetValue(),
+		summary.TaxedDiscount.GetValue(), summary.DiscountPercentage.GetValue()); err != nil {
+		return err
+	}
+
 	if err := s.validateBaseTotals(); err != nil {
 		logs.Error("Error validating base totals")
 		return err

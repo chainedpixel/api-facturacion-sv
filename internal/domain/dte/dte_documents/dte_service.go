@@ -33,6 +33,16 @@ func (m *DTEService) RegisterEvent(ctx context.Context, event *dte.DTEEvent) err
 	return nil
 }
 
+// GetActiveAdjustmentNotes returns the generation codes of the received or pending credit and debit notes
+// that adjust the given document.
+func (m *DTEService) GetActiveAdjustmentNotes(ctx context.Context, branchID uint, originalDTE string) ([]string, error) {
+	notes, err := m.repo.GetActiveAdjustmentNotes(ctx, branchID, originalDTE)
+	if err != nil {
+		return nil, shared_error.NewFormattedGeneralServiceWithError("DTEService", "GetActiveAdjustmentNotes", err, "FailedToGetDTE", originalDTE)
+	}
+	return notes, nil
+}
+
 // GetArchive devuelve el Archivo DTE de un documento: estructura firmada + firmaElectronica + selloRecibido.
 // Los documentos emitidos antes de guardar el JWS no tienen Archivo DTE disponible.
 func (m *DTEService) GetArchive(ctx context.Context, branchID uint, generationCode string) (json.RawMessage, error) {

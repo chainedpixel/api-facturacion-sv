@@ -68,6 +68,8 @@ CreateInvalidationRequest
   ▼
 [4] Cargar documento original
   │   dteManager.GetByGenerationCode(ctx, branchID, request.GenerationCode)
+  │   invalidationManager.ValidateDependencies(ctx, branchID, originalDTE)
+  │   └── CCF o CR con NC/ND vigentes → PendingAdjustmentNotes (lista de notas a invalidar primero)
   │
   ▼
 [5] Cargar información del emisor
@@ -76,6 +78,8 @@ CreateInvalidationRequest
   ▼
 [6] Mapear a modelo de dominio de invalidación
   │   mapper.MapToInvalidationData(&request, issuer, originalDTE.Details, originalDTE.CreatedAt)
+  │   ├── Fecha de generación y del sello: fecEmi/horEmi y processing_date del DTE (CreatedAt como respaldo)
+  │   └── Fecha del evento: actual para FE/FEXE/FSE; la de generación para el resto (policy.EventDateTime)
   │
   ▼
 [7] Validar documento de invalidación completo

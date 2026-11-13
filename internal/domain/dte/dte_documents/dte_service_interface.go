@@ -22,4 +22,5 @@ type DTEManager interface {
 	RegisterEvent(ctx context.Context, event *dte.DTEEvent) error
 	GetArchive(ctx context.Context, branchID uint, generationCode string) (json.RawMessage, error)
 	GetEvents(ctx context.Context, branchID uint, generationCode string) ([]dte.EventArchiveResponse, error)
+	GetActiveAdjustmentNotes(ctx context.Context, branchID uint, originalDTE string) ([]string, error)
 }

@@ -91,6 +91,15 @@ func (s *contingencyDocumentSvc) updateStatus(ctx context.Context, branchID uint
 	return s.dteManager.UpdateDTE(ctx, branchID, updatedDoc)
 }
 
+func (s *contingencyDocumentSvc) markExpired(ctx context.Context, ids []string, observations []string) {
+	if err := s.repo.UpdateBatch(ctx, ids, observations, nil, "expired", "", constants.DocumentExpired); err != nil {
+		logs.Error("Failed to mark contingency documents as expired", map[string]interface{}{
+			"error": err.Error(),
+			"count": len(ids),
+		})
+	}
+}
+
 // markContingencyBatchVerified marks a batch of contingency records with the verified status
 // and their reception stamps so that the records are not left without tracking information.
 func (s *contingencyDocumentSvc) markContingencyBatchVerified(ctx context.Context, ids []string, results map[string]dte.ReceptionResult, status string) {

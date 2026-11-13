@@ -13,12 +13,14 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/notification"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/calendar"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention"
@@ -100,7 +102,7 @@ func (c *ServicesContainer) Initialize() error {
 	c.sequentialManager = dte_documents.NewSequentialNumberService(c.repos.SequentialNumberRepo(), c.repos.AuthRepo(), c.repos.ReservedSequenceRepo())
 	c.invoiceManager = invoice.NewInvoiceService(c.sequentialManager)
 	c.ccfManager = ccf.NewCCFService(c.sequentialManager)
-	c.invalidationManager = invalidation.NewInvalidationService(c.dteManager)
+	c.invalidationManager = invalidation.NewInvalidationService(c.dteManager, newInvalidationDeadlines())
 	c.retentionManager = retention.NewRetentionService(c.sequentialManager, c.dteManager)
 	c.creditNoteManager = credit_note.NewCreditNoteService(c.sequentialManager, c.dteManager)
 	c.remissionNoteManager = remission_note.NewRemissionNoteService(c.sequentialManager, c.dteManager)
@@ -307,4 +309,12 @@ func (c *ServicesContainer) Mailer() notification.Mailer {
 
 func (c *ServicesContainer) MailRenderer() *adapterEmail.TemplateRenderer {
 	return c.mailRenderer
+}
+
+func newInvalidationDeadlines() *policy.Deadlines {
+	holidays, err := calendar.ParseHolidays(config.Server.ExtraHolidays)
+	if err != nil {
+		holidays = nil
+	}
+	return policy.NewDeadlines(calendar.NewBusinessCalendar(holidays))
 }

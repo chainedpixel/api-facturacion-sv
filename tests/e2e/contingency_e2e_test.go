@@ -90,6 +90,11 @@ func contingencyPhaseTwo(t *testing.T) {
 	for len(pending) > 0 && time.Now().Before(deadline) {
 		for code := range pending {
 			stamp, status := client.consultStatus(t, code)
+			if status == "EXPIRED" {
+				t.Errorf("el documento %s vencio (EXPIRED): no se transmitio dentro de las 72 horas del evento", code)
+				delete(pending, code)
+				continue
+			}
 			if stamp != "" {
 				t.Logf("SELLO tras contingencia %s | %s | estado %s", stamp, code, status)
 				// El JWS del lote se guarda al firmar: el documento debe tener su Archivo DTE

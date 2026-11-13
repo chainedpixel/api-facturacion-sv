@@ -150,6 +150,8 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 		return b
 	}
 	b.document.Document.EmissionDate = *emissionDate
+	b.document.Document.GenerationDateTime = emissionDate.GetValue()
+	b.document.Document.StampDate = emissionDate.GetValue()
 
 	ivaAmount, err := financial.NewAmount(13.00)
 	if err != nil {

@@ -231,8 +231,9 @@ if err = u.invalidationManager.Validate(ctx, claims.BranchID, invalidationDocume
 ```
 
 El servicio de dominio aplica las reglas de negocio:
-- Para facturas electrónicas (tipo 01): la solicitud de invalidación debe estar dentro de los 90 días de la emisión
-- Para otros tipos de DTE: la invalidación debe estar dentro de las 24 horas de la emisión
+- Antes de mapear, `ValidateDependencies` rechaza un CCF o CR con NC/ND vigentes (`PendingAdjustmentNotes`)
+- FE, FEXE y FSE: plazo de 3 meses desde el sello; la fecha del evento es la actual
+- Resto de DTE: plazo hasta el décimo día hábil del mes siguiente al sello; la fecha del evento es la de generación del documento
 
 **Paso 8 — Mapear al formato Hacienda**
 

@@ -2,11 +2,13 @@ package invalidation
 
 import (
 	"context"
+	"strings"
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/validator"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
@@ -15,15 +17,19 @@ import (
 )
 
 type invalidationService struct {
-	validator  *validator.InvalidationRulesValidator
 	dteManager dte_documents.DTEManager
+	deadlines  *policy.Deadlines
 }
 
-// NewInvalidationService creates a new instance of InvalidationManager
-func NewInvalidationService(dteManager dte_documents.DTEManager) InvalidationManager {
+// NewInvalidationService creates a new instance of InvalidationManager; a nil deadlines calculator uses
+// national holidays only.
+func NewInvalidationService(dteManager dte_documents.DTEManager, deadlines *policy.Deadlines) InvalidationManager {
+	if deadlines == nil {
+		deadlines = policy.NewDeadlines(nil)
+	}
 	return &invalidationService{
-		validator:  validator.NewInvalidationRulesValidator(nil),
 		dteManager: dteManager,
+		deadlines:  deadlines,
 	}
 }
 
@@ -52,9 +58,28 @@ func (s *invalidationService) InvalidateDocument(ctx context.Context, branchID u
 }
 
 func (s *invalidationService) Validate(ctx context.Context, branchID uint, document *invalidation_models.InvalidationDocument) error {
-	s.validator = validator.NewInvalidationRulesValidator(document)
-	if err := s.validator.Validate(); err != nil {
+	if err := validator.NewInvalidationRulesValidator(document, s.deadlines, utils.TimeNow()).Validate(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ValidateDependencies rejects the invalidation of a CCF or CR that still has active credit or debit notes,
+// listing them so the consumer invalidates each note first. Notes are never invalidated automatically.
+func (s *invalidationService) ValidateDependencies(ctx context.Context, branchID uint, doc *dte.DTEDocument) error {
+	if doc == nil || doc.Details == nil || !constants.ValidAdjustmentDTETypes[doc.Details.DTEType] {
+		return nil
+	}
+
+	notes, err := s.dteManager.GetActiveAdjustmentNotes(ctx, branchID, doc.Details.ID)
+	if err != nil {
+		return err
+	}
+
+	if len(notes) > 0 {
+		return shared_error.NewFormattedGeneralServiceError("InvalidationService", "ValidateDependencies",
+			"PendingAdjustmentNotes", doc.Details.ID, strings.Join(notes, ", "))
 	}
 
 	return nil

@@ -99,10 +99,13 @@ func (s *ContingencyService) RetransmitPendingDocuments(ctx context.Context) err
 		return shared_error.NewGeneralServiceError("ContingencyService", "RetransmitPendingDocuments", "failed to get pending documents", err)
 	}
 
+	pendingDocs = s.expireOverdueDocuments(ctx, pendingDocs)
 	if len(pendingDocs) == 0 {
 		logs.Info("No pending documents found")
 		return nil
 	}
+
+	s.alertLongContingency(pendingDocs)
 
 	docsBySystemAndType := groupBySystemAndType(pendingDocs)
 
@@ -143,6 +146,86 @@ func (s *ContingencyService) RetransmitPendingDocuments(ctx context.Context) err
 	}
 
 	return nil
+}
+
+func (s *ContingencyService) expireOverdueDocuments(ctx context.Context, docs []dte.ContingencyDocument) []dte.ContingencyDocument {
+	now := s.now()
+	valid := make([]dte.ContingencyDocument, 0, len(docs))
+	var expiredIDs, observations []string
+	var expiredSummary []event.RejectedDocSummary
+
+	for _, doc := range docs {
+		if !IsContingencyWindowExpired(doc.EventStampedAt, now) {
+			valid = append(valid, doc)
+			continue
+		}
+		observation := fmt.Sprintf("Not transmitted within 72 hours after the contingency event stamp (%s)",
+			doc.EventStampedAt.Format("2006-01-02 15:04:05"))
+		expiredIDs = append(expiredIDs, doc.ID)
+		observations = append(observations, observation)
+		expiredSummary = append(expiredSummary, event.RejectedDocSummary{
+			ControlNumber: controlNumberOf(doc),
+			ErrorCode:     ContingencyExpiredCode,
+			Description:   observation,
+		})
+	}
+
+	if len(expiredIDs) == 0 {
+		return valid
+	}
+
+	s.docSvc.markExpired(ctx, expiredIDs, observations)
+	logs.Error("Contingency documents expired after 72 hours", map[string]interface{}{"count": len(expiredIDs)})
+	s.publishAlert(ctx, "contingency_72h_expired", expiredSummary,
+		"Contingency documents were not transmitted within 72 hours after the contingency event stamp and are considered not issued")
+
+	return valid
+}
+
+func (s *ContingencyService) alertLongContingency(docs []dte.ContingencyDocument) {
+	oldest := s.now()
+	for _, doc := range docs {
+		if !doc.CreatedAt.IsZero() && doc.CreatedAt.Before(oldest) {
+			oldest = doc.CreatedAt
+		}
+	}
+
+	if s.now().Sub(oldest) <= TechnicalReportThreshold {
+		return
+	}
+
+	logs.Warn("Contingency longer than 3 days: technical report required", map[string]interface{}{
+		"since": oldest.Format(time.RFC3339),
+	})
+	s.publishAlert(context.Background(), "contingency_technical_report", nil,
+		fmt.Sprintf("Contingency started on %s and exceeds 3 days: a technical contingency report is required before transmitting the event",
+			oldest.Format("2006-01-02 15:04:05")))
+}
+
+func (s *ContingencyService) publishAlert(ctx context.Context, jobName string, docs []event.RejectedDocSummary, message string) {
+	if s.bus == nil {
+		return
+	}
+	s.bus.Publish(ctx, event.RetransmissionJobFailedEvent{
+		JobName:         jobName,
+		FailedDocuments: docs,
+		LastError:       message,
+		OccurredAtTime:  s.now(),
+	})
+}
+
+func (s *ContingencyService) now() time.Time {
+	if s.timeProvider != nil {
+		return s.timeProvider.Now()
+	}
+	return time.Now()
+}
+
+func controlNumberOf(doc dte.ContingencyDocument) string {
+	if doc.Document != nil {
+		return doc.Document.ControlNumber
+	}
+	return doc.DocumentID
 }
 
 func (s *ContingencyService) processSystemDocumentsByType(ctx context.Context, systemNIT string, dteType string, docs []dte.ContingencyDocument) error {

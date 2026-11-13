@@ -201,17 +201,19 @@ type InvalidationReason struct {
 
 ## Restricciones Temporales
 
-### Para Facturas e Facturas de Exportación (DTE 01, 11)
+Calculadas por `internal/domain/dte/invalidation/policy` con el calendario de `internal/domain/dte/common/calendar`:
 
-```
-Invalidación válida si: FechaInvalidación - FechaEmisión <= 90 días
-```
+| Tipo de DTE | Plazo para transmitir la invalidación (contado desde el sello) | Fecha del evento (`fecEmi`/`horEmi`) |
+|---|---|---|
+| FE (`01`), FEXE (`11`), FSE (`14`) | Hasta las 23:59:59 del mismo día, 3 meses después (2 años para FE y FEXE de emisores con actividad 21001, 21008, 46482, 46484, 46491 o 47721) | Fecha y hora actual; no puede superar el mismo periodo contado desde la generación |
+| Resto (`03`, `04`, `05`, `06`, `07`) | Hasta el décimo día hábil del mes siguiente al mes del sello | Misma fecha y hora de generación del documento (la hora actual si se generó hoy) |
 
-### Para Todos los Demás DTEs
+- La fecha del sello es `processing_date` (`fhProcesamiento`); para documentos antiguos sin ese dato se usa la fecha de registro.
+- Días hábiles: lunes a viernes sin asuetos nacionales fijos, Semana Santa (de Lunes Santo a Lunes de Pascua), ni los asuetos de `MH_EXTRA_HOLIDAYS`.
 
-```
-Invalidación válida si: FechaInvalidación - FechaEmisión <= 24 horas
-```
+## Dependencias
+
+`ValidateDependencies` consulta `DTEManager.GetActiveAdjustmentNotes`: si un CCF o CR tiene NC/ND en estado `RECEIVED` o `PENDING`, la invalidación se rechaza con `PendingAdjustmentNotes` y la lista de códigos. No se encadenan invalidaciones.
 
 ---
 
@@ -252,6 +254,7 @@ InvalidationUseCase (Application Layer)
   ├── 2. invalidationService.Validate()         ← Validar estructura
   ├── 3. invalidationService.ValidateStatus()    ← Validar estados
   ├── 4. Cargar documento original
+  ├── 4.1 invalidationService.ValidateDependencies() ← NC/ND vigentes de un CCF o CR
   ├── 5. Cargar info del emisor
   ├── 6. Mapear a modelo de dominio
   ├── 7. Validar documento completo
@@ -280,8 +283,12 @@ InvalidationUseCase (Application Layer)
 | `InvalidPattern` | Sello de recepción con formato inválido |
 | `InvalidDTETypeForInvalidation` | Tipo de DTE no válido para invalidación |
 | `InvalidEnum` | Tipo de invalidación fuera de rango (1-3) |
-| `InvalidDateForFEFX` | Factura fuera de ventana de 90 días |
-| `InvalidDateForAllDTE` | DTE fuera de ventana de 24 horas |
+| `InvalidationDeadlineExpired` | Plazo de transmisión vencido |
+| `InvalidationEventDateOutOfRange` | Fecha del evento de FE/FEXE/FSE fuera del periodo desde la generación |
+| `InvalidationEventDateMismatch` | Fecha del evento distinta a la generación (resto de DTE) |
+| `MissingStampDate` | No se conoce la fecha del sello |
+| `DocumentWithoutStamp` | El documento no tiene sello de recepción |
+| `PendingAdjustmentNotes` | CCF o CR con NC/ND vigentes |
 
 ---
 
@@ -300,5 +307,5 @@ InvalidationUseCase (Application Layer)
 1. **Sin contingencia**: Las invalidaciones no entran en modo contingencia. Si falla la comunicación con Hacienda, se retorna error directo.
 2. **Balance reversal**: La invalidación de notas de crédito/débito tiene efecto cascada en el balance del documento original.
 3. **Idempotencia**: Se previene la doble invalidación verificando el estado actual.
-4. **Ventanas temporales**: Considerar que las facturas tienen 90 días pero los demás DTEs solo 24 horas para invalidar.
+4. **Ventanas temporales**: FE, FEXE y FSE tienen 3 meses desde el sello; el resto, hasta el décimo día hábil del mes siguiente al sello.
 5. **Responsable y solicitante**: Ambos campos son obligatorios y deben incluir nombre, tipo y número de documento.

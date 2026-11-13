@@ -65,9 +65,20 @@ Content-Type: application/json
 | `reason.requestor_name` | No vacío |
 | `replacement_generation_code` | **Obligatorio** para tipos `1` y `3`; **prohibido** para tipo `2` |
 | `reason.reason_field` | **Obligatorio** para tipo `3`; opcional para `1` y `2` |
-| El DTE referenciado | Debe existir y estar en estado válido (no ya anulado ni rechazado) |
-| Fecha límite — Factura Electrónica (`01`) | Se puede anular hasta **90 días** después de la fecha de emisión |
-| Fecha límite — Resto de DTEs | Se puede anular hasta **24 horas** después de la fecha de emisión |
+| El DTE referenciado | Debe existir, tener sello de recepción y estar en estado válido (no ya anulado ni rechazado) |
+| CCF o CR con notas vigentes | Se rechaza con `PendingAdjustmentNotes`, que lista las NC/ND recibidas o pendientes que lo ajustan. El consumidor invalida cada nota y luego vuelve a solicitar la invalidación del CCF o CR; el microservicio no invalida notas automáticamente |
+
+### Plazos y fecha del evento
+
+| Tipo de DTE | Plazo para transmitir la invalidación (contado desde el sello) | Fecha del evento (`fecEmi`/`horEmi`) |
+|---|---|---|
+| FE (`01`), FEXE (`11`), FSE (`14`) | Hasta las 23:59:59 del mismo día, 3 meses después (2 años para FE y FEXE de emisores con actividad 21001, 21008, 46482, 46484, 46491 o 47721) | Fecha y hora actual; no puede superar el mismo periodo contado desde la generación |
+| Resto (`03`, `04`, `05`, `06`, `07`) | Hasta el décimo día hábil del mes siguiente al mes del sello | Misma fecha y hora de generación del documento (la hora actual si se generó hoy) |
+
+- La fecha del sello es `processing_date` (`fhProcesamiento`); para documentos antiguos sin ese dato se usa la fecha de registro.
+- Días hábiles: lunes a viernes sin asuetos nacionales fijos, Semana Santa (de Lunes Santo a Lunes de Pascua), ni los asuetos de `MH_EXTRA_HOLIDAYS`.
+
+Errores: `InvalidationDeadlineExpired` (plazo vencido), `InvalidationEventDateOutOfRange`, `InvalidationEventDateMismatch`, `MissingStampDate`, `DocumentWithoutStamp`, `PendingAdjustmentNotes`.
 
 ---
 

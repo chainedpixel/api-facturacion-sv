@@ -25,6 +25,7 @@ type server struct {
 	AppLangPath           string `map-structure:"APP_LANG_PATH"`
 	APIVersion            string `map-structure:"API_VERSION"`
 	NotifyCooldownMinutes int    `map-structure:"NOTIFY_COOLDOWN_MINUTES"`
+	ExtraHolidays         string `map-structure:"MH_EXTRA_HOLIDAYS"`
 }
 
 // smtp is a struct that holds the SMTP configuration

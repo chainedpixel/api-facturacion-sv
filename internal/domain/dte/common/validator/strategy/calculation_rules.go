@@ -71,6 +71,27 @@ func ValidateTotalOperation(subTotal float64, taxes []interfaces.Tax, declared f
 	return nil
 }
 
+// ValidateNoGlobalDiscounts rejects global discounts and discount percentage in credit and debit notes,
+// whose schema has no such fields. Item discounts remain allowed.
+func ValidateNoGlobalDiscounts(nonSubjectDiscount, exemptDiscount, taxedDiscount, discountPercentage float64) *dte_errors.DTEError {
+	discounts := []struct {
+		field string
+		value float64
+	}{
+		{"non_subject_discount", nonSubjectDiscount},
+		{"exempt_discount", exemptDiscount},
+		{"taxed_discount", taxedDiscount},
+		{"discount_percentage", discountPercentage},
+	}
+
+	for _, discount := range discounts {
+		if discount.value != 0 {
+			return dte_errors.NewDTEErrorSimple("GlobalDiscountNotAllowedInAdjustment", discount.field)
+		}
+	}
+	return nil
+}
+
 // AdjustmentTotals contiene los montos del resumen de una NCE o NDE que intervienen en los campos 150 y 153
 type AdjustmentTotals struct {
 	SubTotalSales   float64
