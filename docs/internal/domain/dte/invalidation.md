@@ -78,7 +78,7 @@ func (s *invalidationService) ValidateStatus(
 ) error
 ```
 
-Se consulta con `DTEManager.VerifyStatus` el estado del documento a invalidar y, si el tipo de invalidación no es `2` y se envió un código de reemplazo, el estado del documento de reemplazo. Solo los estados listados abajo producen error; cualquier otro estado (`RECEIVED`, `EXPIRED`) no se rechaza en este paso.
+Se consulta con `DTEManager.VerifyStatus` el estado del documento a invalidar y, si el tipo de invalidación no es `2` y se envió un código de reemplazo, el estado del documento de reemplazo. Solo los estados listados abajo producen error; cualquier otro estado (por ejemplo `RECEIVED`) no se rechaza en este paso.
 
 #### Mapeo de Estados a Errores
 
@@ -87,6 +87,7 @@ Se consulta con `DTEManager.VerifyStatus` el estado del documento a invalidar y,
 | `INVALIDATED` | `DocumentAlreadyInvalid` |
 | `REJECTED` | `DocumentReject` |
 | `PENDING` | `DocumentPending` |
+| `EXPIRED` | `DocumentExpired` |
 | Otros | Sin error |
 
 ### `ValidateDependencies`
@@ -218,7 +219,7 @@ El código de reemplazo no forma parte de `InvalidationReason`: se ubica en `Inv
 
 ### Reglas por Tipo
 
-- **Tipo 1 (Reemplazo)**: Se requiere el código del documento de reemplazo, salvo que el documento invalidado sea una Nota de Crédito (`05`) o un Comprobante de Liquidación (`08`) (Anexo V, campo `codigoGeneracionR`), para los cuales debe ser nulo. Si se envía, su estado se consulta en `ValidateStatus` y se rechaza si es `INVALIDATED`, `REJECTED` o `PENDING`.
+- **Tipo 1 (Reemplazo)**: Se requiere el código del documento de reemplazo, salvo que el documento invalidado sea una Nota de Crédito (`05`) o un Comprobante de Liquidación (`08`) (Anexo V, campo `codigoGeneracionR`), para los cuales debe ser nulo. Si se envía, su estado se consulta en `ValidateStatus` y se rechaza si es `INVALIDATED`, `REJECTED`, `PENDING` o `EXPIRED`.
 - **Tipo 2 (Anulación)**: No debe tener código de reemplazo.
 - **Tipo 3 (Otro)**: Se requiere el campo `Reason` explicando el motivo, y el código de reemplazo (con la misma excepción para `05` y `08`).
 - La regla del código de reemplazo para los tipos 1 y 3 la evalúa `InvalidationReasonStrategy` con `policy.RequiresReplacement(dteType)`: si se requiere y falta, `InvalidReplacementCode1And3`; si no se requiere (NC `05` o CLE `08`) y se envía, `ReplacementCodeNotAllowedForType`; el tipo 2 con código de reemplazo devuelve `InvalidInvalidationType2`.

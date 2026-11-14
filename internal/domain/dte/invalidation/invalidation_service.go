@@ -177,6 +177,8 @@ func (s *invalidationService) handleError(status, message string) error {
 		return shared_error.NewFormattedGeneralServiceError("InvalidationService", "InvalidateDocument", "DocumentReject", message)
 	case constants.DocumentPending:
 		return shared_error.NewFormattedGeneralServiceError("InvalidationService", "InvalidateDocument", "DocumentPending", message)
+	case constants.DocumentExpired:
+		return shared_error.NewFormattedGeneralServiceError("InvalidationService", "InvalidateDocument", "DocumentExpired", message)
 	default:
 		return nil
 	}

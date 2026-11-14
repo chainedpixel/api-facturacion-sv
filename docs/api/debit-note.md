@@ -113,7 +113,7 @@ El receptor de una nota se identifica por NIT y debe coincidir con el receptor d
 | `total_operation` | float | Sí | Monto total de la operación |
 | `total_non_taxed` | float | Sí | Total no gravado (cargos/abonos) |
 | `total_to_pay` | float | Sí | Total a pagar |
-| `operation_condition` | integer | Sí | `1`=Contado, `2`=Crédito, `3`=Otro |
+| `operation_condition` | integer | Sí | `1`=Contado, `2`=Crédito, `3`=Otro. Si `total_to_pay` es `0.00` debe ser `1` (`NoPaymentDueRequiresCashCondition`, dentro de `MANY_ERRORS`) |
 | `taxes` | `Tax[]` | Condicional | Tributos del resumen. Obligatorio si `total_taxed > 0` (debe incluir el `20`); debe omitirse si `total_taxed = 0` |
 | `iva_perception` | float | Sí | IVA percibido (1 % de `total_taxed`) |
 | `iva_retention` | float | Sí | IVA retenido |
@@ -164,7 +164,7 @@ Las fórmulas completas, redondeos y tolerancias se detallan en [Reglas de cálc
 
 ## Control de saldo
 
-Para cada documento relacionado electrónico se exige que exista su control de saldo (se crea al emitirse el CCF o CR por este servicio). A diferencia de la Nota de Crédito, la Nota de Débito no se compara contra el saldo restante: al emitirse **suma** sus totales gravado, exento y no sujeto al saldo del documento relacionado. Si la Nota de Débito se invalida, esos montos se **restan** del saldo (transacción `DEBIT_NOTE_INVALID`).
+Para cada documento relacionado electrónico se exige que exista su control de saldo (se crea al emitirse el CCF o CR por este servicio). A diferencia de la Nota de Crédito, las ventas gravadas y exentas de la Nota de Débito **no** se comparan contra el saldo restante. Solo se limita la venta no sujeta: `total_non_subject` de la ND más la venta no sujeta de las ND vigentes sobre el mismo documento no puede superar el total no sujeto del documento menos su descuento global no sujeto (`InvalidDebitNoteNotSubjectAmount`). Al emitirse, la ND **suma** sus totales gravado, exento y no sujeto al saldo del documento relacionado. Si la Nota de Débito se invalida, esos montos se **restan** del saldo (transacción `DEBIT_NOTE_INVALID`) y su venta no sujeta deja de contar para el límite.
 
 ---
 
@@ -227,6 +227,7 @@ Los errores usan la estructura descrita en [Formato de respuestas](./README.md#r
 | `400` | `RELATEDDOCUMENTNOTRECEIVED` | El documento relacionado no está en estado `RECEIVED` |
 | `400` | `NOTMATCHINGRECEIVERNIT` | El NIT del receptor no coincide con el del documento relacionado |
 | `400` | `FAILEDTOGETBALANCECONTROL` | El documento relacionado no tiene control de saldo |
+| `400` | `INVALIDDEBITNOTENOTSUBJECTAMOUNT` | La venta no sujeta de la ND, sumada a la de las ND vigentes, supera el total no sujeto neto del documento relacionado |
 | `400` | `HACIENDA_<codigo>` | Hacienda rechazó el documento |
 | `201` | — | Si la transmisión falla por indisponibilidad (red, timeout, 5xx), la nota se almacena en contingencia y se responde `201` sin sello (ver [Contingencia](./README.md#contingencia)) |
 

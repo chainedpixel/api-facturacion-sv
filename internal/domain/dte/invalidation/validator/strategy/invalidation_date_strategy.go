@@ -8,10 +8,14 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
 )
 
-const deadlineLayout = "2006-01-02 15:04:05"
+const (
+	deadlineLayout = "2006-01-02 15:04:05"
+	dateLayout     = "2006-01-02"
+)
 
 // InvalidationDateStrategy validates the transmission deadline against the stamp date of the invalidated
-// document and the event date against its generation date.
+// document and the event date against its generation date: for FE, FEXE and FSE the event date cannot be later
+// than the generation date plus the invalidation period, keeping the last day of the month when needed.
 type InvalidationDateStrategy struct {
 	Document  *invalidation_models.InvalidationDocument
 	Deadlines *policy.Deadlines
@@ -51,8 +55,9 @@ func (s *InvalidationDateStrategy) validateEventDate(docType string, doc *invali
 
 	if policy.IsInvoiceType(docType) {
 		maxEventDate := policy.AddValidityPeriod(docType, generation, doc.IssuerActivity)
-		if eventDate.Format("2006-01-02") > maxEventDate.Format("2006-01-02") {
-			return dte_errors.NewDTEErrorSimple("InvalidationEventDateOutOfRange", docType, maxEventDate.Format("2006-01-02"))
+		if eventDate.Format(dateLayout) > maxEventDate.Format(dateLayout) {
+			return dte_errors.NewDTEErrorSimple("InvalidationEventDateOutOfRange", docType,
+				eventDate.Format(dateLayout), maxEventDate.Format(dateLayout), generation.Format(dateLayout))
 		}
 		return nil
 	}

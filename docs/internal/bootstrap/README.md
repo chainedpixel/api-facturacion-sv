@@ -246,7 +246,7 @@ func newInvalidationDeadlines() *policy.Deadlines {
 c.authUseCase = auth.NewAuthUseCase(AuthManager(), CryptManager())
 c.baseTransmitter = dte.NewBaseTransmitter(TransmitterManager(), SignerManager())
 c.dteConsult = dte.NewDTEConsultUseCase(DTEManager())
-c.dteUseCaseFactory = dte.NewDTEUseCaseFactory(AuthManager(), DTEManager(), baseTransmitter, SequentialManager())
+c.dteUseCaseFactory = dte.NewDTEUseCaseFactory(AuthManager(), DTEManager(), baseTransmitter, SequentialManager(), EventBus())
 ```
 
 La factory produce los casos de uso genéricos (factura, CCF, retención, nota de crédito, nota de remisión, FSE y nota de débito) y el de invalidación. Ver [Casos de uso](../application/README.md).

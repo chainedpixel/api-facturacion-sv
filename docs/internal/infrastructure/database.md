@@ -77,7 +77,7 @@ Relación entre un documento y la sucursal que lo emitió.
 | `branch_id` | uint | FK a `branch_offices`, índice |
 | `created_at`, `updated_at` | timestamp | `created_at` indexado |
 
-Hook `AfterCreate`: si el tipo del documento pertenece a `ValidAdjustmentDTETypes` (hoy `03` CCF y `07` comprobante de retención), se crea automáticamente su `DTEBalanceControl` con los totales gravado, exento y no sujeto leídos del resumen del JSON.
+Hook `AfterCreate`: si el tipo del documento pertenece a `ValidAdjustmentDTETypes` (hoy `03` CCF y `07` comprobante de retención), se crea automáticamente su `DTEBalanceControl` con los totales gravado, exento y no sujeto leídos del resumen del JSON, netos del descuento global de cada categoría (`NetTaxed`, `NetExempt` y `NetNotSubject` de `AuxiliarTotalAmountsExtractor`, redondeados a centavos y nunca negativos).
 
 ### DTEDetails (`dte_details`)
 
@@ -121,7 +121,7 @@ Con `signed_document` y `reception_stamp` se arma el Archivo DTE del evento. Se 
 
 ### DTEBalanceControl (`dte_balance_control`)
 
-Saldo remanente de un documento sobre el que se pueden emitir notas de crédito y de débito.
+Saldo remanente de un documento sobre el que se pueden emitir notas de crédito y de débito. Los montos originales y remanentes iniciales son los totales del resumen menos el descuento global de cada categoría (gravada, exenta y no sujeta).
 
 | Columna | Tipo |
 |---|---|
@@ -145,7 +145,7 @@ Movimiento de una nota que afecta el saldo.
 | `taxed_amount`, `exempt_amount`, `not_subject_amount` | decimal(18,2) | |
 | `created_at` | timestamp | |
 
-Hook `AfterCreate`: si el tipo es `05` (nota de crédito) se **resta** de los saldos remanentes; en caso contrario (nota de débito) se **suma**, y se guarda el `DTEBalanceControl`.
+Hook `AfterCreate`: si el tipo es `05` (nota de crédito) o `DEBIT_NOTE_INVALID` (nota de débito invalidada) se **resta** de los saldos remanentes; en caso contrario (nota de débito emitida o nota de crédito invalidada, `INVALIDATED`) se **suma**, y se guarda el `DTEBalanceControl`.
 
 ### ContingencyDocument (`contingency_documents`)
 

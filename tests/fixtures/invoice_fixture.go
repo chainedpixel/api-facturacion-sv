@@ -262,7 +262,7 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		CondicionOperacion:  1,
 		Pagos: []respStructs.DTEPayment{
 			{
-				Codigo:     "01",
+				Codigo:     utils.ToStringPointer("01"),
 				MontoPago:  100,
 				Referencia: utils.ToStringPointer(""),
 				Plazo:      nil,

@@ -71,7 +71,7 @@ Content-Type: application/json
 
 | Regla | Detalle |
 |-------|---------|
-| Estado | No puede estar `INVALIDATED` (`DOCUMENTALREADYINVALID`), `REJECTED` (`DOCUMENTREJECT`) ni `PENDING` (`DOCUMENTPENDING`). Si hay documento de reemplazo (tipos `1` y `3`), se aplican las mismas verificaciones de estado al reemplazo |
+| Estado | No puede estar `INVALIDATED` (`DOCUMENTALREADYINVALID`), `REJECTED` (`DOCUMENTREJECT`), `PENDING` (`DOCUMENTPENDING`) ni `EXPIRED` (`DOCUMENTEXPIRED`). Si hay documento de reemplazo (tipos `1` y `3`), se aplican las mismas verificaciones de estado al reemplazo |
 | Sello de recepción | Debe tener sello de recepción de 40 caracteres alfanuméricos; sin sello se rechaza con `DOCUMENTWITHOUTSTAMP` (un documento en contingencia sin transmitir no tiene sello) |
 | CCF o CR con notas vigentes | Se rechaza con `PENDINGADJUSTMENTNOTES`, que lista las NC/ND en estado `RECEIVED` o `PENDING` que lo ajustan. El consumidor invalida cada nota y luego vuelve a solicitar la invalidación del CCF o CR; el microservicio no invalida notas automáticamente |
 
@@ -85,6 +85,16 @@ La regla se evalúa en las reglas del evento (`InvalidationReasonStrategy`, medi
 | `1` o `3` | Nota de Crédito (`05`) o Comprobante de Liquidación (`08`) | Debe omitirse o ser `null` | `ReplacementCodeNotAllowedForType` (dentro de `MANY_ERRORS`) |
 | `2` | Cualquiera | Siempre `null` | `INVALIDINVALIDATIONTYPE2` |
 
+### Orden de emisión e invalidación para el consumidor
+
+| Documento y tipo de anulación | Orden | `replacement_generation_code` |
+|---|---|---|
+| FE (`01`), CCF (`03`), NR (`04`), ND (`06`) o CR (`07`) con tipo `1` o `3` | 1. Emitir el documento nuevo y esperar su sello. 2. Invalidar el documento viejo indicando el código de generación del nuevo | Código de generación del documento nuevo, que debe existir en el servicio con estado válido (si no, la invalidación se rechaza al verificar el estado del reemplazo) |
+| NC (`05`) con tipo `1` o `3` | 1. Invalidar la NC incorrecta. 2. Emitir la NC correcta | `null` (u omitido) |
+| Cualquier documento con tipo `2` | Invalidar sin emitir documento de reemplazo | `null` (u omitido) |
+
+En la NC el orden es inverso porque la invalidación restituye el saldo del documento relacionado (transacción `INVALIDATED`): la NC correcta se valida contra el saldo ya restituido. Si se emitiera primero la NC correcta, se compararía contra el saldo que todavía descuenta la NC incorrecta y podría rechazarse con `InvalidCreditNoteTransaction`.
+
 ### Plazos y fecha del evento
 
 Las reglas siguen el Cuadro 6 de la Normativa de Cumplimiento DTE v2.0 (plazos para transmitir el evento de invalidación) y las reglas de fecha del evento del Anexo V.
@@ -96,6 +106,8 @@ Las reglas siguen el Cuadro 6 de la Normativa de Cumplimiento DTE v2.0 (plazos p
 
 - La fecha del sello es `processing_date` (`fhProcesamiento` de Hacienda); para documentos antiguos sin ese dato se usa la fecha de registro del documento.
 - La fecha de generación se toma de `fecEmi`/`horEmi` del documento guardado.
+- En FE, FEXE y FSE se aplican los dos límites a la vez: el plazo desde el sello y la fecha del evento (hoy) contra la fecha de generación más el mismo periodo. Si el día no existe en el mes destino se usa el último día de ese mes (por ejemplo, generación 2025-11-30: límite 2026-02-28). Si la fecha del evento supera el límite, la API rechaza antes de transmitir con `InvalidationEventDateOutOfRange`, cuyo mensaje indica el tipo de DTE, la fecha del evento, el límite y la fecha de generación.
+- Ejemplo: FE generada el 2025-10-09 y sellada el 2025-11-25. El plazo desde el sello vence el 2026-02-25, pero la fecha del evento no puede pasar del 2026-01-09 (generación más 3 meses): invalidar el 2026-01-09 se acepta y el 2026-01-10 se rechaza con `InvalidationEventDateOutOfRange`.
 - Días hábiles: lunes a viernes, excluyendo los asuetos nacionales fijos (1 de enero, 1 de mayo, 10 de mayo, 17 de junio, 6 de agosto, 15 de septiembre, 2 de noviembre y 25 de diciembre), la Semana Santa (de Lunes Santo a Lunes de Pascua) y los asuetos de la variable `MH_EXTRA_HOLIDAYS`.
 - Si el plazo venció, el documento conserva su validez y corresponde emitir una Nota de Crédito o Débito si procede.
 
@@ -244,7 +256,7 @@ Los errores usan la estructura descrita en [Formato de respuestas](./README.md#r
 | `400` | `INVALIDINVALIDATIONTYPE2` | Tipo `2` con `replacement_generation_code` |
 | `400` | `INVALIDINVALIDATIONTYPE3` | Tipo `3` sin `reason_field` |
 | `400` | `FAILEDTOVERIFYDTE` | El `generation_code` (o el reemplazo) no existe en la sucursal |
-| `400` | `DOCUMENTALREADYINVALID`, `DOCUMENTREJECT`, `DOCUMENTPENDING` | El documento (o el reemplazo) está invalidado, rechazado o pendiente de retransmitir |
+| `400` | `DOCUMENTALREADYINVALID`, `DOCUMENTREJECT`, `DOCUMENTPENDING`, `DOCUMENTEXPIRED` | El documento (o el reemplazo) está invalidado, rechazado, pendiente de retransmitir o vencido en contingencia sin sello |
 | `400` | `PENDINGADJUSTMENTNOTES` | El CCF o CR tiene Notas de Crédito o Débito vigentes; el mensaje lista sus códigos |
 | `400` | `DOCUMENTWITHOUTSTAMP` | El documento no tiene sello de recepción |
 | `400` | `MANY_ERRORS` | Falló una regla del evento; `error.details` incluye `InvalidReplacementCode1And3` (tipo `1` o `3` sin `replacement_generation_code`, salvo NC `05` y CLE `08`), `ReplacementCodeNotAllowedForType` (`replacement_generation_code` enviado para una NC `05` o CLE `08`), `InvalidationDeadlineExpired` (plazo vencido), `InvalidationEventDateOutOfRange`, `InvalidationEventDateMismatch`, `MissingStampDate` o errores de formato de los datos del evento |

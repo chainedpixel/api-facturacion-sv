@@ -192,7 +192,7 @@ Los documentos relacionados válidos para CCF son:
 - `08` — Comprobante de Liquidación Electrónico
 - `09` — Documento Contable de Liquidación Electrónico
 
-Si existen documentos relacionados (máximo 50, `ExceededRelatedDocsLimit`), cada ítem debe referenciar uno (`MissingItemRelatedDoc`) y la referencia debe existir en la lista de documentos del CCF (`InvalidItemRelatedDoc`). Un tipo no permitido produce `InvalidRelatedDocDTEType`.
+Se admiten hasta 50 documentos relacionados (`ExceededRelatedDocsLimit`). Si existen, cada ítem debe referenciar uno (`MissingItemRelatedDoc`) que exista en la lista del CCF (`InvalidItemRelatedDoc`) y cada documento debe estar referenciado por al menos un ítem (`UnreferencedRelatedDoc`); sin documentos relacionados ningún ítem puede llevar referencia. Un tipo no permitido produce `InvalidRelatedDocDTEType`.
 
 ---
 

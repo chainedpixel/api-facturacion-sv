@@ -120,22 +120,37 @@ El resumen de la FSE **no usa** los campos `total_non_subject`, `total_exempt`, 
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `code` | string | Sí | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017) |
-| `amount` | float | Sí | Monto. En ventas a crédito (condición `2`) debe enviarse `0.00` (ver reglas) |
-| `period` | integer | Condicional | Período. Ver reglas |
-| `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`). Ver reglas |
-| `reference` | string | No | Referencia del pago |
+| `code` | string | Condicional | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017). Obligatorio con condición `1` o `3`; con condición `2` debe ir `null` |
+| `amount` | float | Sí | Monto. Con condición `2` debe enviarse `0.00` |
+| `period` | integer | Condicional | Número de días, meses o años del plazo, mayor que cero. Obligatorio con condición `2` |
+| `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`, CAT-018). Obligatorio con condición `2` |
+| `reference` | string | No | Referencia del pago. Con condición `2` debe ir `null` |
 
-**Reglas:**
+**Reglas con condición `2` (crédito)**, por cada forma de pago:
+- `code` debe ir `null` (`CreditPaymentCodeNotAllowed`).
+- `amount` debe ser exactamente `0.00` (`InvalidCreditPaymentAmount`). No se compara la suma con `total_to_pay`.
+- `reference` debe ir `null` (`CreditPaymentReferenceNotAllowed`).
+- `term` es obligatorio (`CreditPaymentTermRequired`).
+- `period` es obligatorio y mayor que cero (`CreditPaymentPeriodRequired`).
+- Se requiere al menos una forma de pago: una lista vacía con `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
+
+Ejemplo de forma de pago a crédito a 30 días:
+
+```json
+"payment_types": [
+  { "code": null, "amount": 0.00, "reference": null, "term": "01", "period": 30 }
+]
+```
+
+En el JSON transmitido a Hacienda la forma de pago queda con `codigo` y `referencia` en `null`, `montoPago` en `0.00`, y `plazo` y `periodo` informados.
+
+**Reglas con condición `1` (contado) o `3` (otro):**
+- `code` es obligatorio en cada forma de pago (`PaymentCodeRequired`).
 - La suma de `amount` debe coincidir con `total_to_pay` (tolerancia ±0.01, `InvalidPaymentTotal`).
-- En ventas a crédito (condición `2`) el valor normativo de `amount` es `0.00` (Anexo IV: el monto por forma de pago "deberá completarse con $0.00") y es el que deben enviar los consumidores. Con al menos un pago y todos los `amount` en `0.00` no se compara la suma con `total_to_pay`.
-- Por compatibilidad, la API acepta de forma transitoria que con condición `2` el `amount` sea igual al total a pagar (la suma se compara con `total_to_pay` como siempre). Esta tolerancia se eliminará en una versión futura, después de la cual con condición `2` solo se aceptará `0.00`.
-- Una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
-- `code` es requerido por la API en todos los pagos (`InvalidPaymentTypeInfo`), aunque el Anexo IV solo lo exige con condición `1` o `3`. `reference` puede omitirse (con condición `2` puede ser `null`).
-- Condición `2` (Crédito): si ningún pago usa el código `"01"`, todos los pagos deben informar `period` y `term` (`InvalidPaymentTerms`).
-- Condición `1` (Contado): si ningún pago usa el código `"01"`, los pagos no deben informar `period` ni `term` (`InvalidPaymentTermsOF`).
+- Con condición `3` se admiten varias formas de pago con monto mayor que 0; la parte no cobrada se informa con el código `13` (cuentas por pagar del receptor). Ejemplo: `[{"code": "01", "amount": 40.00}, {"code": "13", "amount": 60.00}]` para un `total_to_pay` de `100.00`.
 
-> **Normativa:** las formas de pago corresponden a los campos 159 a 164 del Anexo IV de la Normativa de Cumplimiento DTE v2.0: `operation_condition` (campo 159, CAT-016), `code` (campo 160, CAT-017), `amount` (campo 161), `reference` (campo 162), `term` (campo 163, CAT-018) y `period` (campo 164). La suma de los montos por forma de pago debe ser igual al total a pagar (campo 161, regla 4), dentro de la holgura general de la regla 7.3.
+**Total a pagar `0.00`:** la condición debe ser `1` (`NoPaymentDueRequiresCashCondition`). En la FSE no se exige el código `99` (esa exigencia aplica a FE, CCF y FEXE).
+- Condición `1`: si ningún pago usa el código `"01"`, los pagos no deben informar `period` ni `term` (`InvalidPaymentTermsOF`).
 
 ---
 
@@ -332,8 +347,15 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `ExceededItemsLimit`, `InvalidItemNumber`, `InvalidItemType` | Más de 2000 ítems, número o tipo de ítem inválido |
 | `InvalidLength` | Descripción de ítem fuera de 1–1500 o código de ítem excedido |
 | `InvalidNumberRange` | `unit_measure` fuera de 1–99 |
-| `InvalidPaymentTypeOP2`, `InvalidPaymentTerms`, `InvalidPaymentTermsOF` | Reglas de `period` y `term` según la condición de operación |
+| `InvalidPaymentTermsOF` | Condición `1` sin pago en efectivo y con `period` o `term` informados |
 | `InvalidPaymentTotal` | La suma de pagos no coincide con `total_to_pay` |
+| `InvalidCreditPaymentAmount` | Con condición `2` algún `amount` de pago es distinto de `0.00` |
+| `CreditPaymentCodeNotAllowed` | Con condición `2` una forma de pago trae `code` |
+| `CreditPaymentReferenceNotAllowed` | Con condición `2` una forma de pago trae `reference` |
+| `CreditPaymentTermRequired` | Con condición `2` una forma de pago no trae `term` |
+| `CreditPaymentPeriodRequired` | Con condición `2` una forma de pago no trae `period` o es menor o igual a cero |
+| `PaymentCodeRequired` | Con condición `1` o `3` una forma de pago no trae `code` |
+| `NoPaymentDueRequiresCashCondition` | Total a pagar `0.00` con condición distinta de `1` |
 
 ---
 

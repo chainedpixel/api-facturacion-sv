@@ -20,6 +20,7 @@ func NewInvoiceRulesValidator(doc *invoice_models.ElectronicInvoice) *InvoiceRul
 			&strategy2.InvoiceItemsStrategy{Document: doc},
 			&strategy2.InvoiceTaxStrategy{Document: doc},
 			&strategy2.InvoiceTotalsStrategy{Document: doc},
+			&strategy2.InvoiceRelatedDocStrategy{Document: doc},
 		},
 	}
 	return validator

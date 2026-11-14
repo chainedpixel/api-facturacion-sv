@@ -50,6 +50,12 @@ func (s *CCFTaxStrategy) Validate() *dte_errors.DTEError {
 		return err
 	}
 
+	if s.Document.CreditSummary.Summary != nil {
+		if err := commonStrategy.ValidateBalanceInFavorPayments(s.Document.CreditSummary.Summary, s.Document.CreditSummary.BalanceInFavor.GetValue()); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

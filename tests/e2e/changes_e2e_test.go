@@ -13,7 +13,7 @@ import (
 func TestE2E_CambiosNormativa(t *testing.T) {
 	client := newAPIClient(t)
 
-	zeroCredit := documentOptions{credit: &creditTerms{period: 30, term: "01"}, zeroCreditPayment: true}
+	zeroCredit := documentOptions{credit: &creditTerms{period: 30, term: "01"}}
 
 	t.Run("FE a credito con pago de 0.00", func(t *testing.T) {
 		client.emit(t, "/dte/invoices", buildInvoice(invoiceSpec{receiver: companyReceiver(),
@@ -23,6 +23,13 @@ func TestE2E_CambiosNormativa(t *testing.T) {
 	t.Run("CCF a credito con pago de 0.00", func(t *testing.T) {
 		client.emit(t, "/dte/ccf", buildCCF(ccfSpec{receiver: ccfReceiver(),
 			items: []itemSpec{shoe("Pedido a credito sin abono", 2, 25.00, 0)}, opts: zeroCredit}))
+	})
+
+	t.Run("FE a credito con pago igual al total es rechazada", func(t *testing.T) {
+		req := buildInvoice(invoiceSpec{receiver: companyReceiver(),
+			items: []itemSpec{shoe("Credito con pago igual al total", 2, 25.00, 0)}, opts: zeroCredit})
+		req.Summary.PaymentTypes[0].Amount = req.Summary.TotalToPay
+		client.expectRejectedAny(t, "/dte/invoices", req, "InvalidCreditPaymentAmount", "debe ser 0.00", "must be 0.00")
 	})
 
 	t.Run("FE con descuento de item mayor a 100.00", func(t *testing.T) {

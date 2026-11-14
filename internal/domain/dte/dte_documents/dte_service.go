@@ -11,6 +11,7 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/debit_note_models"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/shopspring/decimal"
 )
 
 type DTEService struct {
@@ -177,9 +178,16 @@ func (m *DTEService) ValidateForDebitNote(ctx context.Context, branchID uint, or
 		return shared_error.NewGeneralServiceError("DTEService", "ValidateForDebitNote", "failed to cast document to DebitNoteModel", nil)
 	}
 
-	_, err := m.repo.GetDTEBalanceControl(ctx, branchID, originalDTE)
+	balanceControl, err := m.repo.GetDTEBalanceControl(ctx, branchID, originalDTE)
 	if err != nil {
 		return shared_error.NewFormattedGeneralServiceWithError("DTEService", "ValidateForDebitNote", err, "FailedToGetBalanceControl")
+	}
+
+	available := decimal.NewFromFloat(balanceControl.OriginalNotSubjectAmount).
+		Sub(decimal.NewFromFloat(balanceControl.DebitNotesNotSubjectAmount()))
+	requested := decimal.NewFromFloat(doc.Summary.GetTotalNonSubject()).Round(2)
+	if requested.GreaterThan(available) {
+		return dte_errors.NewValidationError("InvalidDebitNoteNotSubjectAmount", requested.InexactFloat64(), originalDTE, available.InexactFloat64())
 	}
 
 	return nil

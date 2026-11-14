@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"math"
 )
 
 type AuxiliarIdentificationExtractor struct {
@@ -36,6 +37,10 @@ type AuxiliarTotalAmountsExtractor struct {
 		TotalTaxed      float64 `json:"totalGravada"`
 		TotalExempt     float64 `json:"totalExenta"`
 		TotalNotSubject float64 `json:"totalNoSuj"`
+
+		DiscountNotSubject float64 `json:"descuNoSuj"`
+		DiscountExempt     float64 `json:"descuExenta"`
+		DiscountTaxed      float64 `json:"descuGravada"`
 	} `json:"resumen"`
 }
 
@@ -133,4 +138,23 @@ func ExtractDTEReceiverFromString(document interface{}) (AuxiliarReceiverExtract
 	}
 
 	return receiver, nil
+}
+
+// NetTaxed returns the taxed total minus the global taxed discount, rounded to cents and never negative.
+func (a AuxiliarTotalAmountsExtractor) NetTaxed() float64 {
+	return netOfDiscount(a.Summary.TotalTaxed, a.Summary.DiscountTaxed)
+}
+
+// NetExempt returns the exempt total minus the global exempt discount, rounded to cents and never negative.
+func (a AuxiliarTotalAmountsExtractor) NetExempt() float64 {
+	return netOfDiscount(a.Summary.TotalExempt, a.Summary.DiscountExempt)
+}
+
+// NetNotSubject returns the not-subject total minus the global not-subject discount, rounded to cents and never negative.
+func (a AuxiliarTotalAmountsExtractor) NetNotSubject() float64 {
+	return netOfDiscount(a.Summary.TotalNotSubject, a.Summary.DiscountNotSubject)
+}
+
+func netOfDiscount(total, discount float64) float64 {
+	return math.Max(0, math.Round((total-discount)*100)/100)
 }

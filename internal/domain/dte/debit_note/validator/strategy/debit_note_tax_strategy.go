@@ -206,6 +206,10 @@ func (s *DebitNoteTaxStrategy) validateIVA() *dte_errors.DTEError {
 				"expected": expectedTax,
 				"actual":   actualTax,
 			})
+			return dte_errors.NewDTEErrorSimple("InvalidTaxCalculation",
+				tax.GetCode(),
+				expectedTax.InexactFloat64(),
+				actualTax.InexactFloat64())
 		}
 	}
 

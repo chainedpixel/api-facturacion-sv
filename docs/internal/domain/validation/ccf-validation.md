@@ -49,8 +49,11 @@ Por cada ítem se evalúan, en orden: exclusividad de ventas, reglas de impuesto
 
 ### Documentos Relacionados en Ítems
 
-- Si existen docs relacionados → todos los ítems deben referenciar uno (`MissingItemRelatedDoc`)
-- Cada referencia debe existir en la lista de documentos (`InvalidItemRelatedDoc`)
+La validación se realiza en `CCFRelatedDocStrategy` (ya no en `CCFItemStrategy`):
+- Si hay documentos relacionados, cada ítem debe referenciar uno (`MissingItemRelatedDoc`) que exista en la lista (`InvalidItemRelatedDoc`).
+- Cada documento relacionado debe aparecer en el `related_doc` de al menos un ítem (`UnreferencedRelatedDoc`).
+- Si no hay documentos relacionados, ningún ítem puede llevar referencia (`InvalidItemRelatedDoc`).
+- La regla se implementa una sola vez en `ValidateItemRelatedDocs` (`internal/domain/dte/common/validator/strategy/item_related_docs_rules.go`), invocada desde `InvoiceRelatedDocStrategy`, `CCFRelatedDocStrategy` y `RemissionNoteRelatedDocStrategy`. NC y ND conservan su propia regla, que exige la referencia en cada ítem (`MissingItemRelatedDoc`).
 
 ---
 
@@ -168,6 +171,7 @@ Sum(item.NonTaxed) == Summary.TotalNonTaxed (comparación exacta)  → InvalidTo
 |---|---|---|
 | Máximo docs | 50 | `ExceededRelatedDocsLimit` |
 | Tipos válidos | `04` (Remisión), `08` (Liquidación), `09` (Doc. Contable Liquidación) | `InvalidRelatedDocDTEType` |
+| Documentos | Cada uno debe estar referenciado por al menos un ítem | `UnreferencedRelatedDoc` |
 | Ítems | Todos deben referenciar un doc relacionado | `MissingItemRelatedDoc` |
 | Referencias | Deben existir en la lista del documento | `InvalidItemRelatedDoc` |
 

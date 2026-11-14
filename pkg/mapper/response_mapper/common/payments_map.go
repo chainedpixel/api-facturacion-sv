@@ -12,8 +12,11 @@ func MapCommonResponsePayments(payments []interfaces.PaymentType) []structs.DTEP
 	for i, payment := range payments {
 
 		result[i] = structs.DTEPayment{
-			Codigo:    payment.GetCode(),
 			MontoPago: payment.GetAmount(),
+		}
+
+		if code := payment.GetCode(); code != "" {
+			result[i].Codigo = utils.ToStringPointer(code)
 		}
 
 		if reference := payment.GetReference(); reference != "" {

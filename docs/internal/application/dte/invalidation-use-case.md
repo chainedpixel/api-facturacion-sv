@@ -65,7 +65,7 @@ CreateInvalidationRequest
   ▼
 [3] Validar estado del documento original
   │   invalidationManager.ValidateStatus(ctx, branchID, request)
-  │   ├── Documento original: INVALIDATED / REJECTED / PENDING → error
+  │   ├── Documento original: INVALIDATED / REJECTED / PENDING / EXPIRED → error
   │   └── Documento de reemplazo (si tipo != 2 y viene el código): mismas reglas
   │
   ▼
@@ -275,4 +275,4 @@ Los datos de `documento` (receptor, teléfono, correo, tipo y número de documen
 3. **Balance cascade**: Al invalidar una nota de crédito, el `InvalidationManager` suma sus montos al balance de los documentos electrónicos relacionados (`DocumentInvalid`); al invalidar una nota de débito los resta (`DebitNoteInvalid`, `DEBIT_NOTE_INVALID`).
 4. **Sin acciones recursivas**: Para invalidar un CCF o CR con notas vigentes, el servicio rechaza la petición y lista las notas pendientes; nunca las invalida de forma encadenada.
 5. **Atomicidad parcial**: Los pasos 10 y 11 no forman una transacción con la transmisión del paso 9; un fallo en ellos se devuelve como error aunque Hacienda ya haya aceptado el evento.
-6. **Estado `EXPIRED`**: `ValidateStatus` solo rechaza `INVALIDATED`, `REJECTED` y `PENDING`; cualquier otro estado (incluido `EXPIRED`) pasa esa validación.
+6. **Estado `EXPIRED`**: `ValidateStatus` rechaza `INVALIDATED`, `REJECTED`, `PENDING` y `EXPIRED` (`DocumentExpired`), tanto en el documento original como en el de reemplazo; un documento vencido en contingencia no tiene sello de recepción y se considera no emitido.

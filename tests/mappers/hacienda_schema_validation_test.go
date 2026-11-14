@@ -97,6 +97,33 @@ func TestHaciendaSchema_CCF(t *testing.T) {
 	assertMatchesHaciendaSchema(t, "v4/fe-ccf-v4.json", response_mapper.ToMHCreditFiscalInvoice(doc))
 }
 
+// TestHaciendaSchema_CreditSales validates FE and CCF credit sales, whose payments carry a null code and reference.
+func TestHaciendaSchema_CreditSales(t *testing.T) {
+	test.TestMain(t)
+
+	creditPayments := []interfaces.PaymentType{fixtures.NewCreditPayment("01", 30)}
+
+	invoice, err := fixtures.BuildValidInvoice()
+	require.NoError(t, err)
+	setVersion(t, invoice.GetIdentification(), 2)
+	require.NoError(t, invoice.InvoiceSummary.SetOperationCondition(constants.Credit))
+	require.NoError(t, invoice.InvoiceSummary.SetPaymentTypes(creditPayments))
+	invoicePayload := response_mapper.ToMHInvoice(invoice)
+	require.Len(t, invoicePayload.Resumen.Pagos, 1)
+	require.Nil(t, invoicePayload.Resumen.Pagos[0].Codigo)
+	assertMatchesHaciendaSchema(t, "v2/fe-f-v2.json", invoicePayload)
+
+	ccf, err := fixtures.BuildValidCCF()
+	require.NoError(t, err)
+	setVersion(t, ccf.GetIdentification(), 4)
+	require.NoError(t, ccf.CreditSummary.SetOperationCondition(constants.Credit))
+	require.NoError(t, ccf.CreditSummary.SetPaymentTypes(creditPayments))
+	ccfPayload := response_mapper.ToMHCreditFiscalInvoice(ccf)
+	require.Len(t, ccfPayload.Resumen.Pagos, 1)
+	require.Nil(t, ccfPayload.Resumen.Pagos[0].Codigo)
+	assertMatchesHaciendaSchema(t, "v4/fe-ccf-v4.json", ccfPayload)
+}
+
 // Se cubren las secciones opcionales que los fixtures por defecto dejan en null:
 // venta por cuenta de terceros (codDomiciliado, CAT-032) y apendice con elementos.
 func TestHaciendaSchema_CCFWithThirdPartySaleAndAppendix(t *testing.T) {

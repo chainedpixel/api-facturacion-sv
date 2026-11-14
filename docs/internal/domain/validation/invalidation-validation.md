@@ -179,6 +179,6 @@ La fecha de generación se toma del documento original (`fecEmi`); si no se cono
 | `DocumentWithoutStamp` | El documento no tiene sello de recepción |
 | `MissingStampDate` | No se conoce la fecha del sello |
 | `InvalidationDeadlineExpired` | Plazo de transmisión vencido |
-| `InvalidationEventDateOutOfRange` | Fecha del evento de FE/FEXE/FSE fuera de período |
+| `InvalidationEventDateOutOfRange` | Fecha del evento de FE/FEXE/FSE posterior a la fecha de generación más el período (con ajuste a fin de mes); el mensaje incluye tipo, fecha del evento, límite y fecha de generación |
 | `InvalidationEventDateMismatch` | Fecha del evento distinta a la generación |
 | `TransmissionFailed` | Hacienda no recibió el evento |

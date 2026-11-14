@@ -24,6 +24,7 @@ func (s *InvoiceTotalsStrategy) Validate() *dte_errors.DTEError {
 		s.validateSubTotal,
 		s.validateDiscounts,
 		s.validateTotalOperation,
+		s.validateBalanceInFavorPayments,
 	}
 
 	for _, validate := range validations {
@@ -131,4 +132,12 @@ func (s *InvoiceTotalsStrategy) validateTotalOperation() *dte_errors.DTEError {
 		summary.SubTotal.GetValue(),
 		summary.TotalTaxes,
 		summary.TotalOperation.GetValue())
+}
+
+// validateBalanceInFavorPayments requires the no-payment-due payment form when the invoice carries a balance in favor.
+func (s *InvoiceTotalsStrategy) validateBalanceInFavorPayments() *dte_errors.DTEError {
+	if s.Document.InvoiceSummary.Summary == nil {
+		return nil
+	}
+	return commonStrategy.ValidateBalanceInFavorPayments(s.Document.InvoiceSummary.Summary, s.Document.InvoiceSummary.BalanceInFavor.GetValue())
 }

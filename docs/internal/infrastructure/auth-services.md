@@ -95,7 +95,7 @@ ValidateToken(tokenString)
 
 > **Nota:** La validación exige las dos condiciones: que el token exista en cache (lo que permite la revocación inmediata) y que su firma y expiración sean válidas.
 
-> **Logs:** `GenerateToken`, `ValidateToken` y `RevokeToken` no registran el token (ni lo imprimen en la salida estándar); los logs de error de estas operaciones incluyen solo el mensaje de error. Tampoco se registran el token de Hacienda, las credenciales ni el encabezado `Authorization` en `HaciendaAuthService`, `RedisTokenCache`, `StandardAuthStrategy` ni `AuthMiddleware`.
+> **Logs:** `GenerateToken`, `ValidateToken` y `RevokeToken` no registran el token (ni lo imprimen en la salida estándar); los logs de error de estas operaciones incluyen solo el mensaje de error. Tampoco se registran el token de Hacienda, las credenciales ni el encabezado `Authorization` en `HaciendaAuthService`, `RedisTokenCache`, `StandardAuthStrategy` ni `AuthMiddleware`. Los logs de `RedisTokenCache` enmascaran la parte secreta de las claves `token:`, `hacienda:token:` y `hacienda:credentials:` (`redactKey`, se registra `token:[redacted]`; las claves `token:timestamps:` no contienen secretos y se registran sin cambios) y la contraseña de Redis nunca se imprime (`maskSecret`, tampoco en el error devuelto por `NewRedisTokenCache`). `StandardAuthStrategy.ValidateCredentials` no registra la estructura de credenciales (contiene `api_secret`).
 
 ---
 

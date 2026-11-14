@@ -7,6 +7,7 @@ import (
 
 	coreDte "github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note"
 	test "github.com/chainedpixel/ordo-factus/tests"
 	"github.com/chainedpixel/ordo-factus/tests/fixtures"
@@ -110,6 +111,39 @@ func TestDebitNoteServiceCreate(t *testing.T) {
 			branchID:  1,
 			wantErr:   true,
 			errorCode: "RelatedDocumentNotReceived",
+		},
+		{
+			name: "Error – wrongly computed tax is rejected",
+			setupData: func() (interface{}, error) {
+				debitNote, err := fixtures.BuildValidDebitNote()
+				if err != nil {
+					return nil, err
+				}
+				input := fixtures.BuildAsDebitNoteInput(debitNote)
+				tax, ok := input.DebitSummary.TotalTaxes[0].(*models.Tax)
+				if !ok {
+					return nil, errors.New("unexpected tax type")
+				}
+				if err := tax.SetValue(tax.GetValue() + 5); err != nil {
+					return nil, err
+				}
+				return input, nil
+			},
+			setupMock: func(mockSeq *mocks.MockSequentialNumberManager, mockDTE *mocks.MockDTEManager) {
+				mockDTE.EXPECT().GetByGenerationCode(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(&coreDte.DTEDocument{
+						Details: &coreDte.DTEDetails{
+							JSONData: `{"receptor":{"nit":"06140101901011"}}`,
+						},
+					}, nil).AnyTimes()
+				mockDTE.EXPECT().VerifyStatus(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(constants.DocumentReceived, nil).AnyTimes()
+				mockDTE.EXPECT().ValidateForDebitNote(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(nil).AnyTimes()
+			},
+			branchID:  1,
+			wantErr:   true,
+			errorCode: "InvalidTaxCalculation",
 		},
 		{
 			name: "Error – sequential number fails",

@@ -58,7 +58,7 @@ Authorization: Bearer <token>
 | `status` | string | Estado actual del DTE (ver tabla de estados) |
 | `created_at` | string (ISO 8601) | Fecha/hora de creación |
 | `updated_at` | string (ISO 8601) | Fecha/hora de última actualización |
-| `processing_date` | string | Fecha de procesamiento informada por Hacienda (`fhProcesamiento`), con el mismo valor y formato con que se guarda. Se omite si el documento no la tiene guardada. Es la fecha desde la que se cuentan los plazos de invalidación de FE, FEXE y FSE (ver [Anulación](./invalidation.md#plazos-y-fecha-del-evento)) |
+| `processing_date` | string | Fecha de procesamiento informada por Hacienda (`fhProcesamiento`), con el mismo valor y formato con que se guarda. Se omite si el documento no la tiene guardada. Es la fecha del sello desde la que se cuentan los plazos de invalidación (ver [Anulación](./invalidation.md#plazos-y-fecha-del-evento)) |
 | `json_data` | object | Estructura completa del DTE en formato MH (varía según tipo) |
 
 #### Estados posibles (`status`)
@@ -71,7 +71,7 @@ Authorization: Bearer <token>
 | `INVALIDATED` | Anulado exitosamente |
 | `EXPIRED` | Generado en contingencia y no transmitido dentro de las 72 horas desde el sello del evento de contingencia; se considera no emitido y no tiene sello de recepción |
 
-> Esta respuesta no incluye la fecha de procesamiento (`processing_date`) ni la firma del documento; para obtener el documento firmado y sellado se usa `GET /api/v1/dte/{id}/archivo`.
+> Esta respuesta no incluye la firma del documento; para obtener el documento firmado y sellado se usa `GET /api/v1/dte/{id}/archivo`.
 
 #### Respuestas de error
 
@@ -274,11 +274,10 @@ Los documentos se ordenan por fecha de registro descendente.
 | `invalid` | integer | Cantidad con estado `INVALIDATED` |
 | `rejected` | integer | Cantidad con estado `REJECTED` |
 | `pending` | integer | Cantidad con estado `PENDING` |
-
-> `summary` no tiene un contador para `EXPIRED`: esos documentos cuentan en `total` y `by_contingency`, pero no en `received`, `invalid`, `rejected` ni `pending`.
-
 | `by_contingency` | integer | Con transmisión `CONTINGENCY` |
 | `by_normal` | integer | Con transmisión `NORMAL` |
+
+> `summary` no tiene un contador para `EXPIRED`: esos documentos cuentan en `total` y `by_contingency`, pero no en `received`, `invalid`, `rejected` ni `pending`.
 
 **`pagination`**
 

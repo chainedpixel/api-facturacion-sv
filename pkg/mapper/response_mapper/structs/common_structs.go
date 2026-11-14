@@ -143,7 +143,7 @@ type DTETax struct {
 
 // DTEPayment maps a payment
 type DTEPayment struct {
-	Codigo     string  `json:"codigo"`
+	Codigo     *string `json:"codigo"`
 	MontoPago  float64 `json:"montoPago"`
 	Referencia *string `json:"referencia"`
 	Plazo      *string `json:"plazo"`

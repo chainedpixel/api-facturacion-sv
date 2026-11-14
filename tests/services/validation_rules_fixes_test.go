@@ -150,6 +150,7 @@ func newPaymentDocument(condition int, total float64, amounts []float64) *models
 		}
 		if condition == constants.Credit {
 			period := 30
+			payment.Code = financial.PaymentType{}
 			payment.Period = &period
 			payment.Term = financial.NewValidatedPaymentTerm("01")
 		}
@@ -170,8 +171,11 @@ func TestPaymentTotalCreditAcceptsZeroAmount(t *testing.T) {
 
 	cases := []paymentCase{
 		{"credit with zero amount", constants.Credit, []float64{0}, ""},
-		{"credit with total amount", constants.Credit, []float64{100}, ""},
-		{"credit with partial amount", constants.Credit, []float64{50}, "INVALIDPAYMENTTOTAL"},
+		{"credit with several zero amounts", constants.Credit, []float64{0, 0}, ""},
+		{"credit with total amount", constants.Credit, []float64{100}, "INVALIDCREDITPAYMENTAMOUNT"},
+		{"credit with partial amount", constants.Credit, []float64{50}, "INVALIDCREDITPAYMENTAMOUNT"},
+		{"credit with zero and positive amounts", constants.Credit, []float64{0, 5}, "INVALIDCREDITPAYMENTAMOUNT"},
+		{"cash with total amount", constants.Cash, []float64{100}, ""},
 		{"credit with empty payments", constants.Credit, nil, "INVALIDPAYMENTTOTAL"},
 		{"cash with zero amount", constants.Cash, []float64{0}, "INVALIDPAYMENTTOTAL"},
 	}

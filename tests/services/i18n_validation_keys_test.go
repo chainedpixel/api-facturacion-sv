@@ -68,3 +68,24 @@ func TestInvalidationDTEErrorKeysTranslate(t *testing.T) {
 		assert.False(t, strings.HasPrefix(msg, "[validation_errors."), "key %s is not defined under validation_errors", key)
 	}
 }
+
+// TestInvalidationStatusServiceKeysTranslate checks that the status rejection keys resolve under service_errors.
+func TestInvalidationStatusServiceKeysTranslate(t *testing.T) {
+	test.TestMain(t)
+
+	for _, key := range []string{"DocumentAlreadyInvalid", "DocumentReject", "DocumentPending", "DocumentExpired"} {
+		msg := config.Translate("service_errors." + key)
+		assert.False(t, strings.HasPrefix(msg, "[service_errors."), "key %s is not defined under service_errors", key)
+	}
+	assert.Contains(t, config.Translate("service_errors.DocumentExpired"), "contingency")
+}
+
+// TestInvalidCreditPaymentAmountKeyTranslates checks that the credit payment amount key resolves with its parameter.
+func TestInvalidCreditPaymentAmountKeyTranslates(t *testing.T) {
+	test.TestMain(t)
+
+	msg := constants.GetErrorMessage("InvalidCreditPaymentAmount", 25.5)
+	assert.Contains(t, msg, "must be 0.00")
+	assert.Contains(t, msg, "25.5")
+	assert.NotContains(t, msg, "validation_errors.")
+}

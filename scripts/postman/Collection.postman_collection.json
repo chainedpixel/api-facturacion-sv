@@ -860,6 +860,40 @@
 					]
 				},
 				{
+					"name": "Condicion 3 (otro): pago en efectivo y saldo en cuentas por pagar (13)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Zapato de vestir\",\n            \"quantity\": 2,\n            \"unit_measure\": 59,\n            \"unit_price\": 48.75,\n            \"discount\": 0,\n            \"code\": \"FE-001\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 97.5,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 11.21681416\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 97.5,\n        \"sub_total\": 97.5,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 97.5,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 97.5,\n        \"total_to_pay\": 97.5,\n        \"operation_condition\": 3,\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 40.0\n            },\n            {\n                \"code\": \"13\",\n                \"amount\": 57.5\n            }\n        ],\n        \"total_in_words\": \"97 DOLARES CON 50 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 11.22,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invoices"
+							]
+						},
+						"description": "Venta mixta (operation_condition 3): varias formas de pago con monto mayor que 0 cuya suma es igual a total_to_pay (holgura 0.01). La parte cobrada va con su codigo (01 efectivo) y la parte no cobrada con el codigo 13 (cuentas por pagar del receptor). Cada forma de pago requiere code (PaymentCodeRequired)."
+					}
+				},
+				{
 					"name": "Tres formas de pago (efectivo, credito y transferencia)",
 					"request": {
 						"method": "POST",
@@ -918,64 +952,6 @@
 					]
 				},
 				{
-					"name": "Condicion credito a 30 dias",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Lote de zapatos para tienda\",\n            \"quantity\": 10,\n            \"unit_measure\": 59,\n            \"unit_price\": 28.75,\n            \"discount\": 12.5,\n            \"code\": \"FE-001\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 275,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 31.63716814\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 275,\n        \"sub_total\": 275,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 12.5,\n        \"total_operation\": 275,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 275,\n        \"total_to_pay\": 275,\n        \"operation_condition\": 2,\n        \"payment_types\": [\n            {\n                \"code\": \"03\",\n                \"amount\": 275,\n                \"period\": 30,\n                \"term\": \"01\"\n            }\n        ],\n        \"total_in_words\": \"275 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 31.64,\n        \"balance_in_favor\": 0\n    }\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"{{api_version}}",
-								"dte",
-								"invoices"
-							]
-						},
-						"description": "operation_condition 2 con plazo (period) y periodo (term, CAT-018). El pago envia el total (forma aceptada de manera transitoria por compatibilidad, se eliminara en una version futura); la forma normativa es amount 0.00 (ver ejemplo con pago en 0.00)."
-					},
-					"response": [],
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"type": "text/javascript",
-								"exec": [
-									"const json = pm.response.json();",
-									"pm.test('Hacienda otorgo sello de recepcion', function () {",
-									"    pm.expect(pm.response.code).to.eql(201);",
-									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
-									"});",
-									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
-									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
-									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
-									"});",
-									"const id = json.data && json.data.identificacion;",
-									"if (id) {",
-									"    pm.environment.set('generation_code', id.codigoGeneracion);",
-									"}"
-								]
-							}
-						}
-					]
-				},
-				{
 					"name": "Condicion credito con pago en 0.00 (sin abono inicial)",
 					"request": {
 						"method": "POST",
@@ -987,7 +963,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Lote de zapatos para tienda\",\n            \"quantity\": 10,\n            \"unit_measure\": 59,\n            \"unit_price\": 28.75,\n            \"discount\": 12.5,\n            \"code\": \"FE-001\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 275,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 31.63716814\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 275,\n        \"sub_total\": 275,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 12.5,\n        \"total_operation\": 275,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 275,\n        \"total_to_pay\": 275,\n        \"operation_condition\": 2,\n        \"payment_types\": [\n            {\n                \"code\": \"03\",\n                \"amount\": 0,\n                \"period\": 30,\n                \"term\": \"01\"\n            }\n        ],\n        \"total_in_words\": \"275 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 31.64,\n        \"balance_in_favor\": 0\n    }\n}",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Lote de zapatos para tienda\",\n            \"quantity\": 10,\n            \"unit_measure\": 59,\n            \"unit_price\": 28.75,\n            \"discount\": 12.5,\n            \"code\": \"FE-001\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 275,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 31.63716814\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 275,\n        \"sub_total\": 275,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 12.5,\n        \"total_operation\": 275,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 275,\n        \"total_to_pay\": 275,\n        \"operation_condition\": 2,\n        \"payment_types\": [\n            {\n                \"code\": null,\n                \"amount\": 0,\n                \"reference\": null,\n                \"term\": \"01\",\n                \"period\": 30\n            }\n        ],\n        \"total_in_words\": \"275 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 31.64,\n        \"balance_in_favor\": 0\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1006,7 +982,7 @@
 								"invoices"
 							]
 						},
-						"description": "Operacion a credito (operation_condition 2): se permite un unico pago con amount 0.00 siempre que lleve term y period y su codigo sea distinto de 01. amount 0.00 es la forma normativa (Anexo IV de la Normativa DTE v2.0) y la que deben enviar los consumidores. total_to_pay se mantiene con el valor real de la venta."
+						"description": "Operacion a credito (operation_condition 2): cada forma de pago va con code null, amount 0.00, reference null, term (01 dias, 02 meses o 03 anios) y period mayor que cero. total_to_pay se mantiene con el valor real de la venta. Con code distinto de null la API responde CreditPaymentCodeNotAllowed; sin term, CreditPaymentTermRequired; sin period o con period 0, CreditPaymentPeriodRequired; con reference, CreditPaymentReferenceNotAllowed; con amount distinto de 0.00, InvalidCreditPaymentAmount."
 					},
 					"response": [],
 					"event": [
@@ -2266,64 +2242,6 @@
 					]
 				},
 				{
-					"name": "Condicion credito",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Pedido semanal de pan\",\n            \"quantity\": 50,\n            \"unit_measure\": 59,\n            \"unit_price\": 1.1,\n            \"discount\": 2.5,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 52.5,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 52.5,\n        \"sub_total\": 52.5,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 2.5,\n        \"total_operation\": 59.33,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 52.5,\n        \"total_to_pay\": 59.33,\n        \"operation_condition\": 2,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.83\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"03\",\n                \"amount\": 59.33,\n                \"period\": 15,\n                \"term\": \"01\"\n            }\n        ],\n        \"total_in_words\": \"59 DOLARES CON 33 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/api/{{api_version}}/dte/ccf",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"{{api_version}}",
-								"dte",
-								"ccf"
-							]
-						},
-						"description": "Credito a 15 dias. El pago envia el total (forma aceptada de manera transitoria por compatibilidad, se eliminara en una version futura); la forma normativa es amount 0.00 (ver ejemplo con pago en 0.00)."
-					},
-					"response": [],
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"type": "text/javascript",
-								"exec": [
-									"const json = pm.response.json();",
-									"pm.test('Hacienda otorgo sello de recepcion', function () {",
-									"    pm.expect(pm.response.code).to.eql(201);",
-									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
-									"});",
-									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
-									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
-									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
-									"});",
-									"const id = json.data && json.data.identificacion;",
-									"if (id) {",
-									"    pm.environment.set('generation_code', id.codigoGeneracion);",
-									"}"
-								]
-							}
-						}
-					]
-				},
-				{
 					"name": "Condicion credito con pago en 0.00 (sin abono inicial)",
 					"request": {
 						"method": "POST",
@@ -2335,7 +2253,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Pedido semanal de pan\",\n            \"quantity\": 50,\n            \"unit_measure\": 59,\n            \"unit_price\": 1.1,\n            \"discount\": 2.5,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 52.5,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 52.5,\n        \"sub_total\": 52.5,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 2.5,\n        \"total_operation\": 59.33,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 52.5,\n        \"total_to_pay\": 59.33,\n        \"operation_condition\": 2,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.83\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"03\",\n                \"amount\": 0,\n                \"period\": 15,\n                \"term\": \"01\"\n            }\n        ],\n        \"total_in_words\": \"59 DOLARES CON 33 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Pedido semanal de pan\",\n            \"quantity\": 50,\n            \"unit_measure\": 59,\n            \"unit_price\": 1.1,\n            \"discount\": 2.5,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 52.5,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 52.5,\n        \"sub_total\": 52.5,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 2.5,\n        \"total_operation\": 59.33,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 52.5,\n        \"total_to_pay\": 59.33,\n        \"operation_condition\": 2,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.83\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": null,\n                \"amount\": 0,\n                \"reference\": null,\n                \"term\": \"01\",\n                \"period\": 15\n            }\n        ],\n        \"total_in_words\": \"59 DOLARES CON 33 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2354,7 +2272,7 @@
 								"ccf"
 							]
 						},
-						"description": "Operacion a credito (operation_condition 2): se permite un unico pago con amount 0.00 siempre que lleve term y period y su codigo sea distinto de 01. amount 0.00 es la forma normativa (Anexo IV de la Normativa DTE v2.0) y la que deben enviar los consumidores. total_to_pay se mantiene con el valor real de la venta."
+						"description": "Operacion a credito (operation_condition 2): cada forma de pago va con code null, amount 0.00, reference null, term (01 dias, 02 meses o 03 anios) y period mayor que cero. total_to_pay se mantiene con el valor real de la venta. Con code distinto de null la API responde CreditPaymentCodeNotAllowed; sin term, CreditPaymentTermRequired; sin period o con period 0, CreditPaymentPeriodRequired; con reference, CreditPaymentReferenceNotAllowed; con amount distinto de 0.00, InvalidCreditPaymentAmount."
 					},
 					"response": [],
 					"event": [
@@ -3412,7 +3330,7 @@
 								"invoices"
 							]
 						},
-						"description": "Venta de la mercaderia remitida: related_docs tipo 04 y cada item vinculado."
+						"description": "Venta de la mercaderia remitida: related_docs tipo 04 y cada item vinculado con related_doc. Si un item va con related_doc null, la API responde MissingItemRelatedDoc (Hacienda rechaza el item con numeroDocumento null)."
 					},
 					"response": [],
 					"event": [

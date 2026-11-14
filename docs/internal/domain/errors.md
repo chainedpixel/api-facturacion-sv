@@ -210,6 +210,12 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `InvalidDocumentNumberItem` | 1 | El número de documento %s no es válido, cuando el tipo de documento es '1' (físico), debe ser un número entre 1 y 20 caracteres, cuando el tipo de documento es '2' (electrónico), debe ser un UUID válido |
 | `InvalidEmissionDateForPhysicalDocument` | 1 | La fecha de emisión %s no es válida, debe ser una fecha menor o igual a la fecha actual cuando el tipo de generación es '1' (física) |
 | `InvalidPaymentTotal` | 2 | El total de pagos (%f) no coincide con el monto de operación (%f) |
+| `InvalidCreditPaymentAmount` | 1 | Con condición de operación crédito (2), el monto de cada forma de pago debe ser 0.00; se recibió %f |
+| `CreditPaymentCodeNotAllowed` | 1 | Con condición de operación crédito (2), el código de forma de pago debe ir null; se recibió %s |
+| `CreditPaymentReferenceNotAllowed` | 1 | Con condición de operación crédito (2), la referencia de la forma de pago debe ir null; se recibió %s |
+| `CreditPaymentTermRequired` | 0 | Con condición de operación crédito (2), el plazo de la forma de pago es obligatorio |
+| `CreditPaymentPeriodRequired` | 0 | Con condición de operación crédito (2), el período de la forma de pago es obligatorio y debe ser mayor que cero |
+| `PaymentCodeRequired` | 1 | Con condición de operación %d, el código de forma de pago es obligatorio |
 | `InvalidTotalIVA` | 2 | El total de IVA %f no coincide con la suma de impuestos IVA %f |
 | `InvalidTotalTaxed` | 2 | El total gravado %f no coincide con la suma de ventas gravadas %f |
 | `InvalidTotalDiscount` | 2 | El total de descuentos %f no coincide con la suma de descuentos %f |
@@ -241,7 +247,7 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `MissingTaxesItem` | 1 | El ítem %d tiene venta gravada pero no hay impuestos presentes, el impuesto (20) IVA debe estar presente para ventas gravadas |
 | `MissingItemUnitPrice` | 1 | El ítem %d, el precio unitario es requerido cuando la venta gravada es mayor que cero |
 | `InvalidPerceptionAmount` | 2 | El monto de percepción %s no coincide con el esperado (1%% del total gravado): %s |
-| `InvalidDTETypeForInvalidation` | 1 | El tipo de documento %s no es válido para invalidación, solo (01) -> Factura Electrónica, (03) -> Comprobante de Crédito Fiscal Electrónico y (04) -> Nota de Remisión Electrónica están permitidos |
+| `InvalidDTETypeForInvalidation` | 1 | El tipo de documento %s no es un tipo de DTE válido para invalidación |
 | `TransmissionFailed` | 0 | La transmisión falló, el documento no fue recibido por Hacienda |
 | `ExceededRelatedDocsLimit` | 1 | El número de documentos relacionados (%d) excede el límite permitido de 50 |
 | `InvalidRelatedDocTypeForCreditNote` | 1 | El tipo de documento relacionado %s no es válido para notas de crédito, debe ser (03) -> Comprobante de Crédito Fiscal o (07) -> Comprobante de Retención Electrónico |
@@ -272,7 +278,11 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `InvalidUnitPriceForNonTaxed` | 1 | El ítem %d con monto no gravado debe tener precio unitario 0 |
 | `MissingItemRelatedDoc` | 1 | El ítem %d, documento relacionado es requerido cuando la sección de Documentos Relacionados está presente |
 | `MissingItemTaxes` | 1 | Para este tipo de DTE, el campo de impuestos es obligatorio en los item. El item %d no tiene impuestos |
-| `InvalidItemRelatedDoc` | 2 | El ítem %d, documento relacionado %s no es válido |
+| `InvalidItemRelatedDoc` | 2 | El ítem %d referencia el documento relacionado %s, que no está en la sección de documentos relacionados |
+| `UnreferencedRelatedDoc` | 1 | El documento relacionado %s no está referenciado por ningún ítem |
+| `NoPaymentDueRequiresCashCondition` | 1 | Cuando el total a pagar es 0.00 o hay saldo a favor, la condición de operación debe ser 1 (contado); se recibió %d |
+| `NoPaymentDueRequiresCode99` | 0 | Cuando el total a pagar es 0.00 o hay saldo a favor, debe enviarse al menos una forma de pago y todas deben usar el código 99 |
+| `InvalidDebitNoteNotSubjectAmount` | 3 | La venta no sujeta %f de la nota de débito supera el saldo no sujeto disponible del documento %s: %f |
 | `InvalidSubTotalCalculation` | 2 | El cálculo del subtotal con descuentos (descuento_exento - descuento_no_sujeto - descuento_gravado) es incorrecto. Esperado: %f, Actual: %f |
 | `InvalidTotalToPayCalculation` | 2 | El cálculo del total a pagar es incorrecto. Esperado: %f, Actual: %f |
 | `InvalidMixedSalesWithNonSubject` | 1 | El ítem %d tiene ventas mixtas con no sujeto, solo una |
@@ -299,8 +309,6 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `InvalidInvalidationType` | 1 | El tipo de invalidación no es válido, debe ser un valor válido del catálogo CAT-024, obtenido %d |
 | `InvalidServiceType` | 1 | El tipo de servicio %d no es válido, debe ser un número entre 1 y 6 |
 | `InvalidCreditNoteTransaction` | 4 | El total %s es mayor que el saldo restante del documento %s. Total obtenido: %f. Saldo restante para este total: %f. |
-| `InvalidPaymentTypeOP2` | 0 | Cuando la condición de operación es 2, el código de pago NO debe ser es '01' (Billetes y monedas) porque no es una venta al contado |
-| `InvalidPaymentTerms` | 0 | Cuando la condición de operación es 2, los terminos 'term' y plazo 'period' son requeridos |
 | `InvalidPaymentTermsOF` | 0 | Cuando la condición de operación es 1, los terminos 'term' y plazo 'period' NO DEBEN ENVIARSE |
 | `InvalidTaxCodeOnly20` | 2 | El código de impuesto %s no es válido para artículos de tipo %d, debe ser 20 (IVA) |
 | `InvalidIVARetentionWithoutTaxedAmount` | 0 | Retention de IVA esta presente pero no tiene venta gravada, no puede haber IVA retenido sin venta gravada |
@@ -316,7 +324,7 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `InvalidNonTaxedAmountCalculation` | 2 | El cálculo de la venta no gravada es incorrecto. Total en resumen: %f, Total declarado en items: %f |
 | `MissingStampDate` | 1 | No se conoce la fecha del sello de recepción del documento %s, no se puede calcular el plazo de invalidación |
 | `InvalidationDeadlineExpired` | 2 | El plazo para invalidar el DTE tipo %s venció el %s. El documento conserva su validez, use una Nota de Crédito o Débito si corresponde |
-| `InvalidationEventDateOutOfRange` | 2 | La fecha del evento de invalidación del DTE tipo %s no puede ser posterior al %s |
+| `InvalidationEventDateOutOfRange` | 4 | El DTE tipo %s no puede invalidarse con fecha de evento %s: supera el límite %s, calculado desde su fecha de generación %s |
 | `InvalidationEventDateMismatch` | 2 | La fecha del evento de invalidación del DTE tipo %s debe ser igual a su fecha de generación %s |
 | `InvalidContingencyType` | 0 | El tipo de contingencia no es válido, debe ser un valor entre 1 y 5 |
 | `ExcessiveItemDiscount` | 3 | Item %d: el descuento %f excede el monto del item (precio unitario x cantidad) %f |
@@ -351,7 +359,6 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `AddressWithReceiver` | 0 | Cuando esté presente la dirección, los campos departamento, municipio y complemento son requeridos |
 | `InvalidDoctorInfo` | 0 | El nombre del doctor y el tipo de servicio son requeridos, pero uno o ambos están vacíos (el tipo de servicio 0 se considera vacío) |
 | `InvalidDoctorDocuments` | 0 | Se requiere la identificación o el NIT del doctor, pero ambos están vacíos |
-| `InvalidPaymentTypeInfo` | 0 | El código es requerido y no puede estar vacío en payment_types |
 | `InvalidTaxCodeAndDescription` | 0 | El código y la descripción del impuesto son requeridos, pero uno o ambos están vacíos |
 | `InvalidThirdParty` | 0 | El nombre y el NIT son requeridos y no pueden estar vacíos en third_party_sale |
 | `InvalidBaseDTE` | 0 | DTE base inválido |
@@ -377,6 +384,7 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `DocumentAlreadyInvalid` | 1 | El %s ya ha sido invalidado, no se puede invalidar nuevamente |
 | `DocumentReject` | 1 | El %s fue rechazado por hacienda, no se puede invalidar |
 | `DocumentPending` | 1 | El %s aun está pendiente de retransmitir, no se puede invalidar |
+| `DocumentExpired` | 1 | El %s venció en contingencia sin obtener sello de recepción, se considera no emitido y no se puede invalidar |
 | `InvalidQueryParam` | 2 | El parámetro de consulta %s tiene un formato incorrecto, debe ser %s |
 | `RelatedDocumentNotReceived` | 2 | El documento relacionado %s no fue recibido por Hacienda, su estado actual es: %s |
 | `NotMatchingReceiverNIT` | 0 | El NIT del receptor en el documento de nota de crédito no coincide con el NIT del documento a acreditar |

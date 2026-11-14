@@ -113,7 +113,7 @@ El receptor de una nota se identifica por NIT y debe coincidir con el receptor d
 | `total_operation` | float | Sí | Monto total de la operación |
 | `total_non_taxed` | float | Sí | Total no gravado (cargos/abonos) |
 | `total_to_pay` | float | Sí | Total a pagar |
-| `operation_condition` | integer | Sí | `1`=Contado, `2`=Crédito, `3`=Otro |
+| `operation_condition` | integer | Sí | `1`=Contado, `2`=Crédito, `3`=Otro. Si `total_to_pay` es `0.00` debe ser `1` (`NoPaymentDueRequiresCashCondition`, dentro de `MANY_ERRORS`) |
 | `taxes` | `Tax[]` | Condicional | Tributos del resumen. Obligatorio si `total_taxed > 0` (debe incluir el `20`); debe omitirse si `total_taxed = 0` |
 | `iva_perception` | float | Sí | IVA percibido (1 % de `total_taxed`) |
 | `iva_retention` | float | Sí | IVA retenido |

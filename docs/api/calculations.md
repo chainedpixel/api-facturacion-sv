@@ -221,7 +221,7 @@ Notas:
 
 - La base de los tributos distintos de `20` es `total_taxed` **sin** restar `taxed_discount`, también en CCF.
 - En FE el tributo se compara contra `total_taxed` (que incluye IVA, porque el precio de la FE lo incluye).
-- En ND el desvío del valor del tributo contra la fórmula solo se registra en el log y **no se rechaza** (la validación del código de tributo y de su presencia sí se aplica).
+- En ND el desvío del valor del tributo contra la fórmula (holgura ±0.01) se rechaza con `InvalidTaxCalculation`, igual que en NC y CCF.
 - En NR no se aplica ninguna de estas fórmulas.
 
 ### 3.7 IVA de la FE en el resumen (campo 157, `total_iva`)
@@ -279,24 +279,30 @@ Notas:
 
 ### 3.11 Pagos
 
-Aplica a FE, CCF y FSE (no a NC, ND ni NR).
+Aplica a FE, CCF y FSE (no a NC, ND ni NR). En NC y ND solo se valida que la condición sea `1` cuando `total_to_pay` es `0.00`.
 
 | Regla | Error |
 |---|---|
-| `Σ payment_types[].amount` coincide con `total_to_pay`, holgura ±0.01. Excepción: con condición de operación `2` (crédito), al menos un pago y suma igual a `0`, no se compara; `0.00` es el valor normativo (Anexo IV) y el que deben enviar los consumidores. Por compatibilidad se acepta de forma transitoria que el pago sea igual al total (la comparación se cumple como siempre); esta tolerancia se eliminará en una versión futura y después solo se aceptará `0.00` con condición `2`. Una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 se rechaza. `code` es requerido por la API en todos los pagos (`InvalidPaymentTypeInfo`) y `reference` es opcional | `InvalidPaymentTotal` |
-| Condición de operación `2` (crédito) sin pago en efectivo (`01`): cada pago debe llevar `term` y `period`, y el código de pago no puede ser `01` | `InvalidPaymentTerms`, `InvalidPaymentTypeOP2` |
+| Condición de operación `1` (contado) o `3` (otro): `Σ payment_types[].amount` coincide con `total_to_pay`, holgura ±0.01. Con condición `2` (crédito) no se compara la suma; una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 también se rechaza | `InvalidPaymentTotal` |
+| Condición `1` o `3`: cada pago requiere `code` | `PaymentCodeRequired` |
+| Condición `3`: se admiten varias formas de pago con monto mayor que 0, incluido el código `13` para la parte no cobrada; la suma debe dar `total_to_pay` | `InvalidPaymentTotal` |
+| `total_to_pay` igual a `0.00` (FE, CCF, FSE, NC y ND) o `balance_in_favor` distinto de 0 (FE y CCF): condición `1` | `NoPaymentDueRequiresCashCondition` |
+| FE, CCF y FEXE con `total_to_pay` igual a `0.00` o `balance_in_favor` distinto de 0: al menos una forma de pago y todas con código `99` (no aplica a FSE, NC ni ND) | `NoPaymentDueRequiresCode99` |
+| Condición `2`: cada pago lleva `code` en `null` | `CreditPaymentCodeNotAllowed` |
+| Condición `2`: cada pago lleva `amount` en `0.00` | `InvalidCreditPaymentAmount` |
+| Condición `2`: cada pago lleva `reference` en `null` | `CreditPaymentReferenceNotAllowed` |
+| Condición `2`: cada pago lleva `term` (CAT-018) | `CreditPaymentTermRequired` |
+| Condición `2`: cada pago lleva `period` mayor que cero | `CreditPaymentPeriodRequired` |
 | Condición de operación `1` (contado) sin pago en efectivo: los pagos no deben llevar `term` ni `period` | `InvalidPaymentTermsOF` |
 | `payment_types[].amount` debe ser múltiplo de `0.01` (FE, CCF, NC) | `InvalidMonetaryAmount` |
-| Cada pago requiere `code`; `amount` puede ser `0` | `InvalidPaymentTypeInfo` |
 
 ### 3.12 Saldo del documento relacionado en NC y ND
 
-La Normativa (Anexo IV, campos 90 a 92) indica que la suma de las ventas de los ítems de las notas relacionadas con un mismo CCF no puede ser mayor que el total de operaciones menos el descuento global de ese documento. La API lo controla con un saldo por documento:
+La suma de las ventas de los ítems de las notas relacionadas con un mismo CCF no puede ser mayor que el total de cada tipo de venta menos el descuento global de ese documento. La API lo controla con un saldo por documento:
 
-- El saldo inicial de un CCF o CR emitido es su `total_taxed`, `total_exempt` y `total_non_subject`.
+- El saldo inicial de un CCF o CR emitido es su total por categoría menos el descuento global correspondiente: `total_taxed - taxed_discount`, `total_exempt - exempt_discount` y `total_non_subject - non_subject_discount` (el mismo valor antes de IVA que se compara con los totales de la NC), nunca menor que cero. Los saldos ya registrados antes de este cálculo no se migran.
 - Al emitir una **NC** cuyo documento relacionado es electrónico (`generation_type = 2`), cada total de la NC (`total_taxed`, `total_exempt`, `total_non_subject`) no puede superar el saldo restante correspondiente; si lo supera se rechaza con `InvalidCreditNoteTransaction`. La NC descuenta del saldo; si la NC se invalida, el saldo se restituye (transacción `INVALIDATED`).
-- Para la **ND** solo se verifica que el documento relacionado tenga control de saldo; la ND suma al saldo del documento; si la ND se invalida, se registra una transacción `DEBIT_NOTE_INVALID` que resta del saldo los montos que había sumado.
-- El saldo no resta el descuento global del documento original (`taxed_discount`, `exempt_discount`, `non_subject_discount`).
+- Para la **ND** solo se limita la venta no sujeta: `total_non_subject` de la ND más la venta no sujeta de las ND vigentes sobre el mismo documento (transacciones `06` menos las `DEBIT_NOTE_INVALID`) no puede superar el total no sujeto neto del descuento global del documento (`total_non_subject - non_subject_discount`); si lo supera se rechaza con `InvalidDebitNoteNotSubjectAmount`. Las ventas gravadas y exentas de la ND no se comparan contra el saldo. La ND suma al saldo del documento; si la ND se invalida, se registra una transacción `DEBIT_NOTE_INVALID` que resta del saldo los montos que había sumado.
 
 ---
 
@@ -399,6 +405,11 @@ Todos los mensajes están en `assets/i18n/es.yaml`. Los parámetros se listan en
 | `InvalidTotalToPayCalculation` | `total_to_pay` incorrecto (FE, CCF, NC, ND) |
 | `FSETaxInvalidTotalToPay` | `total_to_pay` incorrecto (FSE) |
 | `InvalidPaymentTotal` | La suma de pagos no coincide con `total_to_pay` |
+| `InvalidCreditPaymentAmount` | Con condición `2` algún `amount` de pago es distinto de `0.00` |
+| `CreditPaymentCodeNotAllowed`, `CreditPaymentReferenceNotAllowed` | Con condición `2` una forma de pago trae `code` o `reference` |
+| `CreditPaymentTermRequired`, `CreditPaymentPeriodRequired` | Con condición `2` una forma de pago no trae `term` o `period` mayor que cero |
+| `PaymentCodeRequired` | Con condición `1` o `3` una forma de pago no trae `code` |
+| `NoPaymentDueRequiresCashCondition`, `NoPaymentDueRequiresCode99` | Total a pagar `0.00` o saldo a favor sin condición `1` o sin formas de pago `99` |
 | `InvalidTotalDiscountCalculation`, `InvalidTotalDiscount` | `total_discount` incorrecto (ND y FSE) |
 | `DiscountExceedsBase`, `DiscountExceedsSubtotal`, `ExcessiveItemDiscount`, `NegativeDiscount` | Descuento mayor que su base o negativo |
 | `GlobalDiscountNotAllowedInAdjustment` | Descuento global o porcentaje de descuento distinto de 0 en NC o ND |

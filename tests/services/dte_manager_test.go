@@ -842,3 +842,44 @@ func TestDTEServiceCreate_DoesNotAlterSignedStructure(t *testing.T) {
 		})
 	}
 }
+
+// TestDTEServiceValidateForCreditNote_NetBalanceOfGlobalDiscount checks a credit note against the balance of a CCF
+// of 100.00 taxed with a 10 percent global discount (remaining 90.00): 95.00 is rejected and 90.00 is accepted.
+func TestDTEServiceValidateForCreditNote_NetBalanceOfGlobalDiscount(t *testing.T) {
+	test.TestMain(t)
+	builder := fixtures.NewDTEBuilder()
+
+	netBalance := &dte.BalanceControl{RemainingTaxedAmount: 90.0, RemainingExemptAmount: 0, RemainingNotSubjectAmount: 0}
+
+	cases := []struct {
+		name    string
+		taxed   float64
+		wantErr bool
+	}{
+		{"credit note above the net balance", 95.0, true},
+		{"credit note equal to the net balance", 90.0, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockRepo := mocks.NewMockDTERepositoryPort(ctrl)
+			mockRepo.EXPECT().GetDTEBalanceControl(gomock.Any(), uint(1), "CCF-1").Return(netBalance, nil)
+
+			doc, err := builder.BuildCreditNote()
+			assert.NoError(t, err)
+			assert.NoError(t, doc.Summary.SetTotalTaxed(tc.taxed))
+			assert.NoError(t, doc.Summary.SetTotalExempt(0))
+			assert.NoError(t, doc.Summary.SetTotalNonSubject(0))
+
+			err = dte_documents.NewDTEService(mockRepo, nil).ValidateForCreditNote(context.Background(), 1, "CCF-1", doc)
+			if tc.wantErr {
+				test.AssertErrorCode(t, err, "InvalidCreditNoteTransaction")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

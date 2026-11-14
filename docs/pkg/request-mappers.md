@@ -345,7 +345,7 @@ Se orquesta el mapeo de los campos opcionales: venta a terceros, extensión, otr
 | `MapCommonRequestAddress()` | Se mapea dirección; departamento, municipio y complemento son requeridos (error `AddressWithReceiver`); `District` toma `"01"` si no viene |
 | `MapClientAddress()` | Se mapea la dirección del emisor desde BD (distrito por defecto `"01"`) |
 | `MapCommonRequestExtension()` | Se mapea extensión (entrega/recepción), placa 1-10 caracteres (sin uso por los request actuales) |
-| `MapCommonRequestPaymentsType()` | Se mapean formas de pago (solo el código es requerido por la API; el monto puede ser 0, que es el valor normativo con condición de operación 2 (crédito), y la referencia es opcional; `InvalidPaymentTypeInfo` si falta el código) |
+| `MapCommonRequestPaymentsType()` | Se mapean formas de pago. El código vacío o `null` se conserva vacío para que las reglas de dominio decidan según la condición de operación (obligatorio con `1` o `3`, `null` con `2`); un código presente se valida contra CAT-017. El monto puede ser 0 y la referencia es opcional |
 | `MapCommonRequestSummaryTaxes()` | Se mapean tributos del resumen (código y descripción requeridos; valor distinto de 0, salvo IVA exportación) con 2 decimales |
 | `MapCommonRequestAppendix()` | Se mapean apéndices (field, label, value requeridos) |
 | `MapCommonRequestRelatedDocuments()` | Se mapean documentos relacionados; si no viene fecha de emisión se usa la fecha actual |

@@ -60,6 +60,7 @@ No existe un response mapper de extensión: ningún DTE incluye la sección `ext
 - **Horas**: Formato `"15:04:05"` (HH:MM:SS)
 - **Campos opcionales**: Se convierten a puntero; si están vacíos se asigna `nil` (se serializa `null`)
 - **Dirección del receptor**: Se retorna `nil` si departamento, municipio y complemento están vacíos
+- **Formas de pago (`MapCommonResponsePayments`)**: `codigo` y `referencia` van `null` cuando no se informaron (venta a crédito); `plazo` y `periodo` van `null` si no se informaron
 - **Código de ítem y tributo (`MapItemCodes`)**: `codigo` va `null` si no se informó; `codTributo` solo se informa en ítems tipo 4 (impuesto sujeto a cálculo de IVA)
 - **Tributos del resumen (`MapTaxes`)**: Sin tributos se devuelve `nil` (se envía `null`); los valores se redondean a 2 decimales usando `shopspring/decimal`
 - **Apéndice (`MapCommonResponseAppendix`)**: Sin elementos se devuelve `nil` (se envía `null`), porque los esquemas exigen `null` o un arreglo con `minItems` 1; un arreglo vacío sería rechazado

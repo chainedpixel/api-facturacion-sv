@@ -310,7 +310,7 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid CCF with maximum allowed related documents (50)",
+			name: "Error - CCF with 50 related documents where only one is referenced by the items",
 			setupCCFData: func() (*ccf_models.CCFData, error) {
 				ccf, err := fixtures.BuildCCF()
 				if err != nil {
@@ -345,9 +345,10 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 					gomock.Any(),
-				).Return("DTE-03-C0010001-000000000012345", nil)
+				).Return("DTE-03-C0010001-000000000012345", nil).AnyTimes()
 			},
-			wantErr: false,
+			wantErr:   true,
+			errorCode: "UnreferencedRelatedDoc",
 		},
 		{
 			name: "Error - CCF with InvalidMixedSalesWithExempt",

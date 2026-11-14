@@ -461,19 +461,20 @@ func (b *DTEBuilder) AddSummaryWithCredit() *DTEBuilder {
 	b.setError(summary.SetOperationCondition(constants.Credit))
 
 	if len(summary.GetPaymentTypes()) > 0 {
-		paymentType, ok := summary.GetPaymentTypes()[0].(*models.PaymentType)
-		if ok {
-			b.setError(paymentType.SetCode(constants.TransBancaria))
-			b.setError(paymentType.SetReference("Bank transfer"))
-
-			term := "01"
-			period := 30
-			b.setError(paymentType.SetTerm(&term))
-			b.setError(paymentType.SetPeriod(&period))
-		}
+		b.setError(summary.SetPaymentTypes([]interfaces.PaymentType{NewCreditPayment("01", 30)}))
 	}
 
 	return b
+}
+
+// NewCreditPayment builds a credit payment with a null code, a 0.00 amount, a null reference and the given term
+// and period
+func NewCreditPayment(term string, period int) *models.PaymentType {
+	return &models.PaymentType{
+		Amount: *financial.NewValidatedAmount(0),
+		Term:   financial.NewValidatedPaymentTerm(term),
+		Period: &period,
+	}
 }
 
 // AddSummaryWithInvalidPayment adds a summary with invalid payments for testing

@@ -69,7 +69,7 @@ type DTERepository struct {
 | `GetByGenerationCode(ctx, branchID, generationCode)` | Se obtiene un DTE por su UUID, incluidos `signed_document`, `processing_date` y `hacienda_response` |
 | `GetActiveAdjustmentNotes(ctx, branchID, originalDTE)` | Se obtienen los códigos de generación de las notas de crédito y débito vigentes del documento |
 | `VerifyStatus(ctx, branchID, id)` | Se consulta el estado actual de un DTE |
-| `GetDTEBalanceControl(ctx, branchID, id)` | Se obtiene la información de control de balance |
+| `GetDTEBalanceControl(ctx, branchID, id)` | Se obtiene la información de control de balance con sus transacciones (`Transactions`), que se usan para calcular la venta no sujeta de las ND vigentes (`BalanceControl.DebitNotesNotSubjectAmount`) |
 | `GenerateBalanceTransaction(ctx, branchID, originalDTE, transaction)` | Se registra una transacción de balance |
 | `GetTotalCount(ctx, filters)` | Se cuenta el total de documentos según filtros |
 | `GetSummaryStats(ctx, filters)` | Se generan estadísticas resumidas |
@@ -159,7 +159,7 @@ type ReservedSequenceRepository struct {
 | `UpdateAsContingency(ctx, reservationID, documentID, contingencyDocID)` | Se marca como contingencia (`is_contingency = true`) |
 | `UpdateAsContingencyByControlNumber(...)` | Se actualiza contingencia por número de control |
 | `GetByDocumentID(ctx, documentID)` | Se obtiene la reservación por documento |
-| `GetExpiredNonContingencyReservations(ctx)` | Se obtienen reservaciones `RESERVED` expiradas no contingentes, excluyendo (subconsulta `NOT EXISTS`) las que tienen un DTE en `dte_details` con el mismo tipo y correlativo (los últimos 15 caracteres del número de control, con o sin año como prefijo) |
+| `GetExpiredNonContingencyReservations(ctx)` | Se obtienen reservaciones `RESERVED` expiradas no contingentes, excluyendo (subconsulta `NOT EXISTS`) las que tienen un DTE en `dte_details` de la misma sucursal (`dte_documents.branch_id`) con el mismo tipo y correlativo (los últimos 15 caracteres del número de control, con o sin año como prefijo) |
 
 ### Ciclo de Vida de Estados
 

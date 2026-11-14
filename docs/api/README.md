@@ -152,7 +152,7 @@ Las reglas de negocio no siempre se devuelven con su nombre como `error.code`; e
 
 | Método | Path | Descripción |
 |--------|------|-------------|
-| `GET` | `/api/v1/dte` | Listar todos los DTEs del sistema |
+| `GET` | `/api/v1/dte` | Listar los DTEs de la sucursal autenticada (con `all=true`, los de todas las sucursales del mismo emisor) |
 | `GET` | `/api/v1/dte/{id}` | Obtener DTE por código de generación (UUID) |
 | `GET` | `/api/v1/dte/{id}/archivo` | Obtener el Archivo DTE (estructura firmada + `firmaElectronica` + `selloRecibido`) |
 | `GET` | `/api/v1/dte/{id}/eventos` | Obtener los eventos del DTE (invalidación) con su Archivo DTE |
@@ -258,6 +258,8 @@ El Ministerio de Hacienda exige numeración única, consecutiva y sin saltos por
 
 **Reintentos seguros:** Si recibes un error 500 (interno del servidor, no de Hacienda), es seguro reintentar. El sistema garantiza la integridad de la numeración.
 
+**Excepciones, no reintentar:** si Hacienda ya selló el documento y falla un paso posterior, la respuesta es `HTTP 400` con `STAMPEDDOCUMENTNOTPERSISTED` (el documento no pudo guardarse localmente; el mensaje incluye el código de generación y el sello de recepción) o `ADDITIONALOPERATIONSFAILED` (el documento se guardó, pero fallaron las operaciones posteriores, como el control de saldo de una Nota de Crédito o Débito). En ambos casos el documento ya existe en Hacienda y **no debe emitirse nuevamente**; se debe contactar al administrador, que recibe un correo en el primer caso.
+
 ---
 
 ## Documentación por tipo de DTE
@@ -272,6 +274,7 @@ El Ministerio de Hacienda exige numeración única, consecutiva y sin saltos por
 - [Anulación de DTE](./invalidation.md)
 - [Consulta de DTEs](./dte-query.md)
 - [Reglas de cálculo](./calculations.md)
+- [Guía de actualización para sistemas consumidores](./consumer-upgrade-guide.md) — Cambios desde la versión 25fbd59 y pasos para actualizar las integraciones
 
 ### Plazo de 72 horas y estado `EXPIRED`
 

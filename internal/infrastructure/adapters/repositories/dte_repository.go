@@ -98,6 +98,19 @@ func (D *DTERepository) GetDTEBalanceControl(ctx context.Context, branchID uint,
 		return nil, handleGormErr(result.Error, "GetDTEBalanceControl")
 	}
 
+	transactions := make([]dte.BalanceTransaction, 0, len(balanceControl.Transactions))
+	for _, transaction := range balanceControl.Transactions {
+		transactions = append(transactions, dte.BalanceTransaction{
+			BalanceControlID:     transaction.BalanceControlID,
+			AdjustmentDocumentID: transaction.AdjustmentDocumentID,
+			TransactionType:      transaction.TransactionType,
+			TaxedAmount:          transaction.TaxedAmount,
+			ExemptAmount:         transaction.ExemptAmount,
+			NotSubjectAmount:     transaction.NotSubjectAmount,
+			CreatedAt:            transaction.CreatedAt,
+		})
+	}
+
 	return &dte.BalanceControl{
 		ID:                        balanceControl.ID,
 		BranchID:                  balanceControl.BranchID,
@@ -108,6 +121,7 @@ func (D *DTERepository) GetDTEBalanceControl(ctx context.Context, branchID uint,
 		RemainingTaxedAmount:      balanceControl.RemainingTaxedAmount,
 		RemainingExemptAmount:     balanceControl.RemainingExemptAmount,
 		RemainingNotSubjectAmount: balanceControl.RemainingNotSubjectAmount,
+		Transactions:              transactions,
 	}, nil
 }
 

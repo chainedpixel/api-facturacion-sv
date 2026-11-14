@@ -361,7 +361,9 @@ func (r *ReservedSequenceRepository) GetByDocumentID(ctx context.Context, docume
 
 const notPersistedDocumentCondition = `NOT EXISTS (
 	SELECT 1 FROM dte_details d
-	WHERE d.dte_type = reserved_sequence_numbers.dte_type
+	JOIN dte_documents dd ON dd.document_id = d.id
+	WHERE dd.branch_id = reserved_sequence_numbers.branch_id
+	AND d.dte_type = reserved_sequence_numbers.dte_type
 	AND RIGHT(d.control_number, 15) IN (
 		LPAD(reserved_sequence_numbers.sequence_number, 15, '0'),
 		CONCAT(reserved_sequence_numbers.year, LPAD(reserved_sequence_numbers.sequence_number, 11, '0'))
@@ -369,7 +371,7 @@ const notPersistedDocumentCondition = `NOT EXISTS (
 )`
 
 // GetExpiredNonContingencyReservations returns expired reserved non-contingency numbers, excluding those whose
-// control number already belongs to a persisted DTE so a stamped document number is never released and reused.
+// control number already belongs to a persisted DTE of the same branch so a stamped document number is never released and reused.
 func (r *ReservedSequenceRepository) GetExpiredNonContingencyReservations(ctx context.Context) ([]dte_documents.ReservedSequence, error) {
 	var dbModels []db_models.ReservedSequenceNumber
 

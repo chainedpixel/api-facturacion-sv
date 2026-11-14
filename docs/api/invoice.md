@@ -64,7 +64,7 @@ El número de ítem lo asigna el servicio según la posición en el arreglo (`nu
 | `iva_item` | float | Condicional | IVA incluido en el precio del ítem. Obligatorio (≠ 0) si `taxed_sale > 0`; no puede ser `> 0` si `taxed_sale = 0` |
 | `code` | string | No | Código del producto (1–24 caracteres efectivos; el mensaje de error indica "1 a 25") |
 | `tax_code` | string | No | Código de tributo (CAT-015). Solo se emite como `codTributo` en ítems de tipo `4` |
-| `related_doc` | string | Condicional | `document_number` del documento relacionado al que pertenece el ítem. Obligatorio en todos los ítems si hay `related_docs` |
+| `related_doc` | string | Condicional | `document_number` del documento relacionado al que pertenece el ítem. Obligatorio en todos los ítems si hay `related_docs` (`MissingItemRelatedDoc`); debe omitirse o ir en `null` si no hay `related_docs`. Cada documento de `related_docs` debe estar referenciado por al menos un ítem |
 | `taxes` | string[] | No | Códigos de tributo aplicados al ítem (CAT-015). **No admite `20` ni `C3`** en FE |
 
 Todos los campos numéricos se envían como número JSON. Los montos son siempre ≥ 0.
@@ -161,22 +161,37 @@ Si `total_taxed = 0` no se admiten tributos en el resumen (`InvalidTaxes`). La f
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `code` | string | Sí | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017) |
-| `amount` | float | Sí | Monto (2 decimales). En ventas a crédito (condición `2`) debe enviarse `0.00` (ver reglas) |
-| `period` | integer | Condicional | Período. Ver reglas |
-| `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`). Ver reglas |
-| `reference` | string | No | Referencia del pago |
+| `code` | string | Condicional | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017). Obligatorio con condición `1` o `3`; con condición `2` debe ir `null` |
+| `amount` | float | Sí | Monto (2 decimales). Con condición `2` debe enviarse `0.00` |
+| `period` | integer | Condicional | Número de días, meses o años del plazo, mayor que cero. Obligatorio con condición `2` |
+| `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`, CAT-018). Obligatorio con condición `2` |
+| `reference` | string | No | Referencia del pago. Con condición `2` debe ir `null` |
 
-**Reglas:**
+**Reglas con condición `2` (crédito)**, por cada forma de pago:
+- `code` debe ir `null` (`CreditPaymentCodeNotAllowed`).
+- `amount` debe ser exactamente `0.00` (`InvalidCreditPaymentAmount`). No se compara la suma con `total_to_pay`.
+- `reference` debe ir `null` (`CreditPaymentReferenceNotAllowed`).
+- `term` es obligatorio (`CreditPaymentTermRequired`).
+- `period` es obligatorio y mayor que cero (`CreditPaymentPeriodRequired`).
+- Se requiere al menos una forma de pago: una lista vacía con `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
+
+Ejemplo de forma de pago a crédito a 30 días:
+
+```json
+"payment_types": [
+  { "code": null, "amount": 0.00, "reference": null, "term": "01", "period": 30 }
+]
+```
+
+En el JSON transmitido a Hacienda la forma de pago queda con `codigo` y `referencia` en `null`, `montoPago` en `0.00`, y `plazo` y `periodo` informados.
+
+**Reglas con condición `1` (contado) o `3` (otro):**
+- `code` es obligatorio en cada forma de pago (`PaymentCodeRequired`).
 - La suma de `amount` debe coincidir con `total_to_pay` (tolerancia ±0.01, `InvalidPaymentTotal`).
-- En ventas a crédito (condición `2`) el valor normativo de `amount` es `0.00` (Anexo IV: el monto por forma de pago "deberá completarse con $0.00") y es el que deben enviar los consumidores. Con al menos un pago y todos los `amount` en `0.00` no se compara la suma con `total_to_pay`.
-- Por compatibilidad, la API acepta de forma transitoria que con condición `2` el `amount` sea igual al total a pagar (la suma se compara con `total_to_pay` como siempre). Esta tolerancia se eliminará en una versión futura, después de la cual con condición `2` solo se aceptará `0.00`.
-- Una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
-- `code` es requerido por la API en todos los pagos (`InvalidPaymentTypeInfo`), aunque el Anexo IV solo lo exige con condición `1` o `3`. `reference` puede omitirse (con condición `2` puede ser `null`).
-- Condición `2` (Crédito): si ningún pago usa el código `"01"`, todos los pagos deben informar `period` y `term` (`InvalidPaymentTerms`).
-- Condición `1` (Contado): si ningún pago usa el código `"01"`, los pagos no deben informar `period` ni `term` (`InvalidPaymentTermsOF`).
+- Con condición `3` se admiten varias formas de pago con monto mayor que 0; la parte no cobrada se informa con el código `13` (cuentas por pagar del receptor). Ejemplo: `[{"code": "01", "amount": 40.00}, {"code": "13", "amount": 60.00}]` para un `total_to_pay` de `100.00`.
 
-> **Normativa:** las formas de pago corresponden a los campos 159 a 164 del Anexo IV de la Normativa de Cumplimiento DTE v2.0: `operation_condition` (campo 159, CAT-016), `code` (campo 160, CAT-017), `amount` (campo 161), `reference` (campo 162), `term` (campo 163, CAT-018) y `period` (campo 164). La suma de los montos por forma de pago debe ser igual al total a pagar (campo 161, regla 4), dentro de la holgura general de la regla 7.3.
+**Total a pagar `0.00` o saldo a favor:** la condición debe ser `1` (`NoPaymentDueRequiresCashCondition`) y debe enviarse al menos una forma de pago, todas con código `99` (`NoPaymentDueRequiresCode99`). Ejemplo: `[{"code": "99", "amount": 0.00}]`.
+- Condición `1`: si ningún pago usa el código `"01"`, los pagos no deben informar `period` ni `term` (`InvalidPaymentTermsOF`).
 
 ---
 
@@ -191,11 +206,14 @@ Si `total_taxed = 0` no se admiten tributos en el resumen (`InvalidTaxes`). La f
 
 **Reglas (comunes a FE y CCF):**
 - Máximo 50 documentos (`ExceededRelatedDocsLimit`) y todos del mismo tipo (`MixedDocumentTypesNotAllowed`).
-- Si se envían `related_docs`, **todos los ítems** deben incluir `related_doc` igual al `document_number` de alguno de los documentos (`MissingItemRelatedDoc`, `InvalidItemRelatedDoc`).
+- Si hay `related_docs`, **todos los ítems** deben incluir `related_doc` (`MissingItemRelatedDoc`) y este debe ser el `document_number` de alguno de los documentos; la comparación es exacta (`InvalidItemRelatedDoc`).
+- Cada documento de `related_docs` debe aparecer en el `related_doc` de al menos un ítem (`UnreferencedRelatedDoc`).
+- Si no se envían `related_docs` (o la lista está vacía), ningún ítem puede llevar `related_doc` (`InvalidItemRelatedDoc`).
+- Hacienda rechaza con `HACIENDA_003` (`cuerpoDocumento.item.N.numeroDocumento`) un ítem con `numeroDocumento` en `null` cuando el documento trae documentos relacionados; la API lo rechaza antes de transmitir.
 - Con NR (`04`) el documento debe generarse en el mismo periodo tributario de la NR o, a más tardar, dentro de los 3 días siguientes al fin de ese periodo; con DCL (`09`), dentro del mismo periodo (`RelatedDocOutOfPeriod`).
-- En el estado actual del código, la FE **no verifica** que `document_type` sea uno de `04`, `08` o `09` (solo se exige un tipo de DTE válido); el CCF sí lo verifica.
+- `document_type` debe ser `04`, `08` o `09`; cualquier otro tipo se rechaza con `InvalidRelatedDocDTEType`, igual que en el CCF.
 
-> **Normativa:** la sección Documentos relacionados corresponde a los campos 14 a 17 del Anexo IV de la Normativa de Cumplimiento DTE v2.0: `document_type` (campo 14), `generation_type` (campo 15, CAT-007), `document_number` (campo 16) y `emission_date` (campo 17). Para la FE se pueden relacionar los códigos `04` (NR), `08` (CL) y `09` (DCL) (campo 14, regla 4), hasta 50 documentos del mismo tipo (campo 14, regla 7; campo 16, regla 2), y no pueden relacionarse documentos electrónicos invalidados o rechazados (campo 16, regla 3). Los plazos respecto de la NR (mismo período tributario o hasta 3 días siguientes a ese período) y del DCL (mismo período tributario) corresponden al campo 17, regla 2, literales a) y b). El ítem referencia el documento mediante `related_doc` (campo 80, regla 2).
+> Para la FE se pueden relacionar los códigos `04` (NR), `08` (CL) y `09` (DCL), hasta 50 documentos del mismo tipo, y no pueden relacionarse documentos electrónicos invalidados o rechazados. Cada ítem referencia su documento mediante `related_doc`.
 
 ---
 
@@ -487,7 +505,9 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `InvalidNonTaxedAmount`, `InvalidNonTaxedAmountCalculation` | `total_non_taxed` no coincide con los ítems |
 | `InvalidTotalToPayCalculation` | `total_to_pay` no coincide con la fórmula esperada |
 | `InvalidMonetaryAmount` | Un monto del resumen o un pago tiene más de 2 decimales |
-| `MissingItemRelatedDoc`, `InvalidItemRelatedDoc` | Hay `related_docs` y un ítem no referencia un documento válido |
+| `UnreferencedRelatedDoc` | Un documento de `related_docs` no aparece en el `related_doc` de ningún ítem |
+| `MissingItemRelatedDoc` | Hay `related_docs` y un ítem no trae `related_doc` |
+| `InvalidItemRelatedDoc` | Un ítem referencia un documento que no está en `related_docs` (o no se enviaron `related_docs`) |
 | `ExceededItemsLimit` | Más de 2000 ítems |
 
 ### Reglas comunes (`MANY_ERRORS`)
@@ -499,9 +519,18 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `InvalidItemNumber`, `InvalidItemType` | Número o tipo de ítem inválido |
 | `InvalidLength` | Descripción de ítem fuera de 1–1500, código de ítem excedido, textos de `other_docs` excedidos |
 | `InvalidNumberRange` | `unit_measure` fuera de 1–99 |
-| `InvalidPaymentTypeOP2`, `InvalidPaymentTerms`, `InvalidPaymentTermsOF` | Reglas de `period` y `term` según la condición de operación |
+| `InvalidPaymentTermsOF` | Condición `1` sin pago en efectivo y con `period` o `term` informados |
 | `InvalidPaymentTotal` | La suma de pagos no coincide con `total_to_pay` |
+| `InvalidCreditPaymentAmount` | Con condición `2` algún `amount` de pago es distinto de `0.00` |
+| `CreditPaymentCodeNotAllowed` | Con condición `2` una forma de pago trae `code` |
+| `CreditPaymentReferenceNotAllowed` | Con condición `2` una forma de pago trae `reference` |
+| `CreditPaymentTermRequired` | Con condición `2` una forma de pago no trae `term` |
+| `CreditPaymentPeriodRequired` | Con condición `2` una forma de pago no trae `period` o es menor o igual a cero |
+| `PaymentCodeRequired` | Con condición `1` o `3` una forma de pago no trae `code` |
+| `NoPaymentDueRequiresCashCondition` | Total a pagar `0.00` o saldo a favor con condición distinta de `1` |
+| `NoPaymentDueRequiresCode99` | Total a pagar `0.00` o saldo a favor sin formas de pago o con un código distinto de `99` |
 | `ExceededRelatedDocsLimit`, `MixedDocumentTypesNotAllowed` | Más de 50 documentos relacionados o tipos mezclados |
+| `InvalidRelatedDocDTEType` | Tipo de documento relacionado distinto de `04`, `08`, `09` |
 | `InvalidRelatedDocDate` | Fecha del documento relacionado futura |
 | `InvalidRelatedDocNumberNormal`, `InvalidRelatedDocNumberContingency` | Número físico (>20 caracteres) o UUID inválido |
 | `RelatedDocOutOfPeriod` | Documento fuera del periodo permitido respecto a la NR o el DCL |

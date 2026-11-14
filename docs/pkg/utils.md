@@ -183,8 +183,17 @@ type AuxiliarTotalAmountsExtractor struct {
         TotalTaxed      float64 `json:"totalGravada"`
         TotalExempt     float64 `json:"totalExenta"`
         TotalNotSubject float64 `json:"totalNoSuj"`
+
+        DiscountNotSubject float64 `json:"descuNoSuj"`
+        DiscountExempt     float64 `json:"descuExenta"`
+        DiscountTaxed      float64 `json:"descuGravada"`
     } `json:"resumen"`
 }
+
+// Total menos el descuento global de la categoría, redondeado a centavos y nunca negativo
+func (a AuxiliarTotalAmountsExtractor) NetTaxed() float64
+func (a AuxiliarTotalAmountsExtractor) NetExempt() float64
+func (a AuxiliarTotalAmountsExtractor) NetNotSubject() float64
 
 // Mismos totales, pero leídos del formato interno (claves en inglés)
 type AuxiliarDTETotalAmountsExtractor struct {

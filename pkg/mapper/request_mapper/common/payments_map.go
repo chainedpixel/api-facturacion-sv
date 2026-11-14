@@ -5,27 +5,23 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
 	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
 )
 
-// MapCommonRequestPaymentsType maps an array of payments to a payments model -> Source: Request
+// MapCommonRequestPaymentsType maps an array of payments to a payments model; an empty code is kept empty
+// so the domain rules decide whether the operation condition allows it -> Source: Request
 func MapCommonRequestPaymentsType(payments []structs.PaymentRequest) ([]interfaces.PaymentType, error) {
 	result := make([]interfaces.PaymentType, len(payments))
 
 	for i, payment := range payments {
 		var term *financial.PaymentTerm
 
-		if payment.Code == "" {
-			return nil, shared_error.NewFormattedGeneralServiceError(
-				"CommonMapper",
-				"MapCommonRequestPaymentsType",
-				"InvalidPaymentTypeInfo",
-			)
-		}
-
-		paymentCode, err := financial.NewPaymentType(payment.Code)
-		if err != nil {
-			return nil, err
+		paymentCode := &financial.PaymentType{}
+		if payment.Code != "" {
+			validCode, err := financial.NewPaymentType(payment.Code)
+			if err != nil {
+				return nil, err
+			}
+			paymentCode = validCode
 		}
 
 		amount, err := financial.NewAmount(payment.Amount)

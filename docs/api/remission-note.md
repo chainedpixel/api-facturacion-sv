@@ -98,10 +98,11 @@ A diferencia de FE, CCF y FSE, en la NRE el número de ítem **sí se envía** y
 | `taxed_sale` | float | Condicional | Monto gravado (≥ 0) |
 | `code` | string | No | Código del bien (1–24 caracteres efectivos; el mensaje de error indica "1 a 25") |
 | `tributes` | string[] | No | Códigos de tributo aplicados al ítem (se emiten como `tributos`) |
+| `document_number` | string | Condicional | `document_number` del documento relacionado al que pertenece el ítem (se emite como `numeroDocumento`). Obligatorio en todos los ítems si hay `related_docs`; debe omitirse si no los hay |
 
 Al menos uno de `non_subject_sale`, `exempt_sale` o `taxed_sale` debe ser mayor a `0` (`AtLeastOneSaleTypeRequired`).
 
-Los campos `document_number` y `tax_code` de un ítem se aceptan pero **no se emiten**: `numeroDocumento` y `codTributo` salen siempre `null`. El servicio no valida que la venta del ítem coincida con `unit_price × quantity`.
+El campo `tax_code` de un ítem se acepta pero **no se emite**: `codTributo` sale siempre `null`. El `document_number` del ítem se emite como `numeroDocumento`. El servicio no valida que la venta del ítem coincida con `unit_price × quantity`.
 
 > **Normativa:** los campos del ítem corresponden a la sección Cuerpo del Anexo IV de la Normativa de Cumplimiento DTE v2.0: número de ítem (campo 74; enteros consecutivos, regla 1, y máximo 2000, regla 2), `type` (campo 75), `quantity` (campo 82), `code` (campo 83), `unit_measure` (campo 85, CAT-014), `description` (campo 86), `unit_price` (campo 87; sin IVA, regla 2), `discount` (campo 89), `non_subject_sale`, `exempt_sale` y `taxed_sale` (campos 90, 91 y 92) y `tributes` (campo 96, que en la NRE depende del tipo de documento relacionado: reglas 20 y 21). Los campos del cuerpo se redondean según la regla 7.2 literal a) y se comparan con la holgura de la regla 7.3.
 
@@ -153,6 +154,11 @@ El servicio no exige explícitamente `subtotal_sales`, `subtotal` ni `total_amou
 | `emission_date` | string | Condicional | Fecha de generación `YYYY-MM-DD`. **Obligatoria para documentos físicos** (`generation_type = 1`). Si se omite en uno electrónico se usa la fecha actual. No puede ser futura |
 
 Máximo 50 documentos (`ExceededRelatedDocsLimit`) y todos del mismo tipo (`MixedDocumentTypesNotAllowed`).
+
+**Vínculo con los ítems** (misma regla que FE y CCF; en la NRE el campo del ítem es `document_number`):
+- Si hay `related_docs`, todos los ítems deben incluir `document_number` (`MissingItemRelatedDoc`) y este debe ser el `document_number` de alguno de los documentos; la comparación es exacta (`InvalidItemRelatedDoc`).
+- Cada documento de `related_docs` debe aparecer en el `document_number` de al menos un ítem (`UnreferencedRelatedDoc`).
+- Si no se envían `related_docs`, ningún ítem puede llevar `document_number` (`InvalidItemRelatedDoc`).
 
 > **Normativa:** la sección Documentos relacionados corresponde a los campos 14 a 17 del Anexo IV de la Normativa de Cumplimiento DTE v2.0: `document_type` (campo 14), `generation_type` (campo 15, CAT-007), `document_number` (campo 16) y `emission_date` (campo 17). Para la NRE solo se pueden relacionar los códigos `01` (FE), `03` (CCF) y `11` (FEXE) (campo 14, regla 6), hasta 50 documentos del mismo tipo (campo 14, regla 7; campo 16, regla 2), y no pueden relacionarse documentos electrónicos invalidados o rechazados (campo 16, regla 3). La fecha se informa en formato `YYYY-MM-DD` (campo 17, regla 1) y, si el documento relacionado es electrónico, se valida contra la fecha de generación de ese documento (campo 17, regla 3).
 
@@ -207,7 +213,7 @@ Las fórmulas completas y sus tolerancias están en [calculations.md](./calculat
 | `unit_measure` | Entre 1 y 99 |
 | `total_amount` | `subtotal` + tributos del resumen (±0.01) |
 | Pagos | No se validan contra `total_amount` |
-| `related_docs` | Máximo 50; solo tipos `01`, `03`, `11`; fecha obligatoria en documentos físicos |
+| `related_docs` | Máximo 50; solo tipos `01`, `03`, `11`; fecha obligatoria en documentos físicos; cada documento referenciado por al menos un ítem |
 
 ---
 
@@ -362,6 +368,9 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `RequiredBienTitulo`, `InvalidBienTitulo` | `real_state` ausente o fuera de `01`–`05`, `99` |
 | `RequiredField` | Falta `name`, `document_type`, `document_number`, `address`, `email` o `nit` (con tipo `36`) |
 | `InvalidLength` | `real_state` con más de 2 caracteres |
+| `MissingItemRelatedDoc` | Hay `related_docs` y un ítem no trae `document_number` |
+| `UnreferencedRelatedDoc` | Un documento de `related_docs` no aparece en el `document_number` de ningún ítem |
+| `InvalidItemRelatedDoc` | Un ítem referencia en `document_number` un documento que no está en `related_docs` |
 
 ### Reglas comunes (`MANY_ERRORS`)
 

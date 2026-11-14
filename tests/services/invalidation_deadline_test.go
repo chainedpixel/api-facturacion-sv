@@ -16,6 +16,8 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/validator/strategy"
+	invalidationMapper "github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/invalidation"
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"github.com/chainedpixel/ordo-factus/tests"
 	"github.com/chainedpixel/ordo-factus/tests/fixtures"
@@ -199,11 +201,99 @@ func TestInvalidationDateStrategy(t *testing.T) {
 		}
 	})
 
+	t.Run("FE generated 2025-10-09 and stamped 2025-11-25", func(t *testing.T) {
+		build := func(t *testing.T, dteType, generation, eventDate, activity string) *strategy.InvalidationDateStrategy {
+			s := build(t, dteType, generation, "2025-11-25 10:00:00", eventDate)
+			s.Document.Document.IssuerActivity = activity
+			s.Now = svDate(t, eventDate)
+			return s
+		}
+
+		assert.Nil(t, build(t, constants.FacturaElectronica, "2025-10-09 08:00:00", "2026-01-09 23:59:00", "").Validate(),
+			"the event date equals the generation date plus three months")
+
+		err := build(t, constants.FacturaElectronica, "2025-10-09 08:00:00", "2026-01-10 00:01:00", "").Validate()
+		if assert.NotNil(t, err) {
+			test.AssertErrorCode(t, err, "InvalidationEventDateOutOfRange")
+			assert.Contains(t, err.Message, "2026-01-10")
+			assert.Contains(t, err.Message, "2026-01-09")
+			assert.Contains(t, err.Message, "2025-10-09")
+			assert.NotContains(t, err.Message, "%!")
+		}
+
+		err = build(t, constants.FacturaSujetoExcluidoElectronica, "2025-10-09 08:00:00", "2026-01-10 09:00:00", "").Validate()
+		if assert.NotNil(t, err) {
+			test.AssertErrorCode(t, err, "InvalidationEventDateOutOfRange")
+		}
+
+		assert.Nil(t, build(t, constants.FacturaElectronica, "2025-10-09 08:00:00", "2026-01-10 09:00:00", "47721").Validate(),
+			"pharmaceutical issuers keep the two year period")
+	})
+
+	t.Run("FE event date limit keeps the last day of the month", func(t *testing.T) {
+		s := build(t, constants.FacturaElectronica, "2025-11-30 10:00:00", "2025-12-15 10:00:00", "2026-02-28 18:00:00")
+		s.Now = svDate(t, "2026-02-28 18:00:00")
+		assert.Nil(t, s.Validate())
+
+		s = build(t, constants.FacturaElectronica, "2025-11-30 10:00:00", "2025-12-15 10:00:00", "2026-03-01 08:00:00")
+		s.Now = svDate(t, "2026-03-01 08:00:00")
+		err := s.Validate()
+		if assert.NotNil(t, err) {
+			test.AssertErrorCode(t, err, "InvalidationEventDateOutOfRange")
+		}
+	})
+
 	t.Run("FSE thirty days after stamp", func(t *testing.T) {
 		s := build(t, constants.FacturaSujetoExcluidoElectronica, "2026-10-12 10:00:00", "2026-10-12 10:00:05", "2026-11-11 09:00:00")
 		s.Now = svDate(t, "2026-11-11 09:00:00")
 		assert.Nil(t, s.Validate())
 	})
+}
+
+// TestInvalidationEventDateFromStoredDocument maps a stored FE generated on 2025-10-09 and stamped on 2025-11-25 and
+// checks the event date limit through the mapper and the date strategy: 2026-01-09 passes and 2026-01-10 is rejected.
+func TestInvalidationEventDateFromStoredDocument(t *testing.T) {
+	test.TestMain(t)
+
+	stamp := "STAMP-2025-11-25"
+	stored := &dte.DTEDetails{
+		ID:             "5B9F1C2E-7A3D-4E8B-9C1F-2D3E4F5A6B7C",
+		DTEType:        constants.FacturaElectronica,
+		ControlNumber:  "DTE-01-M001P001-000000000000001",
+		ReceptionStamp: &stamp,
+		ProcessingDate: "25/11/2025 10:00:00",
+		JSONData: `{"identificacion":{"fecEmi":"2025-10-09","horEmi":"08:00:00"},"emisor":{"codActividad":"10005"},` +
+			`"receptor":{"nombre":"Cliente","tipoDocumento":"13","numDocumento":"012345678"},"resumen":{"totalIva":1.15}}`,
+	}
+
+	validate := func(t *testing.T, eventDate string) error {
+		t.Helper()
+		now := svDate(t, eventDate)
+		mapped, err := invalidationMapper.MapInvalidatedDocument(stored, &structs.CreateInvalidationRequest{}, now)
+		if err != nil {
+			t.Fatalf("mapper: %v", err)
+		}
+		assert.Equal(t, "2025-10-09", mapped.GenerationDateTime.Format("2006-01-02"))
+		assert.Equal(t, "2025-11-25", mapped.StampDate.Format("2006-01-02"))
+
+		doc, err := fixtures.BuildInvalidationWithAnnulment()
+		if err != nil {
+			t.Fatalf("fixture: %v", err)
+		}
+		doc.Document = mapped
+		doc.Identification.EmissionDate = *temporal.NewValidatedEmissionDate(now)
+		if dteErr := (&strategy.InvalidationDateStrategy{Document: doc, Deadlines: policy.NewDeadlines(nil), Now: now}).Validate(); dteErr != nil {
+			return dteErr
+		}
+		return nil
+	}
+
+	assert.NoError(t, validate(t, "2026-01-09 17:00:00"))
+
+	err := validate(t, "2026-01-10 08:00:00")
+	if assert.Error(t, err) {
+		test.AssertErrorCode(t, err, "InvalidationEventDateOutOfRange")
+	}
 }
 
 func TestInvalidationServiceValidateDependencies(t *testing.T) {

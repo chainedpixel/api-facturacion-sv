@@ -47,7 +47,7 @@ Orden interno: descuentos globales no admitidos, totales base, descuentos, IVA, 
 | `TotalDiscount` | No se contrasta | `TotalDiscount = Sum(item.Discount)` (±0.01), error `InvalidTotalDiscountCalculation` |
 | Subtotal | `SubTotalSales - descuentos` | `TotalTaxed - TaxedDiscount + TotalExempt - ExemptDiscount + TotalNonSubject - NonSubjectDiscount` (equivalentes porque los descuentos son 0) |
 | Múltiplos de 0.01 de percepción, total de operación y pagos | `InvalidMonetaryAmount` | No se ejecuta esta validación (los montos del resumen sí se leen con 2 decimales exactos, `InvalidDecimals`) |
-| Valor de cada tributo del resumen | Se rechaza si difiere de la fórmula (`InvalidTaxCalculation`) | **No se rechaza**: la diferencia solo se registra en el log; sí se exige presencia de tributos y del tributo `20` |
+| Valor de cada tributo del resumen | Se rechaza si difiere de la fórmula (`InvalidTaxCalculation`) | Se rechaza si difiere de la fórmula (`InvalidTaxCalculation`, parámetros: código, esperado, enviado); además se exige presencia de tributos y del tributo `20` |
 | Documento nulo | Sin error propio | `NullDocument` |
 
 Las reglas compartidas se mantienen: percepción `TotalTaxed * 0.01` (±0.01), `IncomeRetention = 0`, `TotalOperation = SubTotalSales + Sum(Taxes)` (±0.01) y `TotalToPay = TotalOperation + IVAPerception - IVARetention + TotalNonTaxed` (±0.01).
@@ -66,7 +66,7 @@ Mismas reglas que [`CreditNoteRelatedDocStrategy`](./credit-note-validation.md#3
 |---|---|---|
 | Pre-validación (`validateRelatedDocs`) | Existencia, estado `RECEIVED` y NIT del receptor | Igual |
 | Validación de ítems y fiscal | Ver arriba | Ver arriba |
-| Balance | `ValidateForCreditNote` (verifica que los totales no excedan el saldo) | `ValidateForDebitNote` (solo verifica que exista el control de saldo) |
+| Balance | `ValidateForCreditNote` (verifica que los totales gravado, exento y no sujeto no excedan el saldo) | `ValidateForDebitNote` (solo limita la venta no sujeta: ND actual más ND vigentes contra `OriginalNotSubjectAmount`, `InvalidDebitNoteNotSubjectAmount`; gravado y exento sin tope) |
 | Total a pagar | Se conserva el valor validado | Se **recalcula** y reemplaza el valor enviado (ver abajo) |
 | Transacción de saldo | Resta del saldo | Suma al saldo |
 

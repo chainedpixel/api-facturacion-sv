@@ -88,9 +88,11 @@ Si `TotalTaxed > 0` y `TotalIva <= 0` → `MissingIVAForTaxedAmount`.
 
 ### Documentos Relacionados en Ítems
 
-Si existen documentos relacionados:
-- Cada ítem **debe** tener referencia a un documento relacionado (`MissingItemRelatedDoc`)
-- La referencia del ítem **debe** existir en la lista de documentos relacionados (`InvalidItemRelatedDoc`)
+La validación se realiza en `InvoiceRelatedDocStrategy` (ya no en `InvoiceTaxStrategy`):
+- Si hay documentos relacionados, cada ítem debe referenciar uno (`MissingItemRelatedDoc`) que exista en la lista (`InvalidItemRelatedDoc`).
+- Cada documento relacionado debe aparecer en el `related_doc` de al menos un ítem (`UnreferencedRelatedDoc`).
+- Si no hay documentos relacionados, ningún ítem puede llevar referencia (`InvalidItemRelatedDoc`).
+- La regla se implementa una sola vez en `ValidateItemRelatedDocs` (`internal/domain/dte/common/validator/strategy/item_related_docs_rules.go`), invocada desde `InvoiceRelatedDocStrategy`, `CCFRelatedDocStrategy` y `RemissionNoteRelatedDocStrategy`. NC y ND conservan su propia regla, que exige la referencia en cada ítem (`MissingItemRelatedDoc`).
 
 ---
 
@@ -141,7 +143,9 @@ Los mensajes están en `assets/i18n/es.yaml`.
 | `InvalidIVARetentionWithoutTaxedAmount` | `IVARetention > 0` sin venta gravada |
 | `InvalidNonTaxedAmount`, `InvalidNonTaxedAmountCalculation` | `TotalNonTaxed` no coincide con los ítems |
 | `InvalidMonetaryAmount` | Monto con más de 2 decimales |
-| `MissingItemRelatedDoc`, `InvalidItemRelatedDoc` | Referencia a documento relacionado ausente o inexistente |
+| `MissingItemRelatedDoc` | Hay documentos relacionados y un ítem no trae referencia |
+| `UnreferencedRelatedDoc` | Un documento relacionado no está referenciado por ningún ítem |
+| `InvalidItemRelatedDoc` | Un ítem referencia un documento que no está en la lista de documentos relacionados |
 
 ---
 

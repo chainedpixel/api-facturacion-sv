@@ -22,6 +22,7 @@ func NewRemissionNoteRulesValidator(document *remission_note_models.RemissionNot
 			&strategy.RemissionNoteItemStrategy{Document: document},
 			&strategy.RemissionNoteSummaryStrategy{Document: document},
 			&strategy.RemissionNoteReceiverStrategy{Document: document},
+			&strategy.RemissionNoteRelatedDocStrategy{Document: document},
 		}
 	}
 

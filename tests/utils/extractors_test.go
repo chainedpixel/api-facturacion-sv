@@ -172,3 +172,27 @@ func TestExtractAuxiliarIdentification_RawJSON(t *testing.T) {
 	assert.Equal(t, "14", result.Identification.DTEType)
 	assert.Equal(t, "DDDD0000-EEEE-FFFF-0000-DDDD0000EEEE", result.Identification.GenerationCode)
 }
+
+// TestAuxiliarTotalAmountsExtractor_NetAmounts checks that the global discounts are subtracted per category.
+func TestAuxiliarTotalAmountsExtractor_NetAmounts(t *testing.T) {
+	raw := `{"resumen":{"totalGravada":100.0,"totalExenta":20.0,"totalNoSuj":5.0,"descuGravada":10.0,"descuExenta":2.5,"descuNoSuj":0}}`
+
+	result, err := utils.ExtractSummaryTotalAmountsFromStringJSON(raw)
+	require.NoError(t, err)
+
+	assert.InDelta(t, 90.0, result.NetTaxed(), 0.001)
+	assert.InDelta(t, 17.5, result.NetExempt(), 0.001)
+	assert.InDelta(t, 5.0, result.NetNotSubject(), 0.001)
+}
+
+// TestAuxiliarTotalAmountsExtractor_NetAmountsNeverNegative checks the clamp and the rounding to cents.
+func TestAuxiliarTotalAmountsExtractor_NetAmountsNeverNegative(t *testing.T) {
+	raw := `{"resumen":{"totalGravada":10.0,"totalExenta":0.3,"totalNoSuj":1.0,"descuGravada":12.0,"descuExenta":0.1,"descuNoSuj":0}}`
+
+	result, err := utils.ExtractSummaryTotalAmountsFromStringJSON(raw)
+	require.NoError(t, err)
+
+	assert.Equal(t, 0.0, result.NetTaxed())
+	assert.Equal(t, 0.2, result.NetExempt())
+	assert.Equal(t, 1.0, result.NetNotSubject())
+}

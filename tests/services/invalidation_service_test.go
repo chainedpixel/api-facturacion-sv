@@ -296,6 +296,47 @@ func TestInvalidationServiceValidateStatus(t *testing.T) {
 			errorCode: "DocumentPending",
 		},
 		{
+			name: "Error - Original Document Expired",
+			setupRequest: func() structs.CreateInvalidationRequest {
+				return structs.CreateInvalidationRequest{
+					GenerationCode: "DTE-01-00000001-000000000000001",
+					Reason: &structs.ReasonRequest{
+						Type: 2,
+					},
+				}
+			},
+			setupMock: func(mockDTE *mocks.MockDTEManager) {
+				mockDTE.EXPECT().VerifyStatus(
+					gomock.Any(),
+					gomock.Any(),
+					"DTE-01-00000001-000000000000001",
+				).Return(constants.DocumentExpired, nil)
+			},
+			wantErr:   true,
+			errorCode: "DocumentExpired",
+		},
+		{
+			name: "Error - Replacement Document Expired",
+			setupRequest: func() structs.CreateInvalidationRequest {
+				replacementCode := "DTE-01-00000001-000000000000002"
+				return structs.CreateInvalidationRequest{
+					GenerationCode:            "DTE-01-00000001-000000000000001",
+					ReplacementGenerationCode: &replacementCode,
+					Reason: &structs.ReasonRequest{
+						Type: 1,
+					},
+				}
+			},
+			setupMock: func(mockDTE *mocks.MockDTEManager) {
+				mockDTE.EXPECT().VerifyStatus(gomock.Any(), gomock.Any(), "DTE-01-00000001-000000000000001").
+					Return(constants.DocumentReceived, nil)
+				mockDTE.EXPECT().VerifyStatus(gomock.Any(), gomock.Any(), "DTE-01-00000001-000000000000002").
+					Return(constants.DocumentExpired, nil)
+			},
+			wantErr:   true,
+			errorCode: "DocumentExpired",
+		},
+		{
 			name: "Error - Replacement Document Invalid",
 			setupRequest: func() structs.CreateInvalidationRequest {
 				replacementCode := "DTE-01-00000001-000000000000002"

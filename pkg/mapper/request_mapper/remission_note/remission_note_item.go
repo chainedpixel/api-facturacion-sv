@@ -63,6 +63,8 @@ func mapSingleRemissionNoteItem(item *structs.RemissionNoteItemRequest) (*remiss
 		}
 	}
 
+	baseItem.SetForceRelatedDoc(item.DocumentNumber)
+
 	if item.DiscountAmount != nil {
 		if err := baseItem.SetDiscount(*item.DiscountAmount); err != nil {
 			return nil, err

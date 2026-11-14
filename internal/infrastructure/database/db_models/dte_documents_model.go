@@ -34,12 +34,12 @@ func (d *DTEDocument) AfterCreate(tx *gorm.DB) error {
 		dteBalanceControl := &DTEBalanceControl{
 			OriginalDTEID:                 d.DocumentID,
 			BranchID:                      d.BranchID,
-			OriginalTaxedAmount:           extractor.Summary.TotalTaxed,
-			OriginalExemptAmount:          extractor.Summary.TotalExempt,
-			OriginalTotalNotSubjectAmount: extractor.Summary.TotalNotSubject,
-			RemainingTaxedAmount:          extractor.Summary.TotalTaxed,
-			RemainingExemptAmount:         extractor.Summary.TotalExempt,
-			RemainingNotSubjectAmount:     extractor.Summary.TotalNotSubject,
+			OriginalTaxedAmount:           extractor.NetTaxed(),
+			OriginalExemptAmount:          extractor.NetExempt(),
+			OriginalTotalNotSubjectAmount: extractor.NetNotSubject(),
+			RemainingTaxedAmount:          extractor.NetTaxed(),
+			RemainingExemptAmount:         extractor.NetExempt(),
+			RemainingNotSubjectAmount:     extractor.NetNotSubject(),
 		}
 		if err = tx.Create(dteBalanceControl).Error; err != nil {
 			logs.Error("Error creating DTE balance control", map[string]interface{}{

@@ -35,9 +35,7 @@ func (s *StandardAuthStrategy) GetAuthType() string {
 // ValidateCredentials validates the authentication credentials. Returns an error if the credentials are invalid.
 func (s *StandardAuthStrategy) ValidateCredentials(credentials *models.AuthCredentials) error {
 	if credentials.APIKey == "" {
-		logs.Error("API key is required", map[string]interface{}{
-			"credentials": credentials,
-		})
+		logs.Error("API key is required")
 		return shared_error.NewFormattedGeneralServiceError(
 			"StandardAuth",
 			"ValidateCredentials",
@@ -46,9 +44,7 @@ func (s *StandardAuthStrategy) ValidateCredentials(credentials *models.AuthCrede
 		)
 	}
 	if credentials.APISecret == "" {
-		logs.Error("API secret is required", map[string]interface{}{
-			"credentials": credentials,
-		})
+		logs.Error("API secret is required")
 		return shared_error.NewFormattedGeneralServiceError(
 			"StandardAuth",
 			"ValidateCredentials",

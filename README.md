@@ -23,7 +23,7 @@ API REST para la gestión, emisión y transmisión de Documentos Tributarios Ele
 - Consulta y listado de DTEs con filtros avanzados y paginación
 - Autenticación JWT por sucursal con gestión de tokens de Hacienda
 - Firmado electrónico de documentos via servicio externo
-- Sistema de eventos de dominio in-process con notificación por correo al `ADMIN_EMAIL` ante incidentes (contingencia, fallas de emisión, fallos del job de retransmisión), con throttling vía Redis
+- Sistema de eventos de dominio in-process con notificación por correo al `ADMIN_EMAIL` ante incidentes (contingencia, fallas de emisión, fallos del job de retransmisión, documentos sellados por Hacienda que no pudieron guardarse), con throttling vía Redis
 
 ---
 
@@ -162,7 +162,7 @@ GET /api/v1/dte/{id}/archivo    — Archivo DTE (estructura firmada + firmaElect
 GET /api/v1/dte/{id}/eventos    — Eventos del DTE (invalidación) con su Archivo DTE
 ```
 
-Filtros disponibles en el listado: `status`, `type`, `transmission`, `startDate`, `endDate`, `page`, `page_size`.
+Filtros disponibles en el listado: `status`, `type`, `transmission`, `startDate`, `endDate`, `page`, `page_size` y `all` (con `all=true` se listan los DTEs de todas las sucursales del mismo NIT del emisor en lugar de solo la sucursal autenticada). `GET /api/v1/dte/{id}` incluye `processing_date`, la fecha de procesamiento informada por Hacienda.
 
 ### Monitoreo y Estado
 
@@ -195,7 +195,8 @@ El microservicio publica eventos de dominio cuando ocurren incidentes operativos
 |---|---|
 | `contingency.activated` | Al almacenar un DTE en modo contingencia |
 | `emission.failure` | Cuando Hacienda rechaza un DTE durante la transmisión por lotes |
-| `retransmission_job.failed` | Cuando el job programado de retransmisión finaliza con error |
+| `retransmission_job.failed` | Cuando el job programado de retransmisión finaliza con error, y para dos alertas de contingencia: documentos vencidos a las 72 horas (`EXPIRED`) y contingencia mayor a 3 días (se requiere informe técnico) |
+| `stamped_document.not_persisted` | Cuando Hacienda selló un DTE pero no pudo guardarse localmente tras un reintento; el correo no incluye el documento firmado, que queda solo en el log de la aplicación para recuperación manual |
 
 Las plantillas HTML profesionales viven embebidas en `assets/mails/` (con SVG inline, paleta azul corporativa y soporte de dark mode). El cooldown se aplica por `<event_name>:<aggregate_id>` con TTL `NOTIFY_COOLDOWN_MINUTES` (15 min por defecto).
 
@@ -227,6 +228,8 @@ El ciclo de vida de un correlativo es el siguiente:
 4. **Liberación (Rollback)**: Si hay un error de validación o Hacienda rechaza el documento (4xx), el número se libera y vuelve a estar disponible para la siguiente petición.
 
 El sistema garantiza la integridad de la numeración incluso ante fallos de transmisión. Si se recibe un error 500 (error interno del servidor, no de Hacienda), es seguro reintentar la petición.
+
+Excepción: si la respuesta es `STAMPEDDOCUMENTNOTPERSISTED` o `ADDITIONALOPERATIONSFAILED`, Hacienda ya selló el documento y no debe emitirse nuevamente; se debe contactar al administrador (ver [Números de control](./docs/api/README.md#números-de-control)). El número de un documento ya guardado no se libera aunque su reserva venza.
 
 ---
 
@@ -282,6 +285,7 @@ Documentación disponible:
 
 - [Arquitectura detallada](./ARCHITECTURE.md)
 - [Referencia de API para consumidores](./docs/api/README.md)
+- [Guía de actualización para sistemas consumidores](./docs/api/consumer-upgrade-guide.md)
 - [Eventos de dominio y notificaciones por correo](./docs/internal/infrastructure/domain-events.md)
 - [Colección Postman](scripts/postman/Collection.postman_collection.json) y [environment](scripts/postman/Environment.postman_environment.json)
 

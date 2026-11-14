@@ -35,6 +35,7 @@ tests/
 │   └── *_mock.go                   # Un archivo por interfaz (ver tabla)
 ├── testdata/
 │   └── svfe-json-schemas/          # JSON Schema de Hacienda (v1, v2, v3, v4)
+├── application/                    # Casos de uso (persistencia del documento sellado, filtros del listado)
 ├── services/                       # Servicios de dominio, contingencia, transmisor, plazos, cálculos
 ├── mappers/                        # Mappers request/response y validación contra JSON Schema
 ├── utils/                          # Utilidades (extractores, punteros, actualizaciones, ubicación)
@@ -256,6 +257,13 @@ Existen además fixtures inválidos por tipo, por ejemplo `CreateInvoiceRequestW
 | `invalidation_deadline_test.go` | Calendario de días hábiles, plazos de invalidación, fecha del evento y `ValidateDependencies` |
 | `invalidation_processor_test.go` | Cuerpo de la petición del procesador de invalidación |
 | `contingency_service_test.go`, `contingency_helpers_test.go`, `contingency_models_test.go` | Almacenamiento y retransmisión de contingencia, agrupación por sistema y tipo, constantes y serialización de modelos |
+| `validation_rules_fixes_test.go` | Descuento de ítem como monto, ítem tipo `4` en FSE, `other_docs` código `4` solo en FEXE, códigos `D1` y `C8` rechazados y pagos a crédito con monto `0.00` |
+| `invalidation_reason_strategy_test.go`, `invalidation_status_adversarial_test.go` | Reglas del código de reemplazo (`05` y `08` nulos), `AddMonthsClamped` y rechazo por estado (incluido `EXPIRED`) |
+| `credit_payments_related_docs_test.go` | Contrato de pagos a crédito (código y referencia en `null`, monto `0.00`, plazo y período obligatorios), código obligatorio con condición `1` o `3`, ida y vuelta del código `null` por los mappers, y regla común (estricta) de documentos relacionados por ítem en FE y CCF |
+| `notes_scope_payments_test.go` | Regla estricta de documentos relacionados en la NR (y mapeo del `document_number` del ítem), regla estricta en NC y ND, tope de la ND solo en venta no sujeta (con ND vigentes e invalidadas), tope de la NC en las tres categorías, pagos con condición `1` y `3` (incluido el código `13` y la holgura de 0.01) y regla de total `0.00` o saldo a favor (condición `1` y código `99`) |
+| `invoice_related_doc_adversarial_test.go`, `debit_note_tax_adversarial_test.go`, `batch1_domain_adversarial_test.go` | Documentos relacionados de la FE, `InvalidTaxCalculation` de la ND, matriz de invalidación, ventanas de documentos relacionados y descuento de ítem |
+| `mh_transmitter_token_adversarial_test.go`, `no_secrets_in_logs_adversarial_test.go` | Token de Hacienda obtenido por llamada (sin campo compartido) y ausencia de secretos en los logs |
+| `i18n_validation_keys_test.go` | Las claves de error nuevas existen y traducen en ambos idiomas |
 | `contingency_window_test.go` | Ventana de 72 horas, expiración de documentos y alertas al administrador |
 | `mh_transmitter_test.go` | `MHTransmitter`: timeout y `CheckDocumentStatus` (HTTP 200, 202, 400 y 500) |
 | `compliance_audit_fixes_test.go` | `GetDocumentRequestData` (DTE e invalidación), timeouts de los clientes HTTP y rutas de `MHPaths` sin barra final |
@@ -288,11 +296,12 @@ Existen además fixtures inválidos por tipo, por ejemplo `CreateInvoiceRequestW
 | Directorio | Qué prueba |
 |---|---|
 | `events/` | `InMemoryBus`: entrega a suscriptores, filtrado por nombre y aislamiento ante el pánico de un handler |
-| `notifier/` | Cooldown (miniredis), renderer de plantillas y mailer SMTP |
+| `notifier/` | Cooldown (miniredis), renderer de plantillas (incluida la del evento `stamped_document.not_persisted`) y mailer SMTP |
 | `handlers/` | `AdminEmailHandler` (cooldown, render, errores) y `DebugNotifyHandler` |
 | `health/` | Checkers de eventos de dominio y SMTP |
 | `jobs/` | Ejecución y ejecución concurrente de los tres jobs |
-| `repositories/` | Rechazo de identificación vacía, guardado de eventos y filtrado de secuencias rechazadas por Hacienda |
+| `repositories/` | Rechazo de identificación vacía, guardado de eventos, filtrado de secuencias rechazadas por Hacienda, bloqueo `FOR UPDATE` y reintento del contador de número de control, saldo inicial neto de descuentos globales, limpieza de reservas por sucursal y filtro por NIT del emisor |
+| `application/` | `GenericDTEUseCase` (reintento de persistencia, `StampedDocumentNotPersisted`, `AdditionalOperationsFailed`, confirmación de reserva) y filtros del listado por NIT del emisor |
 
 ### Test de Integración (1 archivo)
 
@@ -394,6 +403,9 @@ Si la variable está definida, el cliente crea el directorio (permisos `0700`) y
 | `invalidation_e2e_test.go` | `TestE2E_Invalidacion` | Invalidación tipos 1, 2 y 3 de FE y CCF, y orden de dependencias (NC antes que su CCF) |
 | `archive_e2e_test.go` | `TestE2E_ArchivoDTE` | Archivo DTE de cada tipo emitido (`GET /dte/{id}/archivo`) y eventos de invalidación (`GET /dte/{id}/eventos`) |
 | `rejections_e2e_test.go` | `TestE2E_RechazosEsperados`, `TestE2E_LimitesNormativa` | Documentos con un único error introducido, que la API debe rechazar con el código esperado, y límites ampliados por la Normativa de Cumplimiento DTE v2.0 (descripción de ítem de 1500 caracteres) |
+| `changes_e2e_test.go`, `adversarial_batch1_e2e_test.go`, `adversarial_batch2_e2e_test.go`, `deadline_probe_e2e_test.go` | `TestE2E_CambiosNormativa`, `TestE2E_AdversarialLote1`, `TestE2E_AdversarialLote2`, `TestE2E_SondeoPlazosInvalidacion` | Casos de las reglas de validación e invalidación incorporadas y sondeo de plazos de invalidación |
+| `credit_related_docs_e2e_test.go` | `TestE2E_CreditoYDocumentosRelacionados` | FE y CCF a crédito con código y referencia en `null`, monto `0.00`, plazo y período (sello); rechazos locales por código, referencia, plazo o período a crédito y por código ausente al contado; FE que relaciona una NR con todos los ítems vinculados (sello); FE y CCF con un ítem en `null` junto a documentos relacionados, FE sin ítems vinculados y FE con referencia sin documentos relacionados (rechazo local) |
+| `notes_payments_invalidation_e2e_test.go` | `TestE2E_NotasPagosMixtosEInvalidacionNC` | NR que relaciona un CCF con todos los ítems vinculados (sello), con un ítem en `null` y sin ítems vinculados (rechazo local); NC con un ítem sin documento relacionado (rechazo local); ND gravada mayor que el saldo restante del CCF (sello); ND no sujeta mayor que el total no sujeto del CCF (rechazo local); FE con condición `3` y pagos `01` y `13` (sello); NC invalidada con tipo `1` y reemplazo `null` seguida de la NC correcta (ambas con sello) |
 | `deadlines_e2e_test.go` | `TestE2E_PlazosDocumentosAntiguos` | Plazos de invalidación y de documentos relacionados con documentos de meses atrás (`InvalidationDeadlineExpired`, `RelatedDocOutOfPeriod`) |
 | `contingency_e2e_test.go` | `TestE2E_Contingencia` | Contingencia por fases (ver abajo) |
 

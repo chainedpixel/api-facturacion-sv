@@ -137,14 +137,19 @@ Las bases y tasas con que se recalcula el valor de cada tributo del resumen se d
 
 ### PaymentTotalStrategy
 
-**No aplica a:** Nota de Crédito (05), Nota de Débito (06), Nota de Remisión (04)
+**No aplica a:** Nota de Remisión (04). En Nota de Crédito (05) y Nota de Débito (06) solo se valida la condición 1 cuando el total a pagar es 0.00
 
 | Condición | Regla | Error |
 |---|---|---|
-| Operación a crédito (2) sin pago en efectivo | El código de pago no puede ser `01` (billetes y monedas) | `InvalidPaymentTypeOP2` |
-| Operación a crédito (2) sin pago en efectivo | Cada pago debe tener plazo (`period`) y período (`term`) | `InvalidPaymentTerms` |
+| Operación a crédito (2) | Cada pago lleva el código en `null` | `CreditPaymentCodeNotAllowed` |
+| Operación a crédito (2) | Cada pago lleva el monto en `0.00`; la suma no se compara con el total | `InvalidCreditPaymentAmount` |
+| Operación a crédito (2) | Cada pago lleva la referencia en `null` | `CreditPaymentReferenceNotAllowed` |
+| Operación a crédito (2) | Cada pago lleva plazo (`term`) | `CreditPaymentTermRequired` |
+| Operación a crédito (2) | Cada pago lleva período (`period`) mayor que cero | `CreditPaymentPeriodRequired` |
+| Operación al contado (1) u otra (3) | Cada pago lleva código | `PaymentCodeRequired` |
+| Total a pagar 0.00 | FE, CCF y FEXE: condición 1 y al menos un pago, todos con código `99` (`ValidateNoPaymentDue`). FSE, NC y ND: solo condición 1; con saldo a favor la misma regla se aplica desde `InvoiceTotalsStrategy` y `CCFTaxStrategy` (`ValidateBalanceInFavorPayments`) | `NoPaymentDueRequiresCashCondition`, `NoPaymentDueRequiresCode99` |
 | Operación al contado (1) sin pago en efectivo | Los pagos no deben tener plazo ni período | `InvalidPaymentTermsOF` |
-| Total de pagos | `Sum(payment.Amount) == TotalToPay` (holgura ±0.01). Se omite cuando la condición de operación es crédito (2), hay al menos un pago y la suma es `0` (valor normativo del Anexo IV, que deben enviar los consumidores). Con crédito también se acepta de forma transitoria que el pago sea igual al total, tolerancia que se eliminará en una versión futura; una lista de pagos vacía con crédito y total mayor que 0 se rechaza | `InvalidPaymentTotal` |
+| Total de pagos | Con condición 1 o 3, `Sum(payment.Amount) == TotalToPay` (holgura ±0.01). Una lista de pagos vacía con crédito y total mayor que 0 también se rechaza | `InvalidPaymentTotal` |
 
 Ver también [Cálculos, sección 3.11](../../../api/calculations.md#311-pagos).
 

@@ -39,38 +39,6 @@ func (s *InvoiceTaxStrategy) Validate() *dte_errors.DTEError {
 		return err
 	}
 
-	for _, item := range s.Document.InvoiceItems {
-		if len(s.Document.RelatedDocuments) > 0 {
-
-			if item.GetRelatedDoc() == nil {
-				logs.Error("Missing related document in item when related_docs is present", map[string]interface{}{
-					"itemNumber": item.GetNumber(),
-				})
-				return dte_errors.NewDTEErrorSimple("MissingItemRelatedDoc", item.GetNumber())
-			}
-
-			found := false
-			itemRelatedDoc := *item.GetRelatedDoc()
-
-			for _, relatedDoc := range s.Document.RelatedDocuments {
-				if relatedDoc.GetDocumentNumber() == itemRelatedDoc {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				logs.Error("Item related document not found in document related docs", map[string]interface{}{
-					"itemNumber": item.GetNumber(),
-					"relatedDoc": itemRelatedDoc,
-				})
-				return dte_errors.NewDTEErrorSimple("InvalidItemRelatedDoc",
-					item.GetNumber(),
-					itemRelatedDoc)
-			}
-		}
-	}
-
 	return nil
 }
 
