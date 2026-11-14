@@ -3,13 +3,14 @@ package strategy
 import (
 	"regexp"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
 )
 
 const (
-	DUIPattern = `^[0-9]{8}-[0-9]{1}$`
+	// El DUI se almacena y envia sin guion (Anexo IV, campo 39.10); el value object quita el guion del request
+	DUIPattern = `^[0-9]{9}$`
 	NITPattern = `^([0-9]{14}|[0-9]{9})$`
 )
 

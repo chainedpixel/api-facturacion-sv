@@ -1,9 +1,9 @@
 package fixtures
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // CreateDefaultDebitNoteItem creates a valid default debit note item.
@@ -92,7 +92,6 @@ func CreateDefaultDebitNoteRequest() *structs.CreateDebitNoteRequest {
 // CreateDebitNoteRequestWithAllOptionalFields creates a debit note request with all optional fields populated.
 func CreateDebitNoteRequestWithAllOptionalFields() *structs.CreateDebitNoteRequest {
 	req := CreateDefaultDebitNoteRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	req.OtherDocs = []structs.OtherDocRequest{CreateDefaultOtherDocument()}
 	req.Appendixes = []structs.AppendixRequest{CreateDefaultAppendix()}

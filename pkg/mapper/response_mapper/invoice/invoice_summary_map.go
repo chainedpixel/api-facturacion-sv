@@ -1,20 +1,19 @@
 package invoice
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 // MapInvoiceResponseSummary maps an invoice summary to an invoice summary model -> Source: Response
 func MapInvoiceResponseSummary(summary invoice_models.InvoiceSummary) *structs.InvoiceSummary {
 	result := MapInvoiceSummary(summary)
 	result.DescuGravada = summary.TaxedDiscount.GetValue()
-	result.IvaRete1 = summary.IVARetention.GetValue()
+	result.IvaRete = summary.IVARetention.GetValue()
 	result.TotalIva = summary.TotalIva.GetValue()
 	result.SaldoFavor = summary.BalanceInFavor.GetValue()
-	result.ReteRenta = summary.IncomeRetention.GetValue()
 
 	return result
 }
@@ -37,6 +36,7 @@ func MapInvoiceSummary(summary interfaces.Summary) *structs.InvoiceSummary {
 		TotalLetras:         summary.GetTotalInWords(),
 		CondicionOperacion:  summary.GetOperationCondition(),
 		Tributos:            common.MapTaxes(summary.GetTotalTaxes()),
+		Observaciones:       summary.GetObservations(),
 	}
 
 	if len(summary.GetPaymentTypes()) > 0 {

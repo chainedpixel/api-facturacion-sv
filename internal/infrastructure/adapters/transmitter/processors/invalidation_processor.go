@@ -1,16 +1,16 @@
 package processors
 
 import (
-	"github.com/chainedpixel/ordo-factus/config"
-	models2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	models2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 type InvalidationProcessor struct{}
 
 func (p *InvalidationProcessor) ProcessRequest(signedDoc string, document interface{}) (*models2.HaciendaRequest, error) {
-	version, dteType, generationCode, sequenceNumber, err := GetDocumentRequestData(document)
+	version, _, _, sequenceNumber, err := GetDocumentRequestData(document)
 	if err != nil {
 		logs.Error("Failed to get document request data", map[string]interface{}{
 			"error": err.Error(),
@@ -19,13 +19,11 @@ func (p *InvalidationProcessor) ProcessRequest(signedDoc string, document interf
 	}
 
 	return &models2.HaciendaRequest{
-		Ambient:        config.Server.AmbientCode,
-		SendID:         sequenceNumber,
-		Version:        version,
-		Document:       signedDoc,
-		DTEType:        dteType,
-		GenerationCode: generationCode,
-		URL:            config.MHPaths.NullifyURL,
+		Ambient:  config.Server.AmbientCode,
+		SendID:   sequenceNumber,
+		Version:  version,
+		Document: signedDoc,
+		URL:      config.MHPaths.NullifyURL,
 	}, nil
 }
 

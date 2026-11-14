@@ -1,11 +1,13 @@
 package invalidation_models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"time"
+
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
 )
 
 type InvalidatedDocument struct {
@@ -21,4 +23,8 @@ type InvalidatedDocument struct {
 	ReplacementCode *identification.GenerationCode `json:"replacementCode,omitempty"`
 	IVAAmount       *financial.Amount              `json:"IVAAmount,omitempty"`
 	Phone           *base.Phone                    `json:"phone,omitempty"`
+
+	GenerationDateTime time.Time `json:"-"`
+	StampDate          time.Time `json:"-"`
+	IssuerActivity     string    `json:"-"`
 }

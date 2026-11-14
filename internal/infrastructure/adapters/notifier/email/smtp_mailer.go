@@ -7,9 +7,9 @@ import (
 
 	"github.com/wneessen/go-mail"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/notification"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/notification"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type SMTPMailer struct {

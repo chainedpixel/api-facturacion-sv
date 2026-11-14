@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
 )
 
 // InvoiceBuilder - Specialized builder for Electronic Invoice
@@ -172,11 +173,15 @@ func (b *InvoiceBuilder) AddItems() *InvoiceBuilder {
 			return b
 		}
 
+		// En FE el IVA va incluido en el precio: los items no llevan el tributo 20 (Anexo IV, campo 84)
+		item.Taxes = nil
+
 		invoiceItem := invoice_models.InvoiceItem{
 			Item: item,
 		}
 
-		taxedAmount := item.GetQuantity() * item.GetUnitPrice() * (1 - item.GetDiscount()/100)
+		// ventaGravada = (precioUni x cantidad) - montoDescu; montoDescu es un monto, no un porcentaje
+		taxedAmount := item.GetQuantity()*item.GetUnitPrice() - item.GetDiscount()
 		ivaAmount := (taxedAmount / 1.13) * 0.13
 
 		taxedSaleObj, err := financial.NewAmount(taxedAmount)
@@ -277,19 +282,7 @@ func (b *InvoiceBuilder) AddSummaryWithCreditOperation() *InvoiceBuilder {
 		return b
 	}
 
-	payments := baseSummary.GetPaymentTypes()
-	for _, payment := range payments {
-		if payment.GetCode() == constants.BilletesMonedas {
-			period := 2
-			term := "02"
-
-			b.setError(payment.SetCode(constants.TarjetaCredito))
-			b.setError(payment.SetPeriod(&period))
-			b.setError(payment.SetTerm(&term))
-		}
-	}
-
-	b.setError(baseSummary.SetPaymentTypes(payments))
+	b.setError(baseSummary.SetPaymentTypes([]interfaces.PaymentType{NewCreditPayment("02", 2)}))
 	b.setError(baseSummary.SetOperationCondition(constants.Credit))
 
 	return b

@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/handlers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/handlers"
 
 	"net/http"
 
@@ -14,6 +14,8 @@ func RegisterDTERoutes(r *mux.Router, h *handlers.DTEHandler) {
 	}
 
 	r.HandleFunc("/dte/invalidation", h.InvalidateDocument).Methods(http.MethodPost)
+	r.HandleFunc("/dte/{id}/archivo", h.GetArchive).Methods(http.MethodGet)
+	r.HandleFunc("/dte/{id}/eventos", h.GetEvents).Methods(http.MethodGet)
 	r.HandleFunc("/dte/{id}", h.GetByGenerationCode).Methods(http.MethodGet)
 	r.HandleFunc("/dte", h.GetAll).Methods(http.MethodGet)
 }

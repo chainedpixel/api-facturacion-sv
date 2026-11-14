@@ -3,10 +3,10 @@ package mappers
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -106,13 +106,15 @@ func TestMapToFSEData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 		{
+			// Anexo IV, campos 47-48 (p107): la direccion solo puede ser null en FE; en FSEE es requerida
 			name: "FSE without receiver address",
 			req: func() *structs.CreateFSERequest {
 				req := fixtures.CreateDefaultFSERequest()
 				req.Receiver.Address = nil
 				return req
 			},
-			wantErr: false,
+			wantErr:   true,
+			errorCode: "RequiredField",
 		},
 		{
 			name: "FSE with invalid email in receiver",
@@ -209,19 +211,7 @@ func TestMapToFSEData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "FSE with discount greater than 100% in item",
-			req: func() *structs.CreateFSERequest {
-				req := fixtures.CreateDefaultFSERequest()
-				item := fixtures.CreateDefaultFSEItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.FSEItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 		{
 			name: "FSE with zero purchase amount in item",
@@ -248,21 +238,6 @@ func TestMapToFSEData(t *testing.T) {
 			errorCode: "InvalidAmount",
 		},
 
-		{
-			name: "FSE with invalid extension (empty deliverer name)",
-			req: func() *structs.CreateFSERequest {
-				req := fixtures.CreateDefaultFSERequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
 		{
 			name: "FSE with invalid appendix (empty field)",
 			req: func() *structs.CreateFSERequest {
@@ -340,22 +315,6 @@ func TestMapToFSEData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "FSE with valid extension",
-			req: func() *structs.CreateFSERequest {
-				req := fixtures.CreateDefaultFSERequest()
-				observation := "Observación válida"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Pedro González",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "María Flores",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
-				return req
-			},
-			wantErr: false,
-		},
-		{
 			name: "FSE with valid appendix",
 			req: func() *structs.CreateFSERequest {
 				req := fixtures.CreateDefaultFSERequest()
@@ -389,13 +348,10 @@ func TestMapToFSEData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 2, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.FSEReceiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.FSESummary)
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
-			}
 
 			if req.Appendixes != nil {
 				assert.NotNil(t, got.Appendixes)

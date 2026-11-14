@@ -1,10 +1,10 @@
 package invoice
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 func MapInvoiceResponseItem(items []invoice_models.InvoiceItem) []structs.InvoiceItem {
@@ -32,6 +32,7 @@ func MapInvoiceItem(item interfaces.Item) structs.InvoiceItem {
 		MontoDescu:      item.GetDiscount(),
 		NumeroDocumento: item.GetRelatedDoc(),
 	}
+	result.Codigo, result.CodTributo = common.MapItemCodes(item)
 
 	if item.GetTaxes() != nil {
 		common.MapTaxCodes(item.GetTaxes())

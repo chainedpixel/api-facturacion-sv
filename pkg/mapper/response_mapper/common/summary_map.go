@@ -1,8 +1,8 @@
 package common
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 // MapCommonResponseSummary maps an invoice summary to an invoice summary model -> Source: Response
@@ -23,6 +23,7 @@ func MapCommonResponseSummary(summary interfaces.Summary) *structs.DTESummary {
 		TotalLetras:         summary.GetTotalInWords(),
 		CondicionOperacion:  summary.GetOperationCondition(),
 		Tributos:            MapTaxes(summary.GetTotalTaxes()),
+		Observaciones:       summary.GetObservations(),
 	}
 
 	if len(summary.GetPaymentTypes()) > 0 {

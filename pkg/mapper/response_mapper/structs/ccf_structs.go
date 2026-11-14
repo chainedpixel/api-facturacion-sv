@@ -9,6 +9,5 @@ type CCFDTEResponse struct {
 	DocumentoRelacionado []DTERelatedDocument `json:"documentoRelacionado"`
 	OtrosDocumentos      []DTEOtherDocument   `json:"otrosDocumentos"`
 	VentaTercero         *DTEThirdPartySale   `json:"ventaTercero"`
-	Extension            *DTEExtension        `json:"extension"`
 	Apendice             []DTEApendice        `json:"apendice"`
 }

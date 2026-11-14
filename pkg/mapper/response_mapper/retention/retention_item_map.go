@@ -1,8 +1,8 @@
 package retention
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 func MapRetentionResponseItem(items []retention_models.RetentionItem) []structs.RetentionItem {
@@ -15,7 +15,7 @@ func MapRetentionResponseItem(items []retention_models.RetentionItem) []structs.
 		retentionItems[i] = structs.RetentionItem{
 			NumItem:            item.Number.GetValue(),
 			TipoDTE:            item.DTEType.GetValue(),
-			TipoDoc:            item.DocumentType.GetValue(),
+			TipoGeneracion:     item.DocumentType.GetValue(),
 			NumDoc:             item.DocumentNumber.GetValue(),
 			FechaEmision:       item.EmissionDate.GetValue().Format("2006-01-02"),
 			MontoSujetoGravado: item.RetentionAmount.GetValue(),

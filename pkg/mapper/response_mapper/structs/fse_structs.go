@@ -4,7 +4,7 @@ package structs
 type FSEDTEResponse struct {
 	Identificacion  DTEIdentification  `json:"identificacion"`
 	Emisor          FSEIssuer          `json:"emisor"`
-	SujetoExcluido  FSESubjectExcluded `json:"sujetoExcluido"`
+	Receptor        FSESubjectExcluded `json:"receptor"`
 	CuerpoDocumento []FSEItemResponse  `json:"cuerpoDocumento"`
 	Resumen         FSESummaryResponse `json:"resumen"`
 	Apendice        *[]DTEApendice     `json:"apendice"`
@@ -12,18 +12,16 @@ type FSEDTEResponse struct {
 
 // FSEIssuer specific structure for FSE issuer according to schema (excludes tipoEstablecimiento and nombreComercial)
 type FSEIssuer struct {
-	NIT             string     `json:"nit"`
-	NRC             string     `json:"nrc"`
-	Nombre          string     `json:"nombre"`
-	CodActividad    *string    `json:"codActividad"`
-	DescActividad   *string    `json:"descActividad"`
-	Direccion       DTEAddress `json:"direccion"`
-	Telefono        string     `json:"telefono"`
-	Correo          string     `json:"correo"`
-	CodEstableMH    *string    `json:"codEstableMH"`
-	CodEstable      *string    `json:"codEstable"`
-	CodPuntoVentaMH *string    `json:"codPuntoVentaMH"`
-	CodPuntoVenta   *string    `json:"codPuntoVenta"`
+	NIT           string     `json:"nit"`
+	NRC           string     `json:"nrc"`
+	Nombre        string     `json:"nombre"`
+	CodActividad  *string    `json:"codActividad"`
+	DescActividad *string    `json:"descActividad"`
+	Direccion     DTEAddress `json:"direccion"`
+	Telefono      string     `json:"telefono"`
+	Correo        string     `json:"correo"`
+	CodEstable    *string    `json:"codEstable"`
+	CodPuntoVenta *string    `json:"codPuntoVenta"`
 }
 
 // FSESubjectExcluded structure for the excluded subject according to the FSE schema
@@ -57,7 +55,6 @@ type FSESummaryResponse struct {
 	Descu              float64       `json:"descu"`
 	TotalDescu         float64       `json:"totalDescu"`
 	SubTotal           float64       `json:"subTotal"`
-	IvaRete1           float64       `json:"ivaRete1"`
 	ReteRenta          float64       `json:"reteRenta"`
 	TotalPagar         float64       `json:"totalPagar"`
 	TotalLetras        string        `json:"totalLetras"`

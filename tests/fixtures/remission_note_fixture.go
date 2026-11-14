@@ -1,8 +1,8 @@
 package fixtures
 
 import (
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // CreateDefaultRemissionNoteItem creates a valid default remission note item.
@@ -92,7 +92,6 @@ func CreateDefaultRemissionNoteRequest() *structs.CreateRemissionNoteRequest {
 // CreateRemissionNoteRequestWithAllOptionalFields creates a remission note request with all optional fields populated.
 func CreateRemissionNoteRequestWithAllOptionalFields() *structs.CreateRemissionNoteRequest {
 	req := CreateDefaultRemissionNoteRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	relatedDoc := CreateDefaultRelatedDocument()
 	req.RelatedDocs = []*structs.RelatedDocRequest{&relatedDoc}

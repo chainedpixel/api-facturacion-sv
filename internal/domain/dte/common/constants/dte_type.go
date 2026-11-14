@@ -62,7 +62,14 @@ var (
 
 	ValidInvoiceDTETypesRelateDoc = map[string]bool{
 		NotaRemisionElectronica:           true,
+		ComprobanteLiquidacionElectronico: true,
 		DocContableLiquidacionElectronico: true,
+	}
+
+	ValidRemissionNoteDTETypesRelateDoc = map[string]bool{
+		FacturaElectronica:            true,
+		CCFElectronico:                true,
+		FacturaExportacionElectronica: true,
 	}
 
 	ValidDTETypesForContingency = map[string]bool{

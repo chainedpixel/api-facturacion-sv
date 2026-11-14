@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/health/checkers"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/health/checkers"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 // fakeSMTP responds to a minimal handshake. authOK toggles whether AUTH

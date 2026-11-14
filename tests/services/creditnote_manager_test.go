@@ -10,18 +10,18 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 )
 
 func TestCreditNoteServiceCreate(t *testing.T) {
@@ -252,18 +252,17 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 					return nil, err
 				}
 
+				// Campo 153 (NCE): totalPagar = montoTotalOperacion + IVA percibido - IVA retenido.
+				// La retencion de renta se elimino para NCE en la v2.0.
 				taxedAmount := creditNote.CreditSummary.Summary.GetTotalTaxed()
-				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)
-				incomeRetention := financial.NewValidatedAmount(taxedAmount * 0.05)
+				ivaRetention := financial.NewValidatedAmount(decimal.NewFromFloat(taxedAmount * 0.01).Round(2).InexactFloat64())
 
 				creditNote.CreditSummary.IVARetention = *ivaRetention
-				creditNote.CreditSummary.IncomeRetention = *incomeRetention
 
 				totalOperation := creditNote.CreditSummary.Summary.GetTotalOperation()
-				newTotalToPay := totalOperation - ivaRetention.GetValue() - incomeRetention.GetValue()
+				newTotalToPay := totalOperation - ivaRetention.GetValue()
 				newTotalToPay = decimal.NewFromFloat(newTotalToPay).Round(2).InexactFloat64()
 				creditNote.CreditSummary.Summary.SetTotalToPay(newTotalToPay)
-				creditNote.CreditSummary.Summary.SetTotalOperation(newTotalToPay)
 
 				payments := creditNote.CreditSummary.Summary.GetPaymentTypes()
 				for i, payment := range payments {
@@ -376,7 +375,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 				).Return(constants.DocumentRejected, nil)
 			},
 			wantErr:   true,
-			errorCode: "DocumentNotReceived",
+			errorCode: "RelatedDocumentNotReceived",
 		},
 		{
 			name: "Error - CreditNote with NIT mismatch in related document",
@@ -828,7 +827,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 			errorCode: "InvalidTaxRulesCCF",
 		},
 		{
-			name: "Error - CreditNote with invalid discount exceeding subtotal",
+			name: "Error - CreditNote with global discount",
 			setupCreditNoteData: func() (*credit_note_models.CreditNoteInput, error) {
 				creditNote, err := fixtures.BuildValidCreditNote()
 				if err != nil {
@@ -866,7 +865,7 @@ func TestCreditNoteServiceCreate(t *testing.T) {
 				).Return(nil).AnyTimes()
 			},
 			wantErr:   true,
-			errorCode: "DiscountExceedsSubtotal",
+			errorCode: "GlobalDiscountNotAllowedInAdjustment",
 		},
 		{
 			name: "Error - CreditNote with inconsistent total taxed",

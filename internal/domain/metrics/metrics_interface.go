@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/metrics/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/metrics/models"
 )
 
 // MetricsManager is an interface that defines the methods to retrieve and record metrics

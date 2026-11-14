@@ -9,7 +9,6 @@ type MHRemissionNote struct {
 	ThirdPartySale   *DTEThirdPartySale       `json:"ventaTercero"`
 	DocumentBody     []*MHRemissionNoteItem   `json:"cuerpoDocumento"`
 	Summary          *MHRemissionNoteSummary  `json:"resumen"`
-	Extension        *DTEExtension            `json:"extension"`
 	Appendix         []DTEApendice            `json:"apendice"`
 }
 
@@ -61,4 +60,5 @@ type MHRemissionNoteSummary struct {
 	Subtotal           float64  `json:"subTotal"`
 	TotalAmount        float64  `json:"montoTotalOperacion"`
 	AmountInWords      string   `json:"totalLetras"`
+	Observaciones      *string  `json:"observaciones"`
 }

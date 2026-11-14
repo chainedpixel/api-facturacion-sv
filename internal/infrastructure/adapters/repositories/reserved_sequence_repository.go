@@ -6,10 +6,10 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type ReservedSequenceRepository struct {
@@ -359,6 +359,19 @@ func (r *ReservedSequenceRepository) GetByDocumentID(ctx context.Context, docume
 	return r.toDomain(&dbModel), nil
 }
 
+const notPersistedDocumentCondition = `NOT EXISTS (
+	SELECT 1 FROM dte_details d
+	JOIN dte_documents dd ON dd.document_id = d.id
+	WHERE dd.branch_id = reserved_sequence_numbers.branch_id
+	AND d.dte_type = reserved_sequence_numbers.dte_type
+	AND RIGHT(d.control_number, 15) IN (
+		LPAD(reserved_sequence_numbers.sequence_number, 15, '0'),
+		CONCAT(reserved_sequence_numbers.year, LPAD(reserved_sequence_numbers.sequence_number, 11, '0'))
+	)
+)`
+
+// GetExpiredNonContingencyReservations returns expired reserved non-contingency numbers, excluding those whose
+// control number already belongs to a persisted DTE of the same branch so a stamped document number is never released and reused.
 func (r *ReservedSequenceRepository) GetExpiredNonContingencyReservations(ctx context.Context) ([]dte_documents.ReservedSequence, error) {
 	var dbModels []db_models.ReservedSequenceNumber
 
@@ -367,6 +380,7 @@ func (r *ReservedSequenceRepository) GetExpiredNonContingencyReservations(ctx co
 		Where("is_contingency = ?", false).
 		Where("expires_at IS NOT NULL").
 		Where("expires_at < ?", utils.TimeNow()).
+		Where(notPersistedDocumentCondition).
 		Find(&dbModels).Error
 
 	if err != nil {

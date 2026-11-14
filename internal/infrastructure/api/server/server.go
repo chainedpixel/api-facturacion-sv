@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/bootstrap/containers"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/routes"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/bootstrap/containers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/routes"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 	"github.com/gorilla/mux"
 )
 

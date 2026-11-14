@@ -22,6 +22,7 @@ x-app-environment: &app-environment
   APP_LANG_PATH: /assets/i18n/
   DEBUG: true
   FORCE_CONTINGENCY: false
+  MH_EXTRA_HOLIDAYS: "" # Asuetos adicionales YYYY-MM-DD separados por comas (vacio = solo asuetos nacionales)
   RUN_MIGRATION: true
   SERVER_PORT: 7319
   ADMIN_EMAIL: example@example.com
@@ -54,8 +55,8 @@ x-app-environment: &app-environment
   # Configuración de servicios de Hacienda
   MH_AUTH_URL: https://apitest.dtes.mh.gob.sv/seguridad/auth
   MH_RECEPTION_URL: https://apitest.dtes.mh.gob.sv/fesv/recepciondte
-  MH_LOTE_RECEPTION_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcionlote/
-  MH_RECEPTION_CONSULT_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcion/consultadte/
+  MH_LOTE_RECEPTION_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcionlote
+  MH_RECEPTION_CONSULT_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcion/consultadte
   MH_RECEPTION_CONSULT_LOTE_URL: https://apitest.dtes.mh.gob.sv/fesv/recepcion/consultadtelote
   MH_CONTINGENCY_URL: https://apitest.dtes.mh.gob.sv/fesv/contingencia
   MH_NULLIFY_URL: https://apitest.dtes.mh.gob.sv/fesv/anulardte
@@ -79,7 +80,6 @@ services:
       - "7319:7319"
     environment:
       <<: *app-environment
-      network_mode: host
 
     # O usar extra_hosts para mapear dominios
     extra_hosts:

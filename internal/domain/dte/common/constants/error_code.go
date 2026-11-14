@@ -3,7 +3,7 @@ package constants
 import (
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/api-facturacion-sv/config"
 )
 
 // GetErrorMessage retrieves the error message according to the configured language

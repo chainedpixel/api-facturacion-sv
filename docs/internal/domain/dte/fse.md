@@ -12,7 +12,7 @@ La Factura de Sujeto Excluido (FSE) se emite cuando el emisor (contribuyente) ad
 Características principales:
 - **No tiene IVA** — El sujeto excluido no cobra IVA
 - **Registra compras** — El campo principal del ítem es `Purchase`, no tipos de venta
-- **Retenciones obligatorias** — El emisor retiene IVA e ISR al sujeto excluido
+- **Retención de renta** — El emisor puede retener renta (`IncomeRetention`); la retención de IVA no aplica y debe ser 0 (eliminada en la Normativa de Cumplimiento DTE v2.0, Anexo VI)
 - **Receptor especial** — Usa `FSEReceiver` con estructura diferente al receptor estándar
 
 ---
@@ -50,13 +50,17 @@ func (s *fseService) Create(ctx context.Context, input interface{}, branchID uin
 ### Flujo de Ejecución
 
 ```
-1. Cast del input → FSEData
-2. Crear documento base FSE (con receptor especial)
-3. Ensamblar FSEModel con ítems, resumen y receptor específicos
-4. Validar reglas de negocio de FSE
-5. Generar código de generación (UUID) y número de control
-6. Retornar FSEModel validado
+1. Cast del input → *FSEData
+2. Verificar que exista FSEReceiver (si no, ReceiverIsRequired)
+3. Crear documento base FSE (con receptor especial)
+4. Ensamblar FSEModel con ítems, resumen y receptor específicos
+5. Validar reglas específicas de FSE (FSERulesValidator)
+6. Validar reglas genéricas de DTE (ValidateDTEDocument)
+7. Generar número de control (SequentialNumberManager) y código de generación (UUID)
+8. Retornar FSEModel validado
 ```
+
+El `FSERulesValidator` compone cuatro estrategias: `FSEItemStrategy`, `FSETaxStrategy`, `FSEReceiverStrategy` y `FSEDiscountStrategy`, y agrupa los errores en un error compuesto.
 
 ### Diferencia en Creación del Documento Base
 
@@ -145,67 +149,39 @@ type FSEReceiver struct {
 |---|---|---|
 | `DocumentType` | `DTEType` | Tipo de documento de identidad del receptor |
 | `DocumentNumber` | `DocumentNumber` | Número de documento del receptor |
-| `ActivityCode` | `*ActivityCode` | Código de actividad económica (opcional) |
-| `ActivityDescription` | `*string` | Descripción de la actividad (opcional) |
+| `ActivityCode` | `*ActivityCode` | Código de actividad económica (opcional; si se envía debe ser válido) |
+| `ActivityDescription` | `*string` | Descripción de la actividad (opcional; máximo 150 caracteres) |
+
+El nombre y la dirección del receptor (del `Receiver` base) son obligatorios.
 
 #### Tipos de Documento Válidos para FSEReceiver
 
 | Código | Tipo | Validación |
 |---|---|---|
 | `36` | NIT | 9 o 14 dígitos |
-| `13` | DUI | 9 dígitos (formato `XXXXXXXX-X`) |
+| `13` | DUI | 9 dígitos |
 | `02` | Carnet de Residente | Máximo 20 caracteres |
 | `03` | Pasaporte | Máximo 20 caracteres |
 | `37` | Otro Documento | Máximo 20 caracteres |
 
 ---
 
-## Fórmulas de Cálculo
+## Cálculos
 
-### Total de Compras
+Las fórmulas del FSE (total de compras, subtotal y total a pagar) y la tolerancia aplicada se documentan en [calculations.md](../../../api/calculations.md). Reglas que valida el dominio:
 
-```
-TotalPurchase = Sum(item.Purchase)    para cada ítem
-```
-
-### Total a Pagar
-
-```
-TotalToPay = TotalPurchase - IVARetention - IncomeRetention
-```
-
-### Validaciones de Retenciones
-
-```
-IVARetention >= 0
-IncomeRetention >= 0
-```
-
-### Restricción de IVA
-
-```
-TaxedSale DEBE ser 0    (FSE no tiene ventas gravadas)
-```
+- `TotalPurchase` debe ser la suma de `Purchase` de los ítems.
+- `SubTotal` debe ser `TotalPurchase` menos el descuento sobre no sujeto (`NonSubjectDiscount`); `TotalDiscount` debe ser la suma de descuentos por ítem más `NonSubjectDiscount`.
+- `TotalToPay` debe ser `SubTotal` menos `IncomeRetention`.
+- `IVARetention` debe ser 0 (`IVARetentionNotAllowedInFSE`) e `IncomeRetention` no puede ser negativa.
+- `TotalTaxed` debe ser 0 (el FSE no tiene ventas gravadas).
 
 ---
 
 ## Validaciones de Descuentos
 
-### Descuento por Ítem
-
-```
-Purchase = (Quantity * UnitPrice) - Discount
-Discount <= (Quantity * UnitPrice)    // El descuento no puede exceder el bruto
-```
-Tolerancia: `±0.01`
-
-### Descuento en Resumen
-
-```
-SubTotal = TotalPurchase - NonSubjectDiscount
-TotalDiscount = Sum(item.Discount) + NonSubjectDiscount
-```
-Tolerancia: `±0.01`
+- Por ítem: el descuento no puede exceder el bruto `Quantity * UnitPrice` (`ExcessiveItemDiscount`) y `Purchase` debe ser `(Quantity * UnitPrice) - Discount` (`InvalidItemSaleAmount`).
+- En el resumen: `InvalidTotalPurchase`, `InvalidSubTotal` e `InvalidTotalDiscount` cuando los totales declarados no coinciden con los calculados.
 
 ---
 
@@ -218,16 +194,23 @@ Tolerancia: `±0.01`
 | `FSEItemInvalidDescription` | Descripción vacía |
 | `FSEItemInvalidQuantity` | Cantidad <= 0 |
 | `FSEItemInvalidUnitPrice` | Precio unitario <= 0 |
-| `FSETaxInvalidIVARetention` | Retención de IVA negativa |
+| `FSETaxInvalidIVARetention` | Retención de IVA inválida |
+| `IVARetentionNotAllowedInFSE` | Retención de IVA distinta de 0 |
 | `FSETaxInvalidIncomeRetention` | Retención de renta negativa |
 | `FSETaxInvalidTotalToPay` | Cálculo de total a pagar incorrecto |
 | `FSETaxInvalidTaxedSale` | Venta gravada diferente de 0 |
+| `ReceiverIsRequired` | No se envió el receptor FSE |
 | `FSEReceiverRequiredName` | Nombre del receptor faltante |
 | `FSEReceiverRequiredAddress` | Dirección del receptor faltante |
 | `FSEReceiverInvalidNIT` | NIT con formato inválido |
 | `FSEReceiverInvalidDUI` | DUI con formato inválido |
-| `InvalidItemPurchase` | Purchase no coincide con `(Qty * UnitPrice) - Discount` |
+| `InvalidItemSaleAmount` | Purchase no coincide con `(Qty * UnitPrice) - Discount` |
 | `ExcessiveItemDiscount` | Descuento excede el valor bruto |
+| `InvalidTotalPurchase` | Total de compras distinto de la suma de las compras |
+| `InvalidSubTotal` | Subtotal distinto de total de compras menos descuento |
+| `InvalidTotalDiscount` | Total de descuentos inconsistente |
+| `FSEReceiverRequiredDocumentType`, `FSEReceiverRequiredDocumentNumber`, `FSEReceiverInvalidDocumentType`, `FSEReceiverInvalidDocumentLength` | Tipo o número de documento del receptor ausente o inválido |
+| `FSEReceiverInvalidActivityCode`, `FSEReceiverInvalidActivityDescription` | Actividad económica inválida |
 
 ---
 
@@ -242,8 +225,8 @@ Receptor compra                 Receptor vende (sujeto excluido)
 TaxedSale > 0                   TaxedSale = 0
 ExemptSale posible              Purchase > 0
 IVA calculado                   No hay IVA
-                                IVARetention sobre compra
                                 IncomeRetention sobre compra
+                                IVARetention no aplica (0)
 ```
 
 ---
@@ -253,7 +236,7 @@ IVA calculado                   No hay IVA
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/fse/fse_service.go` | Servicio principal |
-| `internal/domain/dte/fse/models/` | Modelos del FSE |
+| `internal/domain/dte/fse/fse_models/` | Modelos del FSE |
 | `internal/domain/dte/fse/validator/` | Estrategias de validación |
 
 ---
@@ -262,6 +245,6 @@ IVA calculado                   No hay IVA
 
 1. **Concepto invertido**: El FSE registra una **compra** del emisor, no una venta. El emisor es quien paga.
 2. **Sin IVA**: El campo `TaxedSale` debe ser siempre 0. El IVA no aplica en operaciones con sujetos excluidos.
-3. **Retenciones**: El emisor retiene IVA e ISR y los reporta a Hacienda.
+3. **Retenciones**: El emisor puede retener renta; la retención de IVA no aplica.
 4. **Receptor especial**: Se usa `FSEReceiver` con validaciones de documento de identidad diferentes al receptor estándar.
 5. **Descuentos**: Se aplican a nivel de ítem (afectan `Purchase`) y a nivel de resumen (`NonSubjectDiscount`).

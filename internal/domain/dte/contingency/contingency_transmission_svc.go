@@ -10,17 +10,18 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	appPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	batch "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
-	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	appPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	batch "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // contingencyTransmissionSvc handles token generation, document signing, and batch transmission to Hacienda.
@@ -31,6 +32,7 @@ type contingencyTransmissionSvc struct {
 	tokenService     ports.TokenManager
 	signer           appPorts.SignerManager
 	batchTransmitter batch.BatchTransmitterPort
+	dteManager       dte_documents.DTEManager
 	config           *transmitterModels.TransmissionConfig
 }
 
@@ -41,6 +43,7 @@ func newContingencyTransmissionSvc(
 	tokenService ports.TokenManager,
 	signer appPorts.SignerManager,
 	batchTransmitter batch.BatchTransmitterPort,
+	dteManager dte_documents.DTEManager,
 	config *transmitterModels.TransmissionConfig,
 ) *contingencyTransmissionSvc {
 	return &contingencyTransmissionSvc{
@@ -50,6 +53,7 @@ func newContingencyTransmissionSvc(
 		tokenService:     tokenService,
 		signer:           signer,
 		batchTransmitter: batchTransmitter,
+		dteManager:       dteManager,
 		config:           config,
 	}
 }
@@ -135,11 +139,33 @@ func (s *contingencyTransmissionSvc) checkDocumentStatus(ctx context.Context, ge
 	return s.queryHaciendaStatus(ctx, generationCode, nit, dteType, haciendaToken)
 }
 
+// signDeferredDocument signs the deferred structure once with the issuer NIT; the returned JWS is the document
+// delivered to the consumer and transmitted later.
+func (s *contingencyTransmissionSvc) signDeferredDocument(ctx context.Context, document map[string]interface{}, nit string) (string, error) {
+	payload, err := json.Marshal(document)
+	if err != nil {
+		return "", shared_error.NewGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "failed to marshal deferred document", err)
+	}
+
+	signed, err := s.signer.SignDTE(ctx, payload, nit)
+	if err != nil {
+		return "", shared_error.NewGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "failed to sign deferred document", err)
+	}
+
+	return signed, nil
+}
+
 func (s *contingencyTransmissionSvc) signDocuments(ctx context.Context, docs []dte.ContingencyDocument, nit string) ([]string, map[string]dte.ContingencyDocument) {
 	signedDocs := make([]string, 0, len(docs))
 	docsMap := make(map[string]dte.ContingencyDocument, len(docs))
 
 	for _, doc := range docs {
+		if doc.Document.SignedDocument != "" {
+			docsMap[doc.Document.ID] = doc
+			signedDocs = append(signedDocs, doc.Document.SignedDocument)
+			continue
+		}
+
 		signedDoc, err := s.signer.SignDTE(ctx, []byte(doc.Document.JSONData), nit)
 		if err != nil {
 			logs.Error("Failed to sign document", map[string]interface{}{
@@ -148,6 +174,9 @@ func (s *contingencyTransmissionSvc) signDocuments(ctx context.Context, docs []d
 				"id":    doc.ID,
 			})
 			continue
+		}
+		if err := s.dteManager.UpdateDTE(ctx, doc.BranchID, dte.DTEDetails{ID: doc.Document.ID, SignedDocument: signedDoc}); err != nil {
+			logs.Warn("Failed to store signed document", map[string]interface{}{"error": err.Error(), "id": doc.Document.ID})
 		}
 		docsMap[doc.Document.ID] = doc
 		signedDocs = append(signedDocs, signedDoc)
@@ -211,14 +240,14 @@ func (s *contingencyTransmissionSvc) queryHaciendaStatus(ctx context.Context, ge
 	req.Header.Set("Authorization", haciendaToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	httpClient := &http.Client{Timeout: 30 * time.Second}
+	httpClient := &http.Client{Timeout: 8 * time.Second}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 

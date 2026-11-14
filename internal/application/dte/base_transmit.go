@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 const (
@@ -53,21 +53,21 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	result, err := bt.transmitter.Transmit(ctx, document, signedDoc, token)
 	if err == nil && result.Status == ReceivedStatus {
 		logs.Info("Document received on first attempt")
-		return result, nil
+		return withSignedDocument(result, signedDoc), nil
 	}
 
 	if err != nil {
 		logs.Error("Failed to transmit document", map[string]interface{}{
 			"error": err.Error(),
 		})
-		return result, err
+		return result, withTransmittedDocument(err, signedDoc)
 	}
 
 	logs.Info("Check status of document")
-	statusResult, err := bt.CheckStatus(ctx, document, nit)
+	statusResult, err := bt.CheckStatus(ctx, document, nit, token)
 	if err == nil && statusResult.Status == ReceivedStatus {
 		logs.Info("Document already received")
-		return statusResult, nil
+		return withSignedDocument(statusResult, signedDoc), nil
 	}
 
 	logs.Info("Starting retries because document was not received")
@@ -77,7 +77,7 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 		result, err = bt.transmitter.Transmit(ctx, document, signedDoc, token)
 		if err == nil && result.Status == ReceivedStatus {
 			logs.Info("Document received on retry")
-			return result, nil
+			return withSignedDocument(result, signedDoc), nil
 		}
 
 		retryCount++
@@ -85,9 +85,23 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	}
 
 	logs.Info("Document was not received")
-	return result, err
+	return result, withTransmittedDocument(err, signedDoc)
 }
 
-func (bt *BaseTransmitter) CheckStatus(ctx context.Context, document interface{}, nit string) (*models.TransmitResult, error) {
-	return bt.transmitter.CheckDocumentStatus(ctx, document, nit)
+// withTransmittedDocument wraps a transmission error with the JWS that was sent; a nil error stays nil.
+func withTransmittedDocument(err error, signedDoc string) error {
+	if err == nil {
+		return nil
+	}
+	return &ports.TransmissionError{Err: err, SignedDocument: signedDoc}
+}
+
+// withSignedDocument adjunta el JWS transmitido al resultado para que se guarde como firmaElectronica
+func withSignedDocument(result *models.TransmitResult, signedDoc string) *models.TransmitResult {
+	result.SignedDocument = signedDoc
+	return result
+}
+
+func (bt *BaseTransmitter) CheckStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*models.TransmitResult, error) {
+	return bt.transmitter.CheckDocumentStatus(ctx, document, nit, systemToken)
 }

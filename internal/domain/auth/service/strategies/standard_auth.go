@@ -5,13 +5,13 @@ import (
 	"crypto/subtle"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 type StandardAuthStrategy struct {
@@ -35,9 +35,7 @@ func (s *StandardAuthStrategy) GetAuthType() string {
 // ValidateCredentials validates the authentication credentials. Returns an error if the credentials are invalid.
 func (s *StandardAuthStrategy) ValidateCredentials(credentials *models.AuthCredentials) error {
 	if credentials.APIKey == "" {
-		logs.Error("API key is required", map[string]interface{}{
-			"credentials": credentials,
-		})
+		logs.Error("API key is required")
 		return shared_error.NewFormattedGeneralServiceError(
 			"StandardAuth",
 			"ValidateCredentials",
@@ -46,9 +44,7 @@ func (s *StandardAuthStrategy) ValidateCredentials(credentials *models.AuthCrede
 		)
 	}
 	if credentials.APISecret == "" {
-		logs.Error("API secret is required", map[string]interface{}{
-			"credentials": credentials,
-		})
+		logs.Error("API secret is required")
 		return shared_error.NewFormattedGeneralServiceError(
 			"StandardAuth",
 			"ValidateCredentials",
@@ -145,7 +141,6 @@ func (s *StandardAuthStrategy) GetHaciendaCredentials(token string) (*models.Hac
 	creds, err := s.cacheService.GetCredentials(token)
 	if err != nil {
 		logs.Error("Failed to get Hacienda credentials", map[string]interface{}{
-			"token": token,
 			"error": err.Error(),
 		})
 		return nil, shared_error.NewFormattedGeneralServiceError(
@@ -155,9 +150,7 @@ func (s *StandardAuthStrategy) GetHaciendaCredentials(token string) (*models.Hac
 		)
 	}
 
-	logs.Info("Hacienda credentials retrieved successfully", map[string]interface{}{
-		"token": token,
-	})
+	logs.Info("Hacienda credentials retrieved successfully", map[string]interface{}{})
 
 	return creds, nil
 }

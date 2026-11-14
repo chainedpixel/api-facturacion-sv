@@ -3,9 +3,9 @@ package transmitter
 import (
 	"context"
 
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
 )
 
 // BatchTransmitterPort interface for batch transmission to Hacienda

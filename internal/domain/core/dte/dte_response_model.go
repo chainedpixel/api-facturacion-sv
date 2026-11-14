@@ -10,6 +10,8 @@ type DTEResponse struct {
 	Status         string                 `json:"status"`
 	CreatedAt      string                 `json:"created_at"`
 	UpdatedAt      string                 `json:"updated_at"`
+	ProcessingDate string                 `json:"processing_date,omitempty"`
+	Observations   []string               `json:"observations"`
 	JSONData       map[string]interface{} `json:"json_data"`
 }
 
@@ -38,5 +40,6 @@ type DTEPaginationResponse struct {
 type DTEModelResponse struct {
 	Status           string          `json:"status"`
 	TransmissionType string          `json:"transmission_type"`
+	Observations     []string        `json:"observations"`
 	Document         json.RawMessage `json:"document"`
 }

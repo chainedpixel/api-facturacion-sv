@@ -9,13 +9,13 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type DTERepository struct {
@@ -28,7 +28,7 @@ func NewDTERepository(db *gorm.DB) dte_documents.DTERepositoryPort {
 	}
 }
 
-func (D *DTERepository) Create(ctx context.Context, document interface{}, transmission, status string, receptionStamp *string) error {
+func (D *DTERepository) Create(ctx context.Context, document interface{}, transmission, status string, evidence *dte.TransmissionEvidence) error {
 	claims := ctx.Value("claims").(*models.AuthClaims)
 	var dteResponse utils.AuxiliarIdentificationExtractor
 
@@ -51,15 +51,15 @@ func (D *DTERepository) Create(ctx context.Context, document interface{}, transm
 		CreatedAt: utils.TimeNow(),
 		UpdatedAt: utils.TimeNow(),
 		Document: &db_models.DTEDetails{
-			ID:             dteResponse.Identification.GenerationCode,
-			Transmission:   transmission,
-			Status:         status,
-			DTEType:        dteResponse.Identification.DTEType,
-			ControlNumber:  dteResponse.Identification.ControlNumber,
-			ReceptionStamp: receptionStamp,
-			JSONData:       string(jsonData),
+			ID:            dteResponse.Identification.GenerationCode,
+			Transmission:  transmission,
+			Status:        status,
+			DTEType:       dteResponse.Identification.DTEType,
+			ControlNumber: dteResponse.Identification.ControlNumber,
+			JSONData:      string(jsonData),
 		},
 	}
+	applyEvidence(dteDocument.Document, evidence)
 
 	result := D.db.WithContext(ctx).Create(dteDocument)
 	if result.Error != nil {
@@ -67,6 +67,24 @@ func (D *DTERepository) Create(ctx context.Context, document interface{}, transm
 	}
 
 	return nil
+}
+
+// applyEvidence copia la evidencia de transmision (sello, JWS, fecha y respuesta de Hacienda) al modelo
+func applyEvidence(details *db_models.DTEDetails, evidence *dte.TransmissionEvidence) {
+	if evidence == nil {
+		return
+	}
+	details.ReceptionStamp = evidence.ReceptionStamp
+	details.SignedDocument = optionalString(evidence.SignedDocument)
+	details.ProcessingDate = optionalString(evidence.ProcessingDate)
+	details.HaciendaResponse = optionalString(evidence.HaciendaResponse)
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 func (D *DTERepository) GetDTEBalanceControl(ctx context.Context, branchID uint, id string) (*dte.BalanceControl, error) {
@@ -80,6 +98,19 @@ func (D *DTERepository) GetDTEBalanceControl(ctx context.Context, branchID uint,
 		return nil, handleGormErr(result.Error, "GetDTEBalanceControl")
 	}
 
+	transactions := make([]dte.BalanceTransaction, 0, len(balanceControl.Transactions))
+	for _, transaction := range balanceControl.Transactions {
+		transactions = append(transactions, dte.BalanceTransaction{
+			BalanceControlID:     transaction.BalanceControlID,
+			AdjustmentDocumentID: transaction.AdjustmentDocumentID,
+			TransactionType:      transaction.TransactionType,
+			TaxedAmount:          transaction.TaxedAmount,
+			ExemptAmount:         transaction.ExemptAmount,
+			NotSubjectAmount:     transaction.NotSubjectAmount,
+			CreatedAt:            transaction.CreatedAt,
+		})
+	}
+
 	return &dte.BalanceControl{
 		ID:                        balanceControl.ID,
 		BranchID:                  balanceControl.BranchID,
@@ -90,6 +121,7 @@ func (D *DTERepository) GetDTEBalanceControl(ctx context.Context, branchID uint,
 		RemainingTaxedAmount:      balanceControl.RemainingTaxedAmount,
 		RemainingExemptAmount:     balanceControl.RemainingExemptAmount,
 		RemainingNotSubjectAmount: balanceControl.RemainingNotSubjectAmount,
+		Transactions:              transactions,
 	}, nil
 }
 
@@ -132,6 +164,9 @@ func (D *DTERepository) Update(ctx context.Context, branchID uint, document dte.
 		ReceptionStamp: document.ReceptionStamp,
 		JSONData:       document.JSONData,
 	}
+	dbModel.SignedDocument = optionalString(document.SignedDocument)
+	dbModel.ProcessingDate = optionalString(document.ProcessingDate)
+	dbModel.HaciendaResponse = optionalString(document.HaciendaResponse)
 
 	if err := D.db.WithContext(ctx).
 		Model(&db_models.DTEDocument{}).
@@ -250,11 +285,12 @@ func (D *DTERepository) GetPagedDocuments(ctx context.Context, filters *dte.DTEF
 	loadFilters(query, filters)
 
 	type DocumentResult struct {
-		ID           string    `gorm:"column:id"`
-		JSONData     string    `gorm:"column:json_data"`
-		Status       string    `gorm:"column:status"`
-		Transmission string    `gorm:"column:transmission"`
-		CreatedAt    time.Time `gorm:"column:created_at"`
+		ID               string    `gorm:"column:id"`
+		JSONData         string    `gorm:"column:json_data"`
+		Status           string    `gorm:"column:status"`
+		Transmission     string    `gorm:"column:transmission"`
+		HaciendaResponse *string   `gorm:"column:hacienda_response"`
+		CreatedAt        time.Time `gorm:"column:created_at"`
 	}
 
 	var documents []DocumentResult
@@ -266,7 +302,7 @@ func (D *DTERepository) GetPagedDocuments(ctx context.Context, filters *dte.DTEF
 		query = query.Offset(offset).Limit(filters.PageSize)
 	}
 
-	if err := query.Select("dte_details.id, dte_details.json_data, dte_details.status, dte_details.transmission, dte_documents.created_at").
+	if err := query.Select("dte_details.id, dte_details.json_data, dte_details.status, dte_details.transmission, dte_details.hacienda_response, dte_documents.created_at").
 		Find(&documents).Error; err != nil {
 		return nil, err
 	}
@@ -276,6 +312,7 @@ func (D *DTERepository) GetPagedDocuments(ctx context.Context, filters *dte.DTEF
 		result = append(result, dte.DTEModelResponse{
 			Status:           doc.Status,
 			TransmissionType: doc.Transmission,
+			Observations:     dte.ObservationsFromHaciendaResponse(valueOrEmpty(doc.HaciendaResponse)),
 			Document:         json.RawMessage(doc.JSONData),
 		})
 	}
@@ -300,19 +337,53 @@ func (D *DTERepository) GetByGenerationCode(ctx context.Context, branchID uint, 
 		CreatedAt:  document.CreatedAt,
 		UpdatedAt:  document.UpdatedAt,
 		Details: &dte.DTEDetails{
-			ID:             document.Document.ID,
-			DTEType:        document.Document.DTEType,
-			ControlNumber:  document.Document.ControlNumber,
-			Transmission:   document.Document.Transmission,
-			Status:         document.Document.Status,
-			ReceptionStamp: document.Document.ReceptionStamp,
-			JSONData:       document.Document.JSONData,
+			ID:               document.Document.ID,
+			DTEType:          document.Document.DTEType,
+			ControlNumber:    document.Document.ControlNumber,
+			Transmission:     document.Document.Transmission,
+			Status:           document.Document.Status,
+			ReceptionStamp:   document.Document.ReceptionStamp,
+			JSONData:         document.Document.JSONData,
+			SignedDocument:   valueOrEmpty(document.Document.SignedDocument),
+			ProcessingDate:   valueOrEmpty(document.Document.ProcessingDate),
+			HaciendaResponse: valueOrEmpty(document.Document.HaciendaResponse),
 		},
 	}, nil
 }
 
+// GetActiveAdjustmentNotes returns the received or pending credit and debit notes registered in the balance
+// control of the given document.
+func (D *DTERepository) GetActiveAdjustmentNotes(ctx context.Context, branchID uint, originalDTE string) ([]string, error) {
+	var notes []string
+
+	result := D.db.WithContext(ctx).
+		Table("dte_balance_transactions AS t").
+		Joins("JOIN dte_balance_control AS c ON c.id = t.balance_control_id").
+		Joins("JOIN dte_details AS d ON d.id = t.adjustment_document_id").
+		Where("c.branch_id = ? AND c.original_dte_id = ?", branchID, originalDTE).
+		Where("d.dte_type IN ?", []string{constants.NotaCreditoElectronica, constants.NotaDebitoElectronica}).
+		Where("d.status IN ?", []string{constants.DocumentReceived, constants.DocumentPending}).
+		Distinct().
+		Order("t.adjustment_document_id").
+		Pluck("t.adjustment_document_id", &notes)
+	if result.Error != nil {
+		return nil, handleGormErr(result.Error, "GetActiveAdjustmentNotes")
+	}
+
+	return notes, nil
+}
+
 func loadFilters(query *gorm.DB, filters *dte.DTEFilters) {
-	if filters.BranchID != 0 {
+	if filters.IssuerNIT != "" {
+		query = query.Where(
+			"dte_documents.branch_id IN (?)",
+			query.Session(&gorm.Session{NewDB: true}).
+				Table("branch_offices").
+				Select("branch_offices.id").
+				Joins("JOIN users ON users.id = branch_offices.user_id").
+				Where("users.nit = ?", filters.IssuerNIT),
+		)
+	} else if filters.BranchID != 0 {
 		query = query.Where("dte_documents.branch_id = ?", filters.BranchID)
 	}
 

@@ -1,12 +1,12 @@
 package containers
 
 import (
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	contiPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	dtePorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/repositories"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	contiPorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	dtePorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/repositories"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +19,7 @@ type RepositoryContainer struct {
 	failedSequentialNumberRepo ports.FailedSequenceNumberRepositoryPort
 	reservedSequenceRepo       dtePorts.ReservedSequenceRepositoryPort
 	dteRepo                    dtePorts.DTERepositoryPort
+	dteEventRepo               dtePorts.DTEEventRepositoryPort
 	contingencyRepo            contiPorts.ContingencyRepositoryPort
 }
 
@@ -34,6 +35,7 @@ func (c *RepositoryContainer) Initialize() {
 	c.sequentialNumberRepo = repositories.NewControlNumberRepository(c.db)
 	c.reservedSequenceRepo = repositories.NewReservedSequenceRepository(c.db)
 	c.dteRepo = repositories.NewDTERepository(c.db)
+	c.dteEventRepo = repositories.NewDTEEventRepository(c.db)
 	c.contingencyRepo = repositories.NewContingencyRepository(c.db)
 	c.failedSequentialNumberRepo = repositories.NewFailedSequenceNumberRepository(c.db)
 }
@@ -48,6 +50,10 @@ func (c *RepositoryContainer) ContingencyRepo() contiPorts.ContingencyRepository
 
 func (c *RepositoryContainer) DTERepo() dtePorts.DTERepositoryPort {
 	return c.dteRepo
+}
+
+func (c *RepositoryContainer) DTEEventRepo() dtePorts.DTEEventRepositoryPort {
+	return c.dteEventRepo
 }
 
 func (c *RepositoryContainer) AuthRepo() auth.AuthRepositoryPort {

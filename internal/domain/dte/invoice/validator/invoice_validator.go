@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	strategy2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/validator/strategy"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	strategy2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/validator/strategy"
 )
 
 type InvoiceRulesValidator struct {
@@ -20,6 +20,7 @@ func NewInvoiceRulesValidator(doc *invoice_models.ElectronicInvoice) *InvoiceRul
 			&strategy2.InvoiceItemsStrategy{Document: doc},
 			&strategy2.InvoiceTaxStrategy{Document: doc},
 			&strategy2.InvoiceTotalsStrategy{Document: doc},
+			&strategy2.InvoiceRelatedDocStrategy{Document: doc},
 		},
 	}
 	return validator

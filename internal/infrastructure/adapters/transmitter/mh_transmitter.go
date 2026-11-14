@@ -10,15 +10,16 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	models2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	ports2 "github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/processors"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	models2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	ports2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/processors"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type HaciendaConsultRequest struct {
@@ -28,7 +29,6 @@ type HaciendaConsultRequest struct {
 }
 
 type MHTransmitter struct {
-	HaciendaToken      string
 	haciendaAuth       ports.HaciendaAuthManager
 	failedSequenceRepo ports2.FailedSequenceNumberRepositoryPort
 	httpClient         *http.Client
@@ -40,7 +40,7 @@ func NewMHTransmitter(haciendaAuth ports.HaciendaAuthManager, failedSequenceRepo
 		haciendaAuth:       haciendaAuth,
 		failedSequenceRepo: failedSequenceRepo,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 8 * time.Second,
 		},
 		processors: make(map[string]DocumentProcessor),
 	}
@@ -50,8 +50,22 @@ func NewMHTransmitter(haciendaAuth ports.HaciendaAuthManager, failedSequenceRepo
 	return t
 }
 
+// GetTimeout returns the configured timeout duration for the HTTP client.
+func (t *MHTransmitter) GetTimeout() time.Duration {
+	return t.httpClient.Timeout
+}
+
 func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, signedDoc string, systemToken string) (*models2.TransmitResult, error) {
 	if config.Server.ForceContingency && config.Server.AmbientCode == "00" {
+		if utils.ForcedContingencyType(ctx) == constants.OtroMotivo {
+			logs.Info("Forcing contingency mode - simulating an unclassified failure")
+			return nil, &hacienda_error.HTTPResponseError{
+				StatusCode: http.StatusInternalServerError,
+				Body:       []byte("Forced contingency - unclassified failure"),
+				URL:        config.MHPaths.ReceptionURL,
+				Method:     "POST",
+			}
+		}
 		logs.Info("Forcing contingency mode - simulating service unavailable")
 		return nil, &hacienda_error.HTTPResponseError{
 			StatusCode: http.StatusServiceUnavailable,
@@ -81,10 +95,31 @@ func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, sign
 		return nil, err
 	}
 
-	return processor.ProcessResponse(resp)
+	result, err := processor.ProcessResponse(resp)
+	if result != nil {
+		result.HaciendaResponse = marshalHaciendaResponse(resp)
+	}
+	return result, err
 }
 
-func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interface{}, nit string) (*models2.TransmitResult, error) {
+// marshalHaciendaResponse serializa la respuesta de Hacienda para guardarla junto al documento o evento
+func marshalHaciendaResponse(resp *models2.HaciendaResponse) string {
+	if resp == nil {
+		return ""
+	}
+	raw, err := json.Marshal(resp)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*models2.TransmitResult, error) {
+	haciendaToken, err := t.getHaciendaToken(ctx, systemToken)
+	if err != nil {
+		return nil, err
+	}
+
 	_, dteType, generationCode, _, err := processors.GetDocumentRequestData(document)
 
 	haciendaReqBody := HaciendaConsultRequest{
@@ -101,7 +136,7 @@ func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interf
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", t.HaciendaToken)
+	req.Header.Set("Authorization", haciendaToken)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := t.httpClient.Do(req)
@@ -114,7 +149,7 @@ func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interf
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		logs.Error("Failed to check document status", map[string]interface{}{
 			"status": resp.Status,
 		})
@@ -127,17 +162,18 @@ func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interf
 	}
 
 	return &models2.TransmitResult{
-		Status:         haciendaResp.Status,
-		ReceptionStamp: &haciendaResp.ReceptionStamp,
-		ProcessingDate: haciendaResp.ProcessingDate,
-		MessageCode:    haciendaResp.MessageCode,
-		MessageDesc:    haciendaResp.DescriptionMessage,
-		Observations:   haciendaResp.Observations,
+		Status:           haciendaResp.Status,
+		ReceptionStamp:   &haciendaResp.ReceptionStamp,
+		ProcessingDate:   haciendaResp.ProcessingDate,
+		MessageCode:      haciendaResp.MessageCode,
+		MessageDesc:      haciendaResp.DescriptionMessage,
+		Observations:     haciendaResp.Observations,
+		HaciendaResponse: marshalHaciendaResponse(&haciendaResp),
 	}, nil
 }
 
 func (t *MHTransmitter) SendToHacienda(ctx context.Context, request *models2.HaciendaRequest, systemToken string) (*models2.HaciendaResponse, error) {
-	err := t.getHaciendaToken(ctx, systemToken)
+	haciendaToken, err := t.getHaciendaToken(ctx, systemToken)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +193,7 @@ func (t *MHTransmitter) SendToHacienda(ctx context.Context, request *models2.Hac
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", t.HaciendaToken)
+	req.Header.Set("Authorization", haciendaToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "HaciendaApp/1.0")
 
@@ -369,17 +405,16 @@ func (t *MHTransmitter) getProcessor(document interface{}) DocumentProcessor {
 	return t.processors["dte"]
 }
 
-func (t *MHTransmitter) getHaciendaToken(ctx context.Context, systemToken string) error {
+func (t *MHTransmitter) getHaciendaToken(ctx context.Context, systemToken string) (string, error) {
 	haciendaToken, err := t.haciendaAuth.GetOrCreateHaciendaToken(ctx, systemToken)
 	if err != nil {
 		logs.Error("Failed to get Hacienda token", map[string]interface{}{
 			"error": err.Error(),
 		})
-		return err
+		return "", err
 	}
 
-	t.HaciendaToken = haciendaToken
-	return nil
+	return haciendaToken, nil
 }
 
 func isInvalidationDocument(doc map[string]interface{}) bool {

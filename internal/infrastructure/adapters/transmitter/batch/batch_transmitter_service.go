@@ -12,24 +12,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	batchPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
-	ports2 "github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	batchPorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter"
+	ports2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
 
-	authPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/circuit"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	authPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/circuit"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 	"github.com/google/uuid"
 )
 
@@ -87,8 +87,12 @@ func NewBatchTransmitterService(
 // GetDTEVersion determines the version based on the DTE type
 func (s *BatchTransmitterService) GetDTEVersion(dteType string) int {
 	switch dteType {
-	case constants.FacturaElectronica:
-		return 1
+	case constants.FacturaElectronica, constants.ComprobanteRetencionElectronico, constants.FacturaSujetoExcluidoElectronica:
+		return 2
+	case constants.FacturaExportacionElectronica:
+		return 3
+	case constants.CCFElectronico, constants.NotaRemisionElectronica, constants.NotaCreditoElectronica, constants.NotaDebitoElectronica:
+		return 4
 	default:
 		return 2
 	}
@@ -305,11 +309,13 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 			if len(status.Processed) > 0 {
 				var processedContingencyIDs []string
 				var processedDocumentIDs []string
-				var processedStamps map[string]string
 				var proccesedObservations []string
-				processedStamps = make(map[string]string)
+				processedResults := make(map[string]dte.ReceptionResult)
 				for _, processed := range status.Processed {
 					if doc, exists := docsMap[processed.GenerationCode]; exists {
+						if _, seen := processedResults[doc.ID]; seen {
+							continue
+						}
 						logs.Info("Document processed", map[string]interface{}{
 							"code":            processed.MessageCode,
 							"message":         processed.DescriptionMessage,
@@ -319,14 +325,18 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 							"contingencyID":   doc.ID,
 							"documentID":      doc.DocumentID,
 						})
-						processedStamps[doc.ID] = processed.ReceptionStamp
+						processedResults[doc.ID] = dte.ReceptionResult{
+							ReceptionStamp:   processed.ReceptionStamp,
+							ProcessingDate:   processed.ProcessingDate,
+							HaciendaResponse: marshalBatchItemResponse(processed),
+						}
 						proccesedObservations = append(proccesedObservations, processed.DescriptionMessage)
 						processedContingencyIDs = append(processedContingencyIDs, doc.ID)
 						processedDocumentIDs = append(processedDocumentIDs, doc.DocumentID)
 					}
 				}
 
-				if err := s.contingencyRepo.UpdateBatch(ctx, processedContingencyIDs, proccesedObservations, processedStamps, batchID, mhBatchID, constants.DocumentReceived); err != nil {
+				if err := s.contingencyRepo.UpdateBatch(ctx, processedContingencyIDs, proccesedObservations, processedResults, batchID, mhBatchID, constants.DocumentReceived); err != nil {
 					logs.Error("Failed to update processed documents", map[string]interface{}{
 						"error":   err.Error(),
 						"batchID": batchID,
@@ -360,11 +370,17 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 					code          string
 					description   string
 					observations  []string
+					response      string
 				}
 				var entries []rejectedEntry
+				seenRejected := make(map[string]bool)
 
 				for _, rejected := range status.Rejected {
 					if doc, exists := docsMap[rejected.GenerationCode]; exists {
+						if seenRejected[doc.ID] {
+							continue
+						}
+						seenRejected[doc.ID] = true
 						code := rejected.ClassifyMessage
 						if code == "" && rejected.MessageCode != "" {
 							code = rejected.MessageCode
@@ -390,18 +406,21 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 							code:          code,
 							description:   rejected.DescriptionMessage,
 							observations:  rejected.Observations,
+							response:      marshalBatchItemResponse(rejected),
 						})
 					}
 				}
 
 				contingencyIDs := make([]string, len(entries))
 				descriptions := make([]string, len(entries))
+				rejectedResults := make(map[string]dte.ReceptionResult, len(entries))
 				for i, e := range entries {
 					contingencyIDs[i] = e.contingencyID
 					descriptions[i] = e.description
+					rejectedResults[e.contingencyID] = dte.ReceptionResult{HaciendaResponse: e.response}
 				}
 
-				if err := s.contingencyRepo.UpdateBatch(ctx, contingencyIDs, descriptions, nil, batchID, mhBatchID, constants.DocumentRejected); err != nil {
+				if err := s.contingencyRepo.UpdateBatch(ctx, contingencyIDs, descriptions, rejectedResults, batchID, mhBatchID, constants.DocumentRejected); err != nil {
 					logs.Error("Failed to update rejected documents", map[string]interface{}{
 						"error":   err.Error(),
 						"batchID": batchID,
@@ -617,4 +636,14 @@ func (s *BatchTransmitterService) sleep(attempt int) {
 		backoff = retryPolicy.MaxInterval
 	}
 	s.timeProvider.Sleep(backoff)
+}
+
+// marshalBatchItemResponse serializes the Hacienda response of one document of a batch, with its observations, to
+// store it with the document.
+func marshalBatchItemResponse(response models.HaciendaResponse) string {
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }

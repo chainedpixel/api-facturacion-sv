@@ -3,8 +3,8 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type DBConnectionMiddleware struct {

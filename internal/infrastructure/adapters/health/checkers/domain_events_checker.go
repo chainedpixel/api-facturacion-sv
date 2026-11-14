@@ -6,11 +6,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/domain/health"
-	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 const probeEventName = "health.probe"

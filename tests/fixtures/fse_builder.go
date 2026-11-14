@@ -2,13 +2,14 @@ package fixtures
 
 import (
 	"fmt"
+	"math"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
 )
 
 type FSEBuilder struct {
@@ -102,7 +103,8 @@ func (b *FSEBuilder) AddItems() *FSEBuilder {
 			b.setError(fmt.Errorf("failed to convert item"))
 			return b
 		}
-		purchaseAmount, err := financial.NewAmount(item.GetQuantity() * item.GetUnitPrice())
+		// compra = (precioUni x cantidad) - montoDescu (Anexo IV)
+		purchaseAmount, err := financial.NewAmount(item.GetQuantity()*item.GetUnitPrice() - item.GetDiscount())
 		if err != nil {
 			b.setError(err)
 			return b
@@ -136,6 +138,15 @@ func (b *FSEBuilder) AddFSEReceiver() *FSEBuilder {
 	b.setError(baseReceiver.SetName(&name))
 	b.setError(baseReceiver.SetPhone(&phone))
 	b.setError(baseReceiver.SetEmail(&email))
+
+	// El schema fe-fse-v2 exige la direccion del sujeto excluido
+	address := &models.Address{}
+	b.setError(address.SetDepartment("06"))
+	b.setError(address.SetMunicipality("22"))
+	b.setError(address.SetDistrict("01"))
+	b.setError(address.SetComplement("Colonia Escalon, Calle El Mirador #123"))
+	b.setError(baseReceiver.SetAddress(address))
+
 	actDesc := "Servicios profesionales"
 	b.document.FSEReceiver = fse_models.FSEReceiver{
 		Receiver:            baseReceiver,
@@ -163,7 +174,27 @@ func (b *FSEBuilder) AddSummary() *FSEBuilder {
 		b.setError(err)
 		return b
 	}
-	purchaseAmt, err := financial.NewAmount(200.0)
+	// El resumen se calcula desde los items (regla 7.3): FSE no tiene ventas gravadas ni IVA,
+	// subTotal = totalCompra - descu y totalPagar = subTotal - reteRenta (sin retencion en este fixture)
+	var totalPurchase float64
+	for _, item := range b.document.FSEItems {
+		totalPurchase += item.Purchase.GetValue()
+	}
+	totalPurchase = math.Round(totalPurchase*100) / 100
+
+	b.setError(baseSummary.SetTotalTaxed(0))
+	b.setError(baseSummary.SetSubtotalSales(0))
+	b.setError(baseSummary.SetTotalTaxes(nil))
+	b.setError(baseSummary.SetSubTotal(totalPurchase))
+	b.setError(baseSummary.SetTotalOperation(totalPurchase))
+	b.setError(baseSummary.SetTotalToPay(totalPurchase))
+	for i, payment := range baseSummary.GetPaymentTypes() {
+		if i == 0 {
+			b.setError(payment.SetAmount(totalPurchase))
+		}
+	}
+
+	purchaseAmt, err := financial.NewAmount(totalPurchase)
 	if err != nil {
 		b.setError(err)
 		return b

@@ -3,16 +3,16 @@ package fse
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	businessValidator "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/validator"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	businessValidator "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/validator"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/validator"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 type fseService struct {
@@ -66,7 +66,16 @@ func (s *fseService) Create(ctx context.Context, input interface{}, branchID uin
 
 // validate performs the FSE-specific validations
 func (s *fseService) validate(fse *fse_models.FSEModel) error {
-
+	// Se ejecutan las estrategias propias de FSE (items, tributos, sujeto excluido y descuentos)
+	s.validator = validator.NewFSERulesValidator(fse)
+	if err := s.validator.Validate(); err != nil {
+		return shared_error.NewFormattedGeneralServiceWithError(
+			"FSEService",
+			"Validate",
+			err,
+			"ValidationFailed",
+		)
+	}
 	return nil
 }
 

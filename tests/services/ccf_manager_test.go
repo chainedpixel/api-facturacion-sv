@@ -7,21 +7,21 @@ import (
 	"math"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 )
 
 func TestCreditFiscalServiceCreate(t *testing.T) {
@@ -143,7 +143,45 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid CCF with IVA and income retentions",
+			name: "Valid CCF with IVA retention",
+			setupCCFData: func() (*ccf_models.CCFData, error) {
+				ccf, err := fixtures.BuildCCF()
+				if err != nil {
+					return nil, err
+				}
+
+				taxedAmount := ccf.CreditSummary.Summary.GetTotalTaxed()
+				ivaRetention := financial.NewValidatedAmount(taxedAmount * 0.01)
+
+				ccf.CreditSummary.IVARetention = *ivaRetention
+
+				totalOperation := ccf.CreditSummary.Summary.GetTotalOperation()
+				newTotalToPay := totalOperation - ivaRetention.GetValue()
+				newTotalToPay = math.Round(newTotalToPay*100) / 100
+				ccf.CreditSummary.Summary.SetTotalToPay(newTotalToPay)
+
+				payments := ccf.CreditSummary.Summary.GetPaymentTypes()
+				for i, payment := range payments {
+					if i == 0 {
+						payment.SetAmount(newTotalToPay)
+					}
+				}
+
+				return fixtures.BuildAsCCFData(ccf), nil
+			},
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {
+				mock.EXPECT().GetNextControlNumber(
+					gomock.Any(),
+					constants.CCFElectronico,
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return("DTE-03-C0010001-000000000012345", nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error - CCF with income retention (removed in v2.0)",
 			setupCCFData: func() (*ccf_models.CCFData, error) {
 				ccf, err := fixtures.BuildCCF()
 				if err != nil {
@@ -171,16 +209,9 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
-			setupMock: func(mock *mocks.MockSequentialNumberManager) {
-				mock.EXPECT().GetNextControlNumber(
-					gomock.Any(),
-					constants.CCFElectronico,
-					gomock.Any(),
-					gomock.Any(),
-					gomock.Any(),
-				).Return("DTE-03-C0010001-000000000012345", nil)
-			},
-			wantErr: false,
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
+			wantErr:   true,
+			errorCode: "IncomeRetentionNotAllowed",
 		},
 		{
 			name: "Valid CCF with related documents",
@@ -245,14 +276,25 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 
 				ccf.CreditItems = append(ccf.CreditItems, taxItem)
 
+				ivaValue := math.Round(totalTaxedSummary*0.13*100) / 100
 				taxes := models.Tax{}
 				taxes.SetCode(constants.TaxIVA)
-				taxes.SetValue(totalTaxedSummary * 0.13)
+				taxes.SetValue(ivaValue)
 				taxes.SetDescription("IVA 13%")
 
 				var taxInterfaces []interfaces.Tax
 				taxInterfaces = append(taxInterfaces, &taxes)
 				ccf.Summary.SetTotalTaxes(taxInterfaces)
+
+				// Campo 150: montoTotalOperacion = subTotal + tributos; el total a pagar y el pago se recalculan
+				totalOperation := math.Round((totalTaxedSummary+ivaValue)*100) / 100
+				ccf.CreditSummary.Summary.SetTotalOperation(totalOperation)
+				ccf.CreditSummary.Summary.SetTotalToPay(totalOperation)
+				for i, payment := range ccf.CreditSummary.Summary.GetPaymentTypes() {
+					if i == 0 {
+						payment.SetAmount(totalOperation)
+					}
+				}
 
 				return fixtures.BuildAsCCFData(ccf), nil
 			},
@@ -268,7 +310,7 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid CCF with maximum allowed related documents (50)",
+			name: "Error - CCF with 50 related documents where only one is referenced by the items",
 			setupCCFData: func() (*ccf_models.CCFData, error) {
 				ccf, err := fixtures.BuildCCF()
 				if err != nil {
@@ -303,9 +345,10 @@ func TestCreditFiscalServiceCreate(t *testing.T) {
 					gomock.Any(),
 					gomock.Any(),
 					gomock.Any(),
-				).Return("DTE-03-C0010001-000000000012345", nil)
+				).Return("DTE-03-C0010001-000000000012345", nil).AnyTimes()
 			},
-			wantErr: false,
+			wantErr:   true,
+			errorCode: "UnreferencedRelatedDoc",
 		},
 		{
 			name: "Error - CCF with InvalidMixedSalesWithExempt",

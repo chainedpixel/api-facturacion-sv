@@ -9,18 +9,18 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 )
 
 func TestInvalidationServiceValidate(t *testing.T) {
@@ -59,7 +59,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 				return fixtures.BuildInvalidInvalidation()
 			},
 			wantErr:   true,
-			errorCode: "InvalidField",
+			errorCode: "InvalidInvalidationType2",
 		},
 		{
 			name: "Error - Invalidation Type 1 with Reason",
@@ -67,7 +67,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 				return fixtures.BuildInvalidationWithInvalidReason()
 			},
 			wantErr:   true,
-			errorCode: "RequiredField",
+			errorCode: "InvalidReplacementCode1And3",
 		},
 		{
 			name: "Error - Invalidation Type 3 without Reason",
@@ -104,11 +104,23 @@ func TestInvalidationServiceValidate(t *testing.T) {
 
 				oldDate, _ := temporal.NewEmissionDate(time.Now().AddDate(0, -6, 0))
 				doc.Document.EmissionDate = *oldDate
+				doc.Document.StampDate = oldDate.GetValue()
+				doc.Document.GenerationDateTime = oldDate.GetValue()
 
 				return doc, nil
 			},
 			wantErr:   true,
-			errorCode: "InvalidDateForFEFX",
+			errorCode: "InvalidationDeadlineExpired",
+		},
+		{
+			name: "Error - Invalidation without Stamp Date",
+			setupInvalidation: func() (*invalidation_models.InvalidationDocument, error) {
+				doc, _ := fixtures.BuildInvalidationWithReplacement()
+				doc.Document.StampDate = time.Time{}
+				return doc, nil
+			},
+			wantErr:   true,
+			errorCode: "MissingStampDate",
 		},
 		{
 			name: "Error - Invalidation with Invalid Reception Stamp",
@@ -146,7 +158,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 			defer ctrl.Finish()
 
 			mockDTEManager := mocks.NewMockDTEManager(ctrl)
-			service := invalidation.NewInvalidationService(mockDTEManager)
+			service := invalidation.NewInvalidationService(mockDTEManager, nil)
 
 			err = service.Validate(context.Background(), 1, invalidationDoc)
 
@@ -284,6 +296,47 @@ func TestInvalidationServiceValidateStatus(t *testing.T) {
 			errorCode: "DocumentPending",
 		},
 		{
+			name: "Error - Original Document Expired",
+			setupRequest: func() structs.CreateInvalidationRequest {
+				return structs.CreateInvalidationRequest{
+					GenerationCode: "DTE-01-00000001-000000000000001",
+					Reason: &structs.ReasonRequest{
+						Type: 2,
+					},
+				}
+			},
+			setupMock: func(mockDTE *mocks.MockDTEManager) {
+				mockDTE.EXPECT().VerifyStatus(
+					gomock.Any(),
+					gomock.Any(),
+					"DTE-01-00000001-000000000000001",
+				).Return(constants.DocumentExpired, nil)
+			},
+			wantErr:   true,
+			errorCode: "DocumentExpired",
+		},
+		{
+			name: "Error - Replacement Document Expired",
+			setupRequest: func() structs.CreateInvalidationRequest {
+				replacementCode := "DTE-01-00000001-000000000000002"
+				return structs.CreateInvalidationRequest{
+					GenerationCode:            "DTE-01-00000001-000000000000001",
+					ReplacementGenerationCode: &replacementCode,
+					Reason: &structs.ReasonRequest{
+						Type: 1,
+					},
+				}
+			},
+			setupMock: func(mockDTE *mocks.MockDTEManager) {
+				mockDTE.EXPECT().VerifyStatus(gomock.Any(), gomock.Any(), "DTE-01-00000001-000000000000001").
+					Return(constants.DocumentReceived, nil)
+				mockDTE.EXPECT().VerifyStatus(gomock.Any(), gomock.Any(), "DTE-01-00000001-000000000000002").
+					Return(constants.DocumentExpired, nil)
+			},
+			wantErr:   true,
+			errorCode: "DocumentExpired",
+		},
+		{
 			name: "Error - Replacement Document Invalid",
 			setupRequest: func() structs.CreateInvalidationRequest {
 				replacementCode := "DTE-01-00000001-000000000000002"
@@ -343,7 +396,7 @@ func TestInvalidationServiceValidateStatus(t *testing.T) {
 			mockDTEManager := mocks.NewMockDTEManager(ctrl)
 			tt.setupMock(mockDTEManager)
 
-			service := invalidation.NewInvalidationService(mockDTEManager)
+			service := invalidation.NewInvalidationService(mockDTEManager, nil)
 
 			err := service.ValidateStatus(context.Background(), 1, request)
 
@@ -423,7 +476,7 @@ func TestInvalidationServiceInvalidateDocument(t *testing.T) {
 			mockDTEManager := mocks.NewMockDTEManager(ctrl)
 			tt.setupMock(mockDTEManager)
 
-			service := invalidation.NewInvalidationService(mockDTEManager)
+			service := invalidation.NewInvalidationService(mockDTEManager, nil)
 
 			err := service.InvalidateDocument(context.Background(), 1, "DTE-01-00000001-000000000000001")
 

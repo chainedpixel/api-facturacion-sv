@@ -3,10 +3,10 @@ package mappers
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -166,14 +166,14 @@ func TestMapToDebitNoteData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 		{
-			name: "Debit note without receiver trade name",
+			// Anexo IV, campo 45: el nombre comercial del receptor es opcional
+			name: "Debit note without receiver trade name is allowed",
 			req: func() *structs.CreateDebitNoteRequest {
 				req := fixtures.CreateDefaultDebitNoteRequest()
 				req.Receiver.CommercialName = nil
 				return req
 			},
-			wantErr:   true,
-			errorCode: "RequiredField",
+			wantErr: false,
 		},
 		{
 			name: "Debit note with invalid NIT",
@@ -292,19 +292,7 @@ func TestMapToDebitNoteData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "Debit note with discount greater than 100% in item",
-			req: func() *structs.CreateDebitNoteRequest {
-				req := fixtures.CreateDefaultDebitNoteRequest()
-				item := fixtures.CreateDefaultDebitNoteItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.DebitNoteItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 
 		{
@@ -405,27 +393,13 @@ func TestMapToDebitNoteData(t *testing.T) {
 		},
 
 		{
-			name: "Debit note with invalid extension",
-			req: func() *structs.CreateDebitNoteRequest {
-				req := fixtures.CreateDefaultDebitNoteRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "Debit note with invalid third-party sale",
 			req: func() *structs.CreateDebitNoteRequest {
 				req := fixtures.CreateDefaultDebitNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},
@@ -573,22 +547,6 @@ func TestMapToDebitNoteData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Debit note with valid extension",
-			req: func() *structs.CreateDebitNoteRequest {
-				req := fixtures.CreateDefaultDebitNoteRequest()
-				observation := "Observación válida"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Carlos Martínez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "Laura González",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
-				return req
-			},
-			wantErr: false,
-		},
-		{
 			name: "Debit note with valid payment type",
 			req: func() *structs.CreateDebitNoteRequest {
 				req := fixtures.CreateDefaultDebitNoteRequest()
@@ -634,6 +592,7 @@ func TestMapToDebitNoteData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 4, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.InputDataCommon.Receiver)
 			assert.NotNil(t, got.InputDataCommon.RelatedDocs)
 			assert.Len(t, got.Items, len(req.Items))
@@ -641,10 +600,6 @@ func TestMapToDebitNoteData(t *testing.T) {
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.OtherDocs != nil {

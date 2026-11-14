@@ -4,14 +4,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	identificationVO "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/invalidation"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	identificationVO "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/policy"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/invalidation"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 	"github.com/google/uuid"
 )
 
@@ -43,10 +46,14 @@ func (i *InvalidationMapper) MapToInvalidationData(req *structs.CreateInvalidati
 		documentType = baseDte.DTEType
 	}
 
-	identification, err := common.MapCommonRequestIdentification(1, 2, documentType)
+	identification, err := common.MapCommonRequestIdentification(1, 3, documentType)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("InvalidationMapper", "MapToInvalidationData", err, "ErrorMapping", "Invalidation->Identification")
 	}
+
+	eventDateTime := policy.EventDateTime(baseDte.DTEType, document.GenerationDateTime, utils.TimeNow())
+	identification.EmissionDate = *temporal.NewValidatedEmissionDate(eventDateTime)
+	identification.EmissionTime = *temporal.NewValidatedEmissionTime(eventDateTime)
 
 	newUUID := uuid.New().String()
 	identification.GenerationCode = *identificationVO.NewValidatedGenerationCode(strings.ToUpper(newUUID))
@@ -71,10 +78,6 @@ func (i *InvalidationMapper) ValidateInvalidationReRequest(req *structs.CreateIn
 
 	if req.Reason == nil {
 		return dte_errors.NewValidationError("RequiredField", "Request->Reason")
-	}
-
-	if (req.Reason.Type == 1 || req.Reason.Type == 3) && req.ReplacementGenerationCode == nil {
-		return shared_error.NewFormattedGeneralServiceError("InvalidationMapper", "validateInvoiceRequest", "InvalidReplacementCode1And3")
 	}
 
 	if req.Reason.Type == 2 && req.ReplacementGenerationCode != nil {

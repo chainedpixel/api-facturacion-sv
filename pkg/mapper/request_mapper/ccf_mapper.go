@@ -1,15 +1,15 @@
 package request_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/ccf"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/ccf"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // CCFMapper maps Comprobante de Crédito Fiscal creation requests to the CCF domain model.
@@ -36,12 +36,10 @@ func (m *CCFMapper) MapToCCFData(req *structs.CreateCreditFiscalRequest, client 
 		return nil, shared_error.NewFormattedGeneralServiceWithError("CCFMapper", "MapToCCFData", err, "ErrorMapping", "CCF->Receiver")
 	}
 
-	if req.Receiver.CommercialName == nil {
-		return nil, dte_errors.NewValidationError("RequiredField", "Request->Receiver->CommercialName")
-	}
+	// Anexo IV, campo 45: el nombre comercial del receptor es opcional (se envia null si no viene)
 	receiver.CommercialName = req.Receiver.CommercialName
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 3, constants.CCFElectronico)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 4, constants.CCFElectronico)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("CCFMapper", "MapToCCFData", err, "ErrorMapping", "CCF->Identification")
 	}
@@ -87,9 +85,6 @@ func validateCCFRequest(req *structs.CreateCreditFiscalRequest) error {
 	if req.Receiver == nil {
 		return dte_errors.NewValidationError("RequiredField", "Request->Receiver")
 	}
-	if req.Receiver.CommercialName == nil {
-		return dte_errors.NewValidationError("RequiredField", "Request->Receiver->CommercialName")
-	}
 	if req.Summary.TotalIVA != 0 {
 		return dte_errors.NewValidationError("InvalidField", "Request->Summary->TotalIVA")
 	}
@@ -106,7 +101,6 @@ func validateCCFRequest(req *structs.CreateCreditFiscalRequest) error {
 func mapCCFOptionalFields(req *structs.CreateCreditFiscalRequest, result *ccf_models.CCFData) error {
 	if err := common.MapCommonOptionalToInputData(common.CommonOptionalFields{
 		ThirdPartySale: req.ThirdPartySale,
-		Extension:      req.Extension,
 		OtherDocs:      req.OtherDocs,
 		RelatedDocs:    req.RelatedDocs,
 		Appendixes:     req.Appendixes,

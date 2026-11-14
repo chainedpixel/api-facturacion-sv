@@ -8,8 +8,8 @@ package db_models
 // in the section "Documentos de Sistema de Transmisión DTE", document: "3. Manual Funcional del Sistema de Transmisión"
 // page 53 of the PDF document.
 //
-// Note: The DTE is not stored signed; it is only stored in JSON format, the format prior to signing. The signature is the DTE itself
-// signed with the issuer's private key in JWT format.
+// json_data guarda la estructura del DTE (MySQL puede reordenar sus llaves). signed_document guarda el JWS
+// transmitido, que es la fuente del Archivo DTE (estructura firmada + firmaElectronica + selloRecibido).
 //
 // The DTEType field indicates the type of DTE. For more information about DTE types see:
 // https://factura.gob.sv/informacion-tecnica-y-funcional/
@@ -23,6 +23,11 @@ type DTEDetails struct {
 	Transmission   string  `gorm:"column:transmission;varchar(15);not null"`
 	Status         string  `gorm:"column:status;varchar(15);not null;index"`
 	JSONData       string  `gorm:"column:json_data;type:json;not null"`
+	// SignedDocument es el JWS transmitido a Hacienda; su payload es la estructura firmada exacta
+	// (json_data no sirve para el Archivo DTE porque MySQL reordena las llaves del tipo JSON)
+	SignedDocument   *string `gorm:"column:signed_document;type:longtext"`
+	ProcessingDate   *string `gorm:"column:processing_date;type:varchar(30)"`
+	HaciendaResponse *string `gorm:"column:hacienda_response;type:text"`
 
 	BalanceControl *DTEBalanceControl `gorm:"foreignKey:OriginalDTEID;references:ID"`
 }

@@ -1,32 +1,69 @@
 package strategy
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"time"
+
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/policy"
 )
 
+const (
+	deadlineLayout = "2006-01-02 15:04:05"
+	dateLayout     = "2006-01-02"
+)
+
+// InvalidationDateStrategy validates the transmission deadline against the stamp date of the invalidated
+// document and the event date against its generation date: for FE, FEXE and FSE the event date cannot be later
+// than the generation date plus the invalidation period, keeping the last day of the month when needed.
 type InvalidationDateStrategy struct {
-	Document *invalidation_models.InvalidationDocument
+	Document  *invalidation_models.InvalidationDocument
+	Deadlines *policy.Deadlines
+	Now       time.Time
 }
 
 func (s *InvalidationDateStrategy) Validate() *dte_errors.DTEError {
 	if s.Document.Identification == nil {
 		return dte_errors.NewDTEErrorSimple("RequiredField", "Identification")
 	}
+	if s.Document.Document == nil {
+		return dte_errors.NewDTEErrorSimple("RequiredField", "Document")
+	}
 
-	docType := s.Document.Document.Type.GetValue()
-	emissionDate := s.Document.Document.EmissionDate.GetValue()
-	annulmentDate := s.Document.Identification.EmissionDate.GetValue()
+	doc := s.Document.Document
+	docType := doc.Type.GetValue()
 
-	switch docType {
-	case "01", "11":
-		if annulmentDate.Sub(emissionDate).Hours() > 24*90 {
-			return dte_errors.NewDTEErrorSimple("InvalidDateForFEFX")
+	if doc.StampDate.IsZero() {
+		return dte_errors.NewDTEErrorSimple("MissingStampDate", doc.GenerationCode.GetValue())
+	}
+
+	deadline := s.Deadlines.TransmissionDeadline(docType, doc.StampDate, doc.IssuerActivity)
+	if s.Now.After(deadline) {
+		return dte_errors.NewDTEErrorSimple("InvalidationDeadlineExpired", docType, deadline.Format(deadlineLayout))
+	}
+
+	return s.validateEventDate(docType, doc)
+}
+
+func (s *InvalidationDateStrategy) validateEventDate(docType string, doc *invalidation_models.InvalidatedDocument) *dte_errors.DTEError {
+	if doc.GenerationDateTime.IsZero() {
+		return nil
+	}
+
+	eventDate := s.Document.Identification.EmissionDate.GetValue()
+	generation := doc.GenerationDateTime
+
+	if policy.IsInvoiceType(docType) {
+		maxEventDate := policy.AddValidityPeriod(docType, generation, doc.IssuerActivity)
+		if eventDate.Format(dateLayout) > maxEventDate.Format(dateLayout) {
+			return dte_errors.NewDTEErrorSimple("InvalidationEventDateOutOfRange", docType,
+				eventDate.Format(dateLayout), maxEventDate.Format(dateLayout), generation.Format(dateLayout))
 		}
-	default:
-		if annulmentDate.Sub(emissionDate).Hours() > 24 {
-			return dte_errors.NewDTEErrorSimple("InvalidDateForAllDTE")
-		}
+		return nil
+	}
+
+	if !policy.SameDay(generation, eventDate) {
+		return dte_errors.NewDTEErrorSimple("InvalidationEventDateMismatch", docType, generation.Format("2006-01-02"))
 	}
 	return nil
 }

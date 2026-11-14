@@ -1,9 +1,9 @@
 package models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
 )
 
 // Item is a struct that represents an item of a DTE, containing Number, Type, Code, Description, Quantity,
@@ -15,7 +15,7 @@ type Item struct {
 	Quantity    item.Quantity      `json:"quantity"`
 	UnitMeasure item.UnitMeasure   `json:"unitMeasure"`
 	UnitPrice   financial.Amount   `json:"unitPrice"`
-	Discount    financial.Discount `json:"discount"`
+	Discount    financial.Amount   `json:"discount"`
 	Taxes       []string           `json:"taxes"`
 	Code        *item.ItemCode     `json:"code,omitempty"`
 	TaxCode     *financial.TaxType `json:"taxCode,omitempty"`
@@ -34,6 +34,15 @@ func (i *Item) GetQuantity() float64 {
 func (i *Item) GetItemCode() string {
 	return i.Code.GetValue()
 }
+
+// GetTaxCode devuelve el codigo del tributo sujeto a calculo de IVA (codTributo), usado en items tipo 4
+func (i *Item) GetTaxCode() string {
+	if i.TaxCode == nil {
+		return ""
+	}
+	return i.TaxCode.GetValue()
+}
+
 func (i *Item) GetDescription() string {
 	return i.Description
 }
@@ -111,7 +120,7 @@ func (i *Item) SetForceUnitPrice(unitPrice float64) {
 }
 
 func (i *Item) SetDiscount(discount float64) error {
-	discountObj, err := financial.NewDiscount(discount)
+	discountObj, err := financial.NewAmount(discount)
 	if err != nil {
 		return err
 	}

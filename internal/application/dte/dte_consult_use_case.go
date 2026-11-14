@@ -2,16 +2,17 @@ package dte
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 type DTEConsultUseCase struct {
@@ -35,6 +36,18 @@ func (u *DTEConsultUseCase) GetByGenerationCode(ctx context.Context, id string) 
 	return dte, nil
 }
 
+// GetArchive devuelve el Archivo DTE (estructura firmada + firmaElectronica + selloRecibido) de un documento
+func (u *DTEConsultUseCase) GetArchive(ctx context.Context, id string) (json.RawMessage, error) {
+	claims := ctx.Value("claims").(*models.AuthClaims)
+	return u.dteService.GetArchive(ctx, claims.BranchID, id)
+}
+
+// GetEvents devuelve los eventos de un documento (invalidacion, etc.) con su Archivo DTE
+func (u *DTEConsultUseCase) GetEvents(ctx context.Context, id string) ([]dte.EventArchiveResponse, error) {
+	claims := ctx.Value("claims").(*models.AuthClaims)
+	return u.dteService.GetEvents(ctx, claims.BranchID, id)
+}
+
 func (u *DTEConsultUseCase) GetAllDTEs(ctx context.Context, r *http.Request) (*dte.DTEListResponse, error) {
 	filters, err := parseDTEFilters(r)
 	if err != nil {
@@ -50,12 +63,15 @@ func (u *DTEConsultUseCase) GetAllDTEs(ctx context.Context, r *http.Request) (*d
 }
 
 func parseDTEFilters(r *http.Request) (*dte.DTEFilters, error) {
+	claims := r.Context().Value("claims").(*models.AuthClaims)
 	filters := &dte.DTEFilters{
-		IncludeAll: r.URL.Query().Get("all") == "true",
+		IncludeAll: r.URL.Query().Get("all") == "true" && claims.NIT != "",
 	}
 
-	if !filters.IncludeAll {
-		filters.BranchID = r.Context().Value("claims").(*models.AuthClaims).BranchID
+	if filters.IncludeAll {
+		filters.IssuerNIT = claims.NIT
+	} else {
+		filters.BranchID = claims.BranchID
 	}
 
 	startDateStr := r.URL.Query().Get("startDate")

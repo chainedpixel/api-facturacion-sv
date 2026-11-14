@@ -2,20 +2,28 @@ package dte
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 
-	structs2 "github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	structs2 "github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 
-	"github.com/chainedpixel/ordo-factus/internal/application/ports"
-	authManager "github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	dteInterfaces "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	authManager "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	dteInterfaces "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type InvalidationUseCase struct {
@@ -36,7 +44,10 @@ func NewInvalidationUseCase(dteManager dteInterfaces.DTEManager, invalidationMan
 	}
 }
 
-func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request structs.CreateInvalidationRequest) (*structs2.InvalidationResponse, error) {
+// InvalidateDocument transmite el evento de invalidacion y lo registra con su evidencia (estructura firmada,
+// sello, fecha y respuesta de Hacienda). Normativa v2.0, regla 11: el evento se entrega al receptor como
+// Archivo DTE, que se devuelve en la respuesta y queda disponible en GET /dte/{id}/eventos.
+func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request structs.CreateInvalidationRequest) (*dte.EventArchiveResponse, error) {
 	claims := ctx.Value("claims").(*models.AuthClaims)
 	token := ctx.Value("token").(string)
 
@@ -50,6 +61,10 @@ func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request st
 
 	originalDTE, err := u.dteManager.GetByGenerationCode(ctx, claims.BranchID, request.GenerationCode)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := u.invalidationManager.ValidateDependencies(ctx, claims.BranchID, originalDTE); err != nil {
 		return nil, err
 	}
 
@@ -75,6 +90,7 @@ func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request st
 
 	result, err := u.transmitter.RetryTransmission(ctx, mhInvalidation, token, claims.NIT)
 	if err != nil {
+		u.registerRejectedInvalidation(ctx, mhInvalidation, request, claims.BranchID, err)
 		return nil, err
 	}
 	if result.Status != ReceivedStatus {
@@ -90,5 +106,92 @@ func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request st
 		return nil, err
 	}
 
-	return mhInvalidation, nil
+	event, err := buildInvalidationEvent(mhInvalidation, request, claims.BranchID, result)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.dteManager.RegisterEvent(ctx, event); err != nil {
+		logs.Error("Failed to register invalidation event", map[string]interface{}{
+			"error": err.Error(),
+			"code":  event.GenerationCode,
+		})
+		return nil, err
+	}
+
+	response := dteInterfaces.ToEventArchiveResponse(*event)
+	return &response, nil
+}
+
+// registerRejectedInvalidation keeps an invalidation event that Hacienda rejected, with the transmitted JWS and the
+// Hacienda response, so the attempt and its observations stay available. Other transmission failures are not stored,
+// and a failure to store the attempt does not change the error returned to the consumer.
+func (u *InvalidationUseCase) registerRejectedInvalidation(ctx context.Context, mhInvalidation *structs2.InvalidationResponse,
+	request structs.CreateInvalidationRequest, branchID uint, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			logs.Error("Recovered while registering rejected invalidation event", map[string]interface{}{"panic": fmt.Sprint(recovered)})
+		}
+	}()
+
+	var haciendaErr *hacienda_error.HaciendaResponseError
+	if !errors.As(err, &haciendaErr) || haciendaErr.Status != hacienda_error.StatusRejected {
+		return
+	}
+
+	signedDocument := ""
+	var transmissionErr *ports.TransmissionError
+	if errors.As(err, &transmissionErr) {
+		signedDocument = transmissionErr.SignedDocument
+	}
+
+	var response interface{} = haciendaErr
+	if haciendaErr.Response != nil {
+		response = haciendaErr.Response
+	}
+	rawResponse, marshalErr := json.Marshal(response)
+	if marshalErr != nil {
+		return
+	}
+
+	event, buildErr := buildInvalidationEvent(mhInvalidation, request, branchID, &transmitterModels.TransmitResult{
+		SignedDocument:   signedDocument,
+		ProcessingDate:   haciendaErr.ProcessedAt,
+		HaciendaResponse: string(rawResponse),
+	})
+	if buildErr != nil {
+		return
+	}
+	event.Status = constants.DocumentRejected
+
+	if registerErr := u.dteManager.RegisterEvent(ctx, event); registerErr != nil {
+		logs.Error("Failed to register rejected invalidation event", map[string]interface{}{
+			"error": registerErr.Error(),
+			"code":  event.GenerationCode,
+		})
+	}
+}
+
+// buildInvalidationEvent arma el registro del evento con la evidencia devuelta por Hacienda
+func buildInvalidationEvent(mhInvalidation *structs2.InvalidationResponse, request structs.CreateInvalidationRequest,
+	branchID uint, result *transmitterModels.TransmitResult) (*dte.DTEEvent, error) {
+	jsonData, err := json.Marshal(mhInvalidation)
+	if err != nil {
+		return nil, err
+	}
+
+	relatedDTE := request.GenerationCode
+	return &dte.DTEEvent{
+		GenerationCode:   mhInvalidation.Identificacion.CodigoGeneracion,
+		BranchID:         branchID,
+		EventType:        dte.EventInvalidation,
+		RelatedDTEID:     &relatedDTE,
+		ReplacementDTEID: request.ReplacementGenerationCode,
+		JSONData:         string(jsonData),
+		SignedDocument:   result.SignedDocument,
+		ReceptionStamp:   result.ReceptionStamp,
+		ProcessingDate:   result.ProcessingDate,
+		HaciendaResponse: result.HaciendaResponse,
+		Status:           constants.DocumentReceived,
+		CreatedAt:        utils.TimeNow(),
+	}, nil
 }

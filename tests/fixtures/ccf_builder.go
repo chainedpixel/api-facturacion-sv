@@ -3,11 +3,11 @@ package fixtures
 import (
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
 )
 
 type CCFBuilder struct {
@@ -276,19 +276,7 @@ func (b *CCFBuilder) AddSummaryWithCreditOperation() *CCFBuilder {
 		return b
 	}
 
-	payments := baseSummary.GetPaymentTypes()
-	for _, payment := range payments {
-		if payment.GetCode() == constants.BilletesMonedas {
-			period := 2
-			term := "02"
-
-			b.setError(payment.SetCode(constants.TarjetaCredito))
-			b.setError(payment.SetPeriod(&period))
-			b.setError(payment.SetTerm(&term))
-		}
-	}
-
-	b.setError(baseSummary.SetPaymentTypes(payments))
+	b.setError(baseSummary.SetPaymentTypes([]interfaces.PaymentType{NewCreditPayment("02", 2)}))
 	b.setError(baseSummary.SetOperationCondition(constants.Credit))
 
 	return b

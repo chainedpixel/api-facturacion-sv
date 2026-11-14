@@ -9,4 +9,8 @@ type DTEDetails struct {
 	Transmission   string  `json:"transmission"`
 	Status         string  `json:"status"`
 	JSONData       string  `json:"json_data"`
+	// Evidencia de la transmision (vacia en documentos emitidos antes de guardarla)
+	SignedDocument   string `json:"signed_document,omitempty"`
+	ProcessingDate   string `json:"processing_date,omitempty"`
+	HaciendaResponse string `json:"hacienda_response,omitempty"`
 }

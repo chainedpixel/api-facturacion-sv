@@ -1,9 +1,9 @@
 package models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
 )
 
 // Summary is a structure that represents a summary of a DTE, contains TotalNonSubject, TotalExempt, TotalTaxed, SubTotal, NonSubjectDiscount,
@@ -26,6 +26,7 @@ type Summary struct {
 	TotalInWords       string                     `json:"totalInWords"`
 	ElectronicPayment  *string                    `json:"electronicPayment,omitempty"`
 	PaymentTypes       []interfaces.PaymentType   `json:"payments,omitempty"`
+	Observations       *string                    `json:"observations,omitempty"`
 }
 
 func (s *Summary) GetTotalNonSubject() float64 {
@@ -223,4 +224,18 @@ func (s *Summary) SetTotalToPay(totalToPay float64) error {
 func (s *Summary) SetForceTotalToPay(totalToPay float64) {
 	ttpObj := financial.NewValidatedAmount(totalToPay)
 	s.TotalToPay = *ttpObj
+}
+
+// GetObservations returns the observations of the summary.
+func (s *Summary) GetObservations() *string {
+	return s.Observations
+}
+
+// SetObservations validates and sets the observations of the summary.
+func (s *Summary) SetObservations(observations *string) error {
+	if observations != nil && len(*observations) > 3000 {
+		return dte_errors.NewValidationError("InvalidLength", "Summary->Observations", 3000)
+	}
+	s.Observations = observations
+	return nil
 }

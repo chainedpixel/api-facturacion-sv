@@ -1,8 +1,9 @@
 package strategy
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
 )
 
 type FSEItemStrategy struct {
@@ -40,6 +41,10 @@ func (v *FSEItemStrategy) Validate() *dte_errors.DTEError {
 }
 
 func (v *FSEItemStrategy) validateItem(item fse_models.FSEItem, itemNumber int) *dte_errors.DTEError {
+	if item.Item.GetType() == constants.Impuesto {
+		return dte_errors.NewDTEErrorSimple("InvalidFSEItemType", item.Item.GetType())
+	}
+
 	if !item.Purchase.IsValid() || item.Purchase.GetValue() <= 0 {
 		return dte_errors.NewDTEErrorSimple(
 			"FSEItemInvalidPurchase",

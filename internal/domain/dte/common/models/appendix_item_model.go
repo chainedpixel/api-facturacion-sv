@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
 )
 
 // Appendix is a structure that represents an appendix, contains Field, Label and Value of a DTE

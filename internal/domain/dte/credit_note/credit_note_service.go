@@ -3,18 +3,18 @@ package credit_note
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	buisnessValidator "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/validator"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	buisnessValidator "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/validator"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note/validator"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type creditNoteService struct {
@@ -98,19 +98,19 @@ func (s *creditNoteService) validateRelatedDocs(ctx context.Context, data *credi
 			return shared_error.NewFormattedGeneralServiceError(
 				"CreditNoteService",
 				"validateRelatedDocs",
-				"DocumentNotReceived",
+				"RelatedDocumentNotReceived",
 				relatedDoc.GetDocumentNumber(),
 				status,
 			)
 		}
 
-		data.RelatedDocs[i].EmissionDate = *temporal.NewValidatedEmissionDate(doc.CreatedAt)
+		data.RelatedDocs[i].EmissionDate = *temporal.NewValidatedEmissionDate(utils.GenerationDateOrDefault(doc.Details.JSONData, doc.CreatedAt))
 		extractor, err := utils.ExtractDTEReceiverFromString(doc.Details.JSONData)
 		if err != nil {
 			return err
 		}
 
-		if data.Receiver.NIT.GetValue() != extractor.Receiver.NIT {
+		if data.Receiver.NIT.GetValue() != extractor.ReceiverID() {
 			return shared_error.NewFormattedGeneralServiceError(
 				"CreditNoteService",
 				"validateRelatedDocs",

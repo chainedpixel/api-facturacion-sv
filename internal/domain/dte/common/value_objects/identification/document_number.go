@@ -3,9 +3,9 @@ package identification
 import (
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
 )
 
 // DocumentNumber represents the identification document number, an optional attribute of a receiver
@@ -15,17 +15,31 @@ type DocumentNumber struct {
 
 func NewDocumentNumber(value string, dteType string) (*DocumentNumber, error) {
 
-	if dteType == constants.NIT {
-		if strings.Contains(value, "-") {
-			value = strings.ReplaceAll(value, "-", "")
-		}
+	// NIT y DUI se envian sin guiones; el DUI debe tener 9 digitos (Anexo IV, campo 39.10)
+	if dteType == constants.NIT || dteType == constants.DUI {
+		value = strings.ReplaceAll(value, "-", "")
 	}
 	value = strings.TrimSpace(value)
 	documentNumber := &DocumentNumber{Value: value}
+	if dteType == constants.DUI && !isNineDigits(value) {
+		return &DocumentNumber{}, dte_errors.NewValidationError("InvalidDocumentNumber", value)
+	}
 	if documentNumber.IsValid() {
 		return documentNumber, nil
 	}
 	return &DocumentNumber{}, dte_errors.NewValidationError("InvalidDocumentNumber", value)
+}
+
+func isNineDigits(value string) bool {
+	if len(value) != 9 {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func NewValidatedDocumentNumber(value string) *DocumentNumber {

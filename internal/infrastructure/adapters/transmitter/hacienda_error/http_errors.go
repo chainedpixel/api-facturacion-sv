@@ -3,7 +3,7 @@ package hacienda_error
 import (
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
 )
 
 type HTTPResponseError struct {
@@ -18,6 +18,9 @@ func (e *HTTPResponseError) Error() string {
 		e.StatusCode, e.Method, e.URL, string(e.Body))
 }
 
+// StatusRejected is the status Hacienda returns when it rejects a document or event.
+const StatusRejected = "RECHAZADO"
+
 type HaciendaResponseError struct {
 	Version        int      `json:"version"`
 	Ambient        string   `json:"ambiente"`
@@ -29,6 +32,8 @@ type HaciendaResponseError struct {
 	Classification string   `json:"clasificaMsg"`
 	Observations   []string `json:"observaciones"`
 	ProcessedAt    string   `json:"fhProcesamiento"`
+	// Response is the Hacienda response that produced the error, kept to store it with the rejected attempt.
+	Response *models.HaciendaResponse `json:"-"`
 }
 
 func NewHaciendaError(resp *models.HaciendaResponse, httpCode int) *HaciendaResponseError {
@@ -43,6 +48,7 @@ func NewHaciendaError(resp *models.HaciendaResponse, httpCode int) *HaciendaResp
 		ProcessedAt:    resp.ProcessingDate,
 		Observations:   resp.Observations,
 		StatusCode:     httpCode,
+		Response:       resp,
 	}
 }
 

@@ -1,7 +1,7 @@
 package fixtures
 
 import (
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // CreateDefaultCreditItem creates a valid default CCF item
@@ -103,7 +103,6 @@ func CreateCreditFiscalWithNonSubjectSale() *structs.CreateCreditFiscalRequest {
 // CreateCCFRequestWithAllOptionalFields creates a CCF request with all optional fields
 func CreateCCFRequestWithAllOptionalFields() *structs.CreateCreditFiscalRequest {
 	req := CreateDefaultCreditFiscalRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	req.RelatedDocs = []structs.RelatedDocRequest{CreateDefaultRelatedDocument()}
 	req.OtherDocs = []structs.OtherDocRequest{CreateDefaultOtherDocument()}

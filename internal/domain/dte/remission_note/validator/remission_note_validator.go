@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/remission_note_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/validator/strategy"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/remission_note/remission_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/remission_note/validator/strategy"
 )
 
 type RemissionNoteRulesValidator struct {
@@ -22,6 +22,7 @@ func NewRemissionNoteRulesValidator(document *remission_note_models.RemissionNot
 			&strategy.RemissionNoteItemStrategy{Document: document},
 			&strategy.RemissionNoteSummaryStrategy{Document: document},
 			&strategy.RemissionNoteReceiverStrategy{Document: document},
+			&strategy.RemissionNoteRelatedDocStrategy{Document: document},
 		}
 	}
 

@@ -1,15 +1,15 @@
 package request_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/retention"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/retention"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // RetentionMapper maps retention creation requests to the retention domain model.
@@ -39,7 +39,13 @@ func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Items")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 1, constants.ComprobanteRetencionElectronico)
+	// Hacienda no permite codigos de retencion distintos dentro de un mismo CRE
+	retentionCode, err := retention.SingleRetentionCode(req.Items)
+	if err != nil {
+		return nil, err
+	}
+
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 2, constants.ComprobanteRetencionElectronico)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Identification")
 	}
@@ -53,7 +59,7 @@ func (m *RetentionMapper) MapToRetentionData(req *structs.CreateRetentionRequest
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Receiver")
 	}
 
-	summary, err := retention.MapRetentionSummary(req.Summary)
+	summary, err := retention.MapRetentionSummary(req.Summary, retentionCode, retention.AllElectronic(req.Items))
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Summary")
 	}
@@ -91,18 +97,6 @@ func validateRetentionReceiverRequest(req *structs.CreateRetentionRequest) error
 
 // mapRetentionOptionalFields maps the optional fields of the retention request into the result model.
 func mapRetentionOptionalFields(req *structs.CreateRetentionRequest, result *retention_models.InputRetentionData) error {
-	if req.Extension != nil {
-		if req.Extension.VehiculePlate != nil {
-			return dte_errors.NewValidationError("InvalidFieldValue", "Request->Extension->VehiculePlate")
-		}
-
-		extension, err := common.MapCommonRequestExtension(req.Extension)
-		if err != nil {
-			return shared_error.NewFormattedGeneralServiceWithError("RetentionMapper", "MapToRetentionData", err, "ErrorMapping", "Retention->Extension")
-		}
-		result.Extension = extension
-	}
-
 	if req.Appendixes != nil {
 		appendixes, err := common.MapCommonRequestAppendix(req.Appendixes)
 		if err != nil {

@@ -3,15 +3,15 @@ package fixtures
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // InvalidationBuilder - Specialized builder for invalidation documents
@@ -64,7 +64,7 @@ func (b *InvalidationBuilder) AddIdentification() *InvalidationBuilder {
 		return b
 	}
 
-	b.setError(b.document.Identification.SetVersion(1))
+	b.setError(b.document.Identification.SetVersion(3))
 	b.setError(b.document.Identification.SetAmbient(constants.Testing))
 	b.setError(b.document.Identification.SetDTEType(constants.FacturaElectronica))
 	b.setError(b.document.Identification.SetControlNumber("DTE-05-00000001-000000000000001"))
@@ -93,6 +93,7 @@ func (b *InvalidationBuilder) AddIssuer() *InvalidationBuilder {
 	address := &models.Address{}
 	b.setError(address.SetDepartment("06"))
 	b.setError(address.SetMunicipality("21"))
+	b.setError(address.SetDistrict("01"))
 	b.setError(address.SetComplement("Calle Principal, Edificio Central #123"))
 
 	if b.err == nil {
@@ -104,9 +105,9 @@ func (b *InvalidationBuilder) AddIssuer() *InvalidationBuilder {
 	b.setError(b.document.Issuer.SetCommercialName("EMPRESA TECH"))
 
 	establishmentCode := "001"
-	establishmentMHCode := "EST001"
+	establishmentMHCode := "E001"
 	posCode := "POS01"
-	posMHCode := "POS001"
+	posMHCode := "P001"
 	b.setError(b.document.Issuer.SetEstablishmentCode(&establishmentCode))
 	b.setError(b.document.Issuer.SetEstablishmentMHCode(&establishmentMHCode))
 	b.setError(b.document.Issuer.SetPOSCode(&posCode))
@@ -149,6 +150,8 @@ func (b *InvalidationBuilder) AddInvalidatedDocument() *InvalidationBuilder {
 		return b
 	}
 	b.document.Document.EmissionDate = *emissionDate
+	b.document.Document.GenerationDateTime = emissionDate.GetValue()
+	b.document.Document.StampDate = emissionDate.GetValue()
 
 	ivaAmount, err := financial.NewAmount(13.00)
 	if err != nil {

@@ -3,10 +3,10 @@ package mappers
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -344,27 +344,13 @@ func TestMapToRemissionNoteData(t *testing.T) {
 		},
 
 		{
-			name: "Remission note with invalid extension",
-			req: func() *structs.CreateRemissionNoteRequest {
-				req := fixtures.CreateDefaultRemissionNoteRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "Remission note with invalid third-party sale",
 			req: func() *structs.CreateRemissionNoteRequest {
 				req := fixtures.CreateDefaultRemissionNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},
@@ -453,28 +439,13 @@ func TestMapToRemissionNoteData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Remission note with valid extension",
-			req: func() *structs.CreateRemissionNoteRequest {
-				req := fixtures.CreateDefaultRemissionNoteRequest()
-				observation := "Entrega parcial del pedido"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Roberto Sánchez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "Ana Flores",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
-				return req
-			},
-			wantErr: false,
-		},
-		{
 			name: "Remission note with valid third-party sale",
 			req: func() *structs.CreateRemissionNoteRequest {
 				req := fixtures.CreateDefaultRemissionNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "06141804941035",
-					Name: "Empresa Tercero S.A. de C.V.",
+					FiscalDomicile: 1,
+					NIT:            "06141804941035",
+					Name:           "Empresa Tercero S.A. de C.V.",
 				}
 				return req
 			},
@@ -606,20 +577,7 @@ func TestMapToRemissionNoteData(t *testing.T) {
 			errorCode: "InvalidAmount",
 		},
 		{
-			name: "Item with discount greater than 100% returns InvalidDiscount error",
-			req: func() *structs.CreateRemissionNoteRequest {
-				req := fixtures.CreateDefaultRemissionNoteRequest()
-				item := fixtures.CreateDefaultRemissionNoteItem(0)
-				over := 200.0
-				item.DiscountAmount = &over
-				req.Items = []*structs.RemissionNoteItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "Item with negative discount returns InvalidDiscount error",
+			name: "Item with negative discount returns InvalidAmount error",
 			req: func() *structs.CreateRemissionNoteRequest {
 				req := fixtures.CreateDefaultRemissionNoteRequest()
 				item := fixtures.CreateDefaultRemissionNoteItem(0)
@@ -629,7 +587,7 @@ func TestMapToRemissionNoteData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 		{
 			name: "Item with exactly 100% discount is valid",
@@ -666,16 +624,13 @@ func TestMapToRemissionNoteData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 4, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.Receiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.RemissionSummary)
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.RelatedDocs != nil {
