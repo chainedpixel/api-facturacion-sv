@@ -101,7 +101,7 @@ docker-compose up -d
 
 `scripts/docker-compose.yml` levanta MySQL, Redis, el servicio de firma y la API. Para usar MySQL, Redis y el firmador instalados en el equipo se usa `scripts/docker-compose-external.yml`.
 
-4. **Migraciones de base de datos:** la API solo crea o actualiza las tablas al iniciar si `RUN_MIGRATION=true`. En un despliegue nuevo (base de datos vacía) debe iniciarse al menos una vez con `RUN_MIGRATION=true`; después puede volver a `false`. En `scripts/docker-compose.yml` el valor por defecto es `false` y en `scripts/docker-compose-external.yml` es `true`.
+4. **Migraciones de base de datos:** la API solo crea o actualiza las tablas al iniciar si `RUN_MIGRATION=true`. En un despliegue nuevo (base de datos vacía) debe iniciarse al menos una vez con `RUN_MIGRATION=true`; después puede volver a `false`. En `scripts/docker-compose.yml` y `scripts/docker-compose-external.yml` el valor es `true`. Al desplegar una versión que agrega tablas o columnas (por ejemplo `dte_events`, las columnas de evidencia de transmisión o `event_stamped_at`) la API debe iniciarse al menos una vez con `RUN_MIGRATION=true`.
 
 ### Configuración
 

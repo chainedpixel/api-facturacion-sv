@@ -342,5 +342,5 @@ var (
 3. **Zona horaria hardcodeada**: Ambos drivers usan `America/El_Salvador`. No es configurable via `.env`.
 4. **Variables globales**: Las configuraciones se exponen como punteros globales por conveniencia. Se inicializan una sola vez y no cambian durante la ejecución.
 5. **Archivo de ejemplo**: Se incluye `.env.example` con las variables y valores de ejemplo para ambiente de pruebas.
-6. **Migraciones**: se ejecutan únicamente con `RUN_MIGRATION=true` (`internal/bootstrap/app.go`). `scripts/docker-compose.yml` la define en `false` y `scripts/docker-compose-external.yml` en `true`.
-7. **Variables en contenedores**: los archivos de `scripts/` definen las variables en `x-app-environment`; el `Dockerfile` copia el `.env` de la raíz al contenedor de ejecución.
+6. **Migraciones**: se ejecutan únicamente con `RUN_MIGRATION=true` (`internal/bootstrap/app.go`). `scripts/docker-compose.yml` y `scripts/docker-compose-external.yml` la definen en `true`.
+7. **Variables en contenedores**: los archivos de `scripts/` definen las variables en `x-app-environment` (incluida `MH_EXTRA_HOLIDAYS`); el `Dockerfile` copia el `.env` de la raíz al contenedor de ejecución. En `scripts/docker-compose.yml` el backend usa la imagen `golang:1.25-alpine` (`go.mod` exige Go 1.24 o superior) y llega al firmador por el nombre del servicio (`http://signer:8113`).
