@@ -3,12 +3,12 @@ package models
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
 )
 
 // Identification is a struct that represents the identification of a DTE, containing Version, Ambient, DTEType, ControlNumber,

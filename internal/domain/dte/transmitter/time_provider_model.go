@@ -3,7 +3,7 @@ package transmitter
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // RealTimeProvider es un proveedor de tiempo real

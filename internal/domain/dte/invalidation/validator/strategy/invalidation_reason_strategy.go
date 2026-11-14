@@ -1,10 +1,10 @@
 package strategy
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/policy"
 )
 
 type InvalidationReasonStrategy struct {

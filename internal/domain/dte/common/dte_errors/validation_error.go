@@ -3,7 +3,7 @@ package dte_errors
 import (
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 )
 
 type ValidationError struct {

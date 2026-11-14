@@ -86,8 +86,8 @@ Para mayor detalle, ver [ARCHITECTURE.md](./ARCHITECTURE.md) y la carpeta [docs/
 1. Clonar el repositorio:
 
 ```bash
-git clone https://github.com/chainedpixel/ordo-factus.git
-cd ordo-factus
+git clone https://github.com/chainedpixel/api-facturacion-sv.git
+cd api-facturacion-sv
 ```
 
 2. Colocar los certificados de firma digital en la carpeta `scripts/temp` (crearla si no existe).

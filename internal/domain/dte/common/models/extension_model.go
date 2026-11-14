@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
 )
 
 // Extension is a struct that represents an extension of a DTE, containing DeliveryName, DeliveryDocument, ReceiverName,

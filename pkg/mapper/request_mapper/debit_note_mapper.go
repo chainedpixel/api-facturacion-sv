@@ -1,15 +1,15 @@
 package request_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/debit_note_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/debit_note"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/debit_note/debit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/debit_note"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // DebitNoteMapper maps debit note creation requests to the debit note domain model.

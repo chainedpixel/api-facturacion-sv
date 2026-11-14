@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/jobs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/jobs"
 )
 
 func newCleanerMockDbConnection(t *testing.T) (*drivers.DbConnection, sqlmock.Sqlmock) {

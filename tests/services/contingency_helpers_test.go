@@ -3,10 +3,10 @@ package services
 import (
 	"testing"
 
-	coreDte "github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	coreUser "github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	coreDte "github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	coreUser "github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

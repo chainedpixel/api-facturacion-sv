@@ -2,15 +2,16 @@ package fixtures
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type RetentionBuilder struct {
@@ -192,7 +193,7 @@ func (b *RetentionBuilder) AddPhysicalItems() *RetentionBuilder {
 			return b
 		}
 
-		emissionDate, err := temporal.NewEmissionDate(utils.TimeNow().AddDate(0, 0, -i*5))
+		emissionDate, err := temporal.NewEmissionDate(daysAgoWithinCurrentMonth(i * 5))
 		if err != nil {
 			b.setError(err)
 			return b
@@ -268,7 +269,7 @@ func (b *RetentionBuilder) AddElectronicItems() *RetentionBuilder {
 			return b
 		}
 
-		emissionDate, err := temporal.NewEmissionDate(utils.TimeNow().AddDate(0, 0, -i*15))
+		emissionDate, err := temporal.NewEmissionDate(daysAgoWithinCurrentMonth(i * 15))
 		if err != nil {
 			b.setError(err)
 			return b
@@ -534,4 +535,15 @@ func BuildRetentionWithoutSummary() (*retention_models.RetentionModel, error) {
 
 func BuildRetention() (*retention_models.RetentionModel, error) {
 	return BuildValidRetention()
+}
+
+// daysAgoWithinCurrentMonth returns the date the given number of days ago, kept within the current month so the
+// retained documents never depend on the business day window of the previous month.
+func daysAgoWithinCurrentMonth(days int) time.Time {
+	now := utils.TimeNow()
+	date := now.AddDate(0, 0, -days)
+	if date.Month() != now.Month() || date.Year() != now.Year() {
+		return time.Date(now.Year(), now.Month(), 1, now.Hour(), now.Minute(), now.Second(), 0, now.Location())
+	}
+	return date
 }

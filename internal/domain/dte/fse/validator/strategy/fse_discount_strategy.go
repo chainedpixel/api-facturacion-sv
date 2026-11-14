@@ -3,9 +3,9 @@ package strategy
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	commonStrategy "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	commonStrategy "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/validator/strategy"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
 )
 
 type FSEDiscountStrategy struct {

@@ -6,13 +6,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/debit_note_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/validator/strategy"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/debit_note/debit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/debit_note/validator/strategy"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 type adversarialTax struct {

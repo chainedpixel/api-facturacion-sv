@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	models2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	models2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

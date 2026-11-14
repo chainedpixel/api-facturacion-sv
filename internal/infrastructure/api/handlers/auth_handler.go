@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/chainedpixel/ordo-factus/internal/application/auth"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/response"
 )
 
 type AuthHandler struct {

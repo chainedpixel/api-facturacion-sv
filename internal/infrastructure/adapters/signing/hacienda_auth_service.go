@@ -10,15 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	ports2 "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	ports2 "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	errPackage "github.com/chainedpixel/ordo-factus/internal/infrastructure/error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	errPackage "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 type HaciendaAuthService struct {

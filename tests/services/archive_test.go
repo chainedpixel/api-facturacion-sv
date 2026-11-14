@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 // jws arma un JWS de prueba cuyo payload es exactamente la estructura indicada

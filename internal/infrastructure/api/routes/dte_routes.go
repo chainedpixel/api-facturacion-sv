@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/handlers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/handlers"
 
 	"net/http"
 

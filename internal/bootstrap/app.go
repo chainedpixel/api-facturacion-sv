@@ -10,16 +10,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/bootstrap/containers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/bootstrap/containers"
 
-	"github.com/chainedpixel/ordo-factus/cmd/setup"
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	errPackage "github.com/chainedpixel/ordo-factus/config/error"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/server"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/cmd/setup"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	errPackage "github.com/chainedpixel/api-facturacion-sv/config/error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/server"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // Application represents the complete application

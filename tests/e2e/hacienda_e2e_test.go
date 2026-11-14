@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // Suite E2E: emite documentos reales contra el ambiente de pruebas de Hacienda a traves de la API.

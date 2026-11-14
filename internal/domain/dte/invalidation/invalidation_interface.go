@@ -3,9 +3,9 @@ package invalidation
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // InvalidationManager is the interface that defines the methods that can be performed on document invalidation

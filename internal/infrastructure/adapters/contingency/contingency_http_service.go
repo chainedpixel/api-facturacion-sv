@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	haciendaPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
-	authPorts "github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	haciendaPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency/models"
+	authPorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // contingencyHTTPService handles signing and transmission of contingency events to Hacienda.

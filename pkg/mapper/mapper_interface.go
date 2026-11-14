@@ -3,7 +3,7 @@ package mapper
 import (
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
 )
 
 // DTEMapper is a generic interface for all DTE mappers.

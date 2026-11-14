@@ -1,10 +1,10 @@
 package response_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/invoice"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/invoice"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 // ToMHInvoice converts an ElectronicInvoice to the structure required by the Ministry of Finance

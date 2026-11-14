@@ -10,18 +10,18 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	appPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	batch "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
-	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	appPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	batch "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // contingencyTransmissionSvc handles token generation, document signing, and batch transmission to Hacienda.

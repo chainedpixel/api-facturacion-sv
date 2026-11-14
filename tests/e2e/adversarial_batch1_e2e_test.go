@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // TestE2E_AdversarialLote1 attacks the batch 1 changes against the live API: invalidation replacement rules,

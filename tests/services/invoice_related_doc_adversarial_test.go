@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/validator"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/validator/strategy"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/validator"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/validator/strategy"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
 )
 
 type adversarialRelDoc struct {

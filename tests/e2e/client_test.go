@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // Cliente de la suite E2E. Se habla con la API real del microservicio (que debe estar corriendo),

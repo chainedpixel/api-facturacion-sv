@@ -3,13 +3,13 @@ package fse
 import (
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 func MapFSERequestReceiver(receiverReq *structs.FSEReceiverRequest) (*fse_models.FSEReceiver, error) {

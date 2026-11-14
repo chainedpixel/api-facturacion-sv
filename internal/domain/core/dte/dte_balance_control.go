@@ -3,8 +3,8 @@ package dte
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 	"github.com/shopspring/decimal"
 )
 

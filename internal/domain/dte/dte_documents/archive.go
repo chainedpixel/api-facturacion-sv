@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
 )
 
 // BuildArchive arma el Archivo DTE de un documento o evento (Normativa v2.0, Anexo I, regla 4.1):

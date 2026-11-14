@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
 )
 
 // DTEManager is an interface that defines the methods of a DTE manager.

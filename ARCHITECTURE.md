@@ -1,6 +1,6 @@
 # Arquitectura
 
-`github.com/chainedpixel/ordo-factus` es un servidor HTTP API para emitir documentos tributarios electrónicos (DTE) de El Salvador contra la API del Ministerio de Hacienda (MH). Sigue la **Arquitectura Hexagonal** (también conocida como Puertos y Adaptadores).
+`github.com/chainedpixel/api-facturacion-sv` es un servidor HTTP API para emitir documentos tributarios electrónicos (DTE) de El Salvador contra la API del Ministerio de Hacienda (MH). Sigue la **Arquitectura Hexagonal** (también conocida como Puertos y Adaptadores).
 
 ---
 

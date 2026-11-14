@@ -3,7 +3,7 @@ package helpers
 import (
 	"net/http"
 
-	"github.com/chainedpixel/ordo-factus/internal/application/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/dte"
 	"github.com/gorilla/mux"
 )
 

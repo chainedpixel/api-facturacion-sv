@@ -9,23 +9,23 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/application/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	coreDTE "github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/handlers"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	coreDTE "github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/handlers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -374,14 +374,14 @@ func TestAllDTETypes(t *testing.T) {
 
 				var identification struct {
 					Identificacion struct {
-						Version          int    `json:"version"`
-						Ambiente         string `json:"ambiente"`
-						TipoDte          string `json:"tipoDte"`
-						TipoOperacion    int    `json:"tipoOperacion"`
-						TipoModelo       int    `json:"tipoModelo"`
-						NumeroControl    string `json:"numeroControl"`
-						TipoContingencia int    `json:"tipoContingencia"`
-						MotivoContin     string `json:"motivoContin"`
+						Version          int     `json:"version"`
+						Ambiente         string  `json:"ambiente"`
+						TipoDte          string  `json:"tipoDte"`
+						TipoOperacion    int     `json:"tipoOperacion"`
+						TipoModelo       int     `json:"tipoModelo"`
+						NumeroControl    string  `json:"numeroControl"`
+						TipoContingencia int     `json:"tipoContingencia"`
+						MotivoContin     *string `json:"motivoContin"`
 					} `json:"identificacion"`
 				}
 
@@ -392,7 +392,7 @@ func TestAllDTETypes(t *testing.T) {
 				assert.Equal(t, constants.TransmisionContingencia, identification.Identificacion.TipoOperacion)
 				assert.Equal(t, constants.ModeloFacturacionDiferido, identification.Identificacion.TipoModelo)
 				assert.Equal(t, constants.NoDisponibilidadMH, identification.Identificacion.TipoContingencia)
-				assert.Equal(t, constants.ContingencyReasons[constants.NoDisponibilidadMH], identification.Identificacion.MotivoContin)
+				assert.Nil(t, identification.Identificacion.MotivoContin, "motivoContin must be null for contingency types 1 to 4")
 			},
 			handleContingency: true,
 		},

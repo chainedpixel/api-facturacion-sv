@@ -1,6 +1,6 @@
 package retention_models
 
-import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+import "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
 
 // RetentionSummary represents the summary of a retention document.
 type RetentionSummary struct {

@@ -8,9 +8,9 @@ import (
 	texttemplate "text/template"
 	"time"
 
-	mails "github.com/chainedpixel/ordo-factus/assets/mails"
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
+	mails "github.com/chainedpixel/api-facturacion-sv/assets/mails"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
 )
 
 var contingencyTypeLabels = map[int]string{

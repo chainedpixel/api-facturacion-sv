@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/circuit"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/circuit"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 	"github.com/stretchr/testify/assert"
 )
 

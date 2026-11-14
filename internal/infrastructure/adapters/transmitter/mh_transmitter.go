@@ -10,15 +10,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	models2 "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	ports2 "github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/processors"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	models2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	ports2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/processors"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type HaciendaConsultRequest struct {

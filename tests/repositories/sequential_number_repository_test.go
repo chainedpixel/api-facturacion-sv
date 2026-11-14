@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/repositories"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/repositories"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 // TestControlNumberRepository_GetNext_LocksCounterRow verifies the counter is read with FOR UPDATE inside the

@@ -3,6 +3,8 @@
 package e2e
 
 import (
+	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,6 +101,7 @@ func contingencyPhaseTwo(t *testing.T) {
 				t.Logf("SELLO tras contingencia %s | %s | estado %s", stamp, code, status)
 				// El JWS del lote se guarda al firmar: el documento debe tener su Archivo DTE
 				client.archive(t, &emittedDTE{GenerationCode: code, ReceptionStamp: stamp})
+				assertDeferredIdentification(t, client, code)
 				delete(pending, code)
 			}
 		}
@@ -111,4 +114,37 @@ func contingencyPhaseTwo(t *testing.T) {
 		_, status := client.consultStatus(t, code)
 		t.Errorf("el documento %s no obtuvo sello tras la contingencia (estado %s)", code, status)
 	}
+}
+
+// assertDeferredIdentification checks that the signed and stamped document of a contingency emission carries the
+// deferred model (2), the contingency transmission type (2), the contingency type and a null reason for types 1 to 4.
+func assertDeferredIdentification(t *testing.T, client *apiClient, code string) {
+	t.Helper()
+	status, raw := client.getJSON(t, "/dte/"+code+"/archivo")
+	if status != http.StatusOK {
+		t.Errorf("GET archivo de %s devolvio HTTP %d", code, status)
+		return
+	}
+	var archive struct {
+		Identificacion struct {
+			TipoModelo       int     `json:"tipoModelo"`
+			TipoOperacion    int     `json:"tipoOperacion"`
+			TipoContingencia *int    `json:"tipoContingencia"`
+			MotivoContin     *string `json:"motivoContin"`
+		} `json:"identificacion"`
+	}
+	if err := json.Unmarshal(raw, &archive); err != nil {
+		t.Errorf("Archivo DTE de %s no es JSON valido: %v", code, err)
+		return
+	}
+	ident := archive.Identificacion
+	if ident.TipoModelo != 2 || ident.TipoOperacion != 2 || ident.TipoContingencia == nil {
+		t.Errorf("el documento sellado %s no se transmitio como diferido: tipoModelo=%d tipoOperacion=%d tipoContingencia=%v",
+			code, ident.TipoModelo, ident.TipoOperacion, ident.TipoContingencia)
+		return
+	}
+	if *ident.TipoContingencia != 5 && ident.MotivoContin != nil {
+		t.Errorf("el documento sellado %s trae motivoContin con tipo de contingencia %d", code, *ident.TipoContingencia)
+	}
+	t.Logf("DIFERIDO %s | tipoModelo=%d tipoOperacion=%d tipoContingencia=%d", code, ident.TipoModelo, ident.TipoOperacion, *ident.TipoContingencia)
 }

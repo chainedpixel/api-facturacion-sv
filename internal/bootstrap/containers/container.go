@@ -3,7 +3,7 @@ package containers
 import (
 	"sync"
 
-	"github.com/chainedpixel/ordo-factus/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
 )
 
 type Container struct {

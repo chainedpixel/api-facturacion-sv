@@ -6,14 +6,14 @@ import (
 	"errors"
 	"testing"
 
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	coreDte "github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	coreUser "github.com/chainedpixel/ordo-factus/internal/domain/core/user"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	coreDte "github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	coreUser "github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )

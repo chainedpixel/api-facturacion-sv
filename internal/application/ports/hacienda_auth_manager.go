@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
 )
 
 type HaciendaAuthManager interface {

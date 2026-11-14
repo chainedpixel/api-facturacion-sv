@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
 )
 
 // TestDTEDocumentAfterCreate_BalanceIsNetOfGlobalDiscount checks that the initial balance of a CCF is its

@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/events"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/health/checkers"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/events"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/health/checkers"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 func TestDomainEventsChecker_UpWhenBusDelivers(t *testing.T) {

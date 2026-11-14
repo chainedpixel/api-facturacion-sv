@@ -1,6 +1,6 @@
 package models
 
-import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/location"
+import "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/location"
 
 // Address is a structure that represents a Department, Municipality, District and Complement of a DTE
 type Address struct {

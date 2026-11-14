@@ -3,8 +3,8 @@ package common
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
 )
 
 // AdjustsRetentionVoucher indica si una NCE/NDE ajusta un Comprobante de Retencion (07).

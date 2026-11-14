@@ -1,6 +1,6 @@
 package interfaces
 
-import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
+import "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
 
 // Validator Interface that defines the methods that must be implemented by objects that validate a field
 type Validator interface {

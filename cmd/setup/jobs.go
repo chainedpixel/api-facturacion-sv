@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
 	"github.com/go-co-op/gocron"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/jobs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/jobs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type JobConfig struct {

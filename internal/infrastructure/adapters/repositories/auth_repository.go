@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
-	errPackage "github.com/chainedpixel/ordo-factus/internal/infrastructure/error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
+	errPackage "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/error"
 )
 
 type AuthRepository struct {

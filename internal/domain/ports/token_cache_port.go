@@ -3,7 +3,7 @@ package ports
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
 	"github.com/go-redis/redis/v8"
 )
 

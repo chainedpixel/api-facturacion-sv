@@ -3,7 +3,7 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/api-facturacion-sv/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

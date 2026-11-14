@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/chainedpixel/ordo-factus/internal/application/dte"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/response"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type DTEHandler struct {

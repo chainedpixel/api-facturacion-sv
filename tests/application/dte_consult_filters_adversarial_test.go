@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/internal/application/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	domainDTE "github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	domainDTE "github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 )
 
 // TestAdversarialListFiltersByIssuerNIT attacks the all=true scoping rules of the consult use case.

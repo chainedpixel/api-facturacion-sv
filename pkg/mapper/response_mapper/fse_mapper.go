@@ -1,10 +1,10 @@
 package response_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/fse"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/fse"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 // ToMHFSE converts an FSE domain model to the format required by the Ministry of Finance

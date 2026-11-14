@@ -1,6 +1,6 @@
 package retention_models
 
-import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+import "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 
 // ExpectedTotalIVA calcula el IVA 13% del resumen de un CRE (Anexo IV, campo 157).
 //   - Regla 157.4: con codigo de retencion C4 es "monto sujeto a retencion x 13%".

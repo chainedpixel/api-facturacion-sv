@@ -5,7 +5,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // Invalidaciones reales (CAT-024: 1 error en la informacion, 2 rescision, 3 otro). Cada caso emite

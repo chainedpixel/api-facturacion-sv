@@ -1,7 +1,7 @@
 package health
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health/models"
 )
 
 // ComponentChecker is an interface that defines the methods to check the status of a component

@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/jobs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/jobs"
 )
 
 func TestMetricsCleanupJob_Execute(t *testing.T) {

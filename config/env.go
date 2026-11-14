@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	errPackage "github.com/chainedpixel/ordo-factus/config/error"
+	errPackage "github.com/chainedpixel/api-facturacion-sv/config/error"
 	"github.com/spf13/viper"
 )
 

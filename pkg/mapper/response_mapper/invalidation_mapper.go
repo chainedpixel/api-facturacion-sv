@@ -1,10 +1,10 @@
 package response_mapper
 
 import (
-	commonModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/invalidation"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	commonModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/invalidation"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 // ToMHInvalidation maps an invalidation domain document to the Hacienda response payload.

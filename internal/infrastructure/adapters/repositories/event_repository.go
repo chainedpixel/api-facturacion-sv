@@ -6,8 +6,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
 )
 
 type EventRepository struct {

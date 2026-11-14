@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/events"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/events"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 type fakeEvent struct{ name string }

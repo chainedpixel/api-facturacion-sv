@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
 )
 
 // ContingencyRepositoryPort interface for the contingency repository (already exists)

@@ -6,19 +6,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	appPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	batch "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
-	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	appPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	batch "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // ContingencyService orchestrates contingency document storage and retransmission.
@@ -57,7 +58,8 @@ func (s *ContingencyService) SetEventBus(bus event.Bus) {
 	s.bus = bus
 }
 
-// StoreDocumentInContingency persists a DTE document under contingency mode and registers it for later retransmission.
+// StoreDocumentInContingency persists a DTE document under contingency mode, with the deferred model and the
+// contingency transmission type that are later signed and transmitted, and registers it for retransmission.
 func (s *ContingencyService) StoreDocumentInContingency(ctx context.Context, document interface{}, dteType string, contingencyType int8, reason string) error {
 	claims := ctx.Value("claims").(*authModels.AuthClaims)
 
@@ -67,7 +69,12 @@ func (s *ContingencyService) StoreDocumentInContingency(ctx context.Context, doc
 		Reason:          reason,
 	}
 
-	if err := s.docSvc.store(ctx, document, contingencyDoc); err != nil {
+	deferredDocument, err := utils.UpdateContingencyIdentification(document, &contingencyType, &reason)
+	if err != nil {
+		return shared_error.NewGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "failed to set contingency identification", err)
+	}
+
+	if err := s.docSvc.store(ctx, deferredDocument, contingencyDoc); err != nil {
 		return err
 	}
 

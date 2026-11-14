@@ -3,8 +3,8 @@ package utils
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +44,7 @@ func TestUpdateContingencyIdentification_FromString(t *testing.T) {
 	assert.Equal(t, constants.TransmisionContingencia, identification["tipoOperacion"])
 	// *contiType assigned directly → int8 type
 	assert.Equal(t, contiType, identification["tipoContingencia"])
-	assert.Equal(t, reason, identification["motivoContin"])
+	assert.Nil(t, identification["motivoContin"], "contingency types 1 to 4 carry a null reason")
 }
 
 // TestUpdateContingencyIdentification_FromBytes tests updating from a []byte.
@@ -59,7 +59,7 @@ func TestUpdateContingencyIdentification_FromBytes(t *testing.T) {
 	identification, ok := result["identificacion"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, contiType, identification["tipoContingencia"])
-	assert.Equal(t, reason, identification["motivoContin"])
+	assert.Nil(t, identification["motivoContin"], "contingency types 1 to 4 carry a null reason")
 }
 
 // TestUpdateContingencyIdentification_FromObject tests updating from a Go struct (map).
@@ -83,7 +83,7 @@ func TestUpdateContingencyIdentification_FromObject(t *testing.T) {
 	identification, ok := result["identificacion"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, contiType, identification["tipoContingencia"])
-	assert.Equal(t, reason, identification["motivoContin"])
+	assert.Nil(t, identification["motivoContin"], "contingency types 1 to 4 carry a null reason")
 }
 
 // TestUpdateContingencyIdentification_InvalidJSONString tests malformed JSON string.

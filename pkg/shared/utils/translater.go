@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/config"
+	"github.com/chainedpixel/api-facturacion-sv/config"
 )
 
 func TranslateMessage(key, code string, params ...interface{}) string {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // Rechazos esperados por HTTP: cada caso parte de un documento valido de la calculadora, introduce

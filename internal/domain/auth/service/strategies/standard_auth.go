@@ -5,13 +5,13 @@ import (
 	"crypto/subtle"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 type StandardAuthStrategy struct {

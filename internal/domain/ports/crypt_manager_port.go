@@ -1,6 +1,6 @@
 package ports
 
-import "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+import "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
 
 // CryptManager determines the behavior of a data encryption manager
 type CryptManager interface {

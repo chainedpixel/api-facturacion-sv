@@ -3,8 +3,8 @@ package drivers
 import (
 	"fmt"
 
-	errPackage "github.com/chainedpixel/ordo-factus/config/error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	errPackage "github.com/chainedpixel/api-facturacion-sv/config/error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 	"gorm.io/gorm"
 )
 

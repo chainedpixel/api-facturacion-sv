@@ -8,8 +8,8 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/notifier/email"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/notifier/email"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 func newRedisFromMini(t *testing.T) (*redis.Client, *miniredis.Miniredis) {

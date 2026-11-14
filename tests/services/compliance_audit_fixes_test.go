@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/contingency"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/signing"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/processors"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/contingency"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/signing"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/processors"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

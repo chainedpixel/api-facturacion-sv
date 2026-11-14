@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 )
 
-// UpdateContingencyIdentification updates the contingency identification in the DTE JSON.
+// UpdateContingencyIdentification sets the deferred model, the contingency transmission type and the contingency
+// type in the DTE identification; the contingency reason is only kept for contingency type 5 (other) and is null
+// for types 1 to 4.
 func UpdateContingencyIdentification(document interface{}, contiType *int8, reason *string) (map[string]interface{}, error) {
 	var dteDoc map[string]interface{}
 	switch v := document.(type) {
@@ -38,7 +40,10 @@ func UpdateContingencyIdentification(document interface{}, contiType *int8, reas
 		identification["tipoModelo"] = constants.ModeloFacturacionDiferido
 		identification["tipoOperacion"] = constants.TransmisionContingencia
 		identification["tipoContingencia"] = *contiType
-		identification["motivoContin"] = *reason
+		identification["motivoContin"] = nil
+		if int(*contiType) == constants.OtroMotivo && reason != nil {
+			identification["motivoContin"] = *reason
+		}
 	}
 
 	return dteDoc, nil

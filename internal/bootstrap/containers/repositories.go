@@ -1,12 +1,12 @@
 package containers
 
 import (
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	contiPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	dtePorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/repositories"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	contiPorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	dtePorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/repositories"
 	"gorm.io/gorm"
 )
 

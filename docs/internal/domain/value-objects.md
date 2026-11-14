@@ -256,7 +256,7 @@ Algunos VOs no tienen constructor `NewValidated*` (por ejemplo `InvalidationReas
 ### Crear un NIT
 
 ```go
-import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+import "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
 
 // Desde input del usuario — valida
 nit, err := identification.NewNIT("06140101991011")
@@ -279,7 +279,7 @@ nit3 := identification.NewValidatedNIT("06140101991011")
 ### Crear un Amount monetario
 
 ```go
-import "github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+import "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
 
 // Monto normal — redondea a 8 decimales internamente
 amount, err := financial.NewAmount(1150.00)

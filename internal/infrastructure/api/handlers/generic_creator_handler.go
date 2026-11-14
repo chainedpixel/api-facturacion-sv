@@ -8,10 +8,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/response"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // GenericCreatorDTEHandler handles requests to create any type of DTE document

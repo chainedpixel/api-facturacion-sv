@@ -5,7 +5,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // TestE2E_CreditoYDocumentosRelacionados covers the credit sale payment contract (null code, 0.00 amount, null

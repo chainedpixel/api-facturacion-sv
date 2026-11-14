@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	transmitterPort "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
-	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/batch"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	transmitterPort "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/batch"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

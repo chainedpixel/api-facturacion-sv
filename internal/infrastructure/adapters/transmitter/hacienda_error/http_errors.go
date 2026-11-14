@@ -3,7 +3,7 @@ package hacienda_error
 import (
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
 )
 
 type HTTPResponseError struct {

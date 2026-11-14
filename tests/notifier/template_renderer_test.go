@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/notifier/email"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/notifier/email"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 func setupRendererConfig(t *testing.T) {

@@ -1,10 +1,10 @@
 package validator
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/validator/strategy"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/validator/strategy"
 )
 
 type FSERulesValidator struct {

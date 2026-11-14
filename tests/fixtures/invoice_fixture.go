@@ -1,9 +1,9 @@
 package fixtures
 
 import (
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	respStructs "github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	respStructs "github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // CreateDefaultInvoiceItem creates a valid default invoice item

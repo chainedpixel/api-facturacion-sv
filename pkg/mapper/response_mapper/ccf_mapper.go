@@ -1,10 +1,10 @@
 package response_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/ccf"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/ccf"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 func ToMHCreditFiscalInvoice(doc interface{}) *structs.CCFDTEResponse {

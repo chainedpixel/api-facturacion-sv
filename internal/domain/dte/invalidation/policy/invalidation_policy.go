@@ -3,8 +3,8 @@ package policy
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/calendar"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/calendar"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 )
 
 const businessDaysAfterPeriod = 10

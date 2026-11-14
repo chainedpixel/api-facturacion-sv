@@ -16,11 +16,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 type advTokenAuth struct {

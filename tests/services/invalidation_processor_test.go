@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/processors"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/processors"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 // TestInvalidationProcessor_RequestBody checks that the invalidation body only has ambiente, idEnvio, version and documento.

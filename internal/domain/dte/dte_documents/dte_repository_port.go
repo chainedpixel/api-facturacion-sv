@@ -3,7 +3,7 @@ package dte_documents
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
 )
 
 // DTERepositoryPort is an interface that defines the methods of a DTE repository.

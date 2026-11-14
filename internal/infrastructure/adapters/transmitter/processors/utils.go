@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 func GetDocumentRequestData(document interface{}) (int, string, string, int, error) {

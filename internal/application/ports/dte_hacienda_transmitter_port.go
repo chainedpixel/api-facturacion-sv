@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
 )
 
 // DTETransmitter defines the behavior of an electronic document transmitter

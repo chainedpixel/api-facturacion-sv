@@ -5,7 +5,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // TestE2E_AdversarialLote2 ataca las correcciones del lote 2: documentos relacionados de la FE, impuestos de la ND

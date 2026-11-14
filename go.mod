@@ -1,4 +1,4 @@
-module github.com/chainedpixel/ordo-factus
+module github.com/chainedpixel/api-facturacion-sv
 
 go 1.24.0
 

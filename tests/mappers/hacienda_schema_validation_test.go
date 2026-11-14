@@ -10,14 +10,14 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	contingency_models "github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	contingency_models "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
 )
 
 // Se valida el JSON completo que se envia a Hacienda contra los JSON Schema oficiales

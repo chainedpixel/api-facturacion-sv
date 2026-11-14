@@ -1,9 +1,9 @@
 package containers
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/application/auth"
-	"github.com/chainedpixel/ordo-factus/internal/application/dte"
-	"github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
 )
 
 type UseCaseContainer struct {

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	metricsPort "github.com/chainedpixel/ordo-factus/internal/domain/metrics"
-	"github.com/chainedpixel/ordo-factus/internal/domain/metrics/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	metricsPort "github.com/chainedpixel/api-facturacion-sv/internal/domain/metrics"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/metrics/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type MetricManager struct {

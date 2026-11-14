@@ -6,14 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	health2 "github.com/chainedpixel/ordo-factus/internal/domain/health"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	health2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/health"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 	"github.com/dimiro1/health"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/health/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/health/models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type fileSystemChecker struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
 )
 
 type BaseTransmitter interface {

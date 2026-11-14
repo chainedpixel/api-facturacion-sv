@@ -7,14 +7,14 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 )
 
 // Se validan los ejemplos numericos de calculos-dte-v2.md (seccion 5), tomados del Anexo IV de la

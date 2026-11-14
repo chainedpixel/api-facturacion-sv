@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/chainedpixel/ordo-factus/internal/bootstrap"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/bootstrap"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 func main() {

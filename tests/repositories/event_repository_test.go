@@ -10,8 +10,8 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/repositories"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/repositories"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 func newEventRepoMock(t *testing.T) (*gorm.DB, sqlmock.Sqlmock) {

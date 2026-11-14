@@ -15,16 +15,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/service/strategies"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/cache"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/signing"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/tokens"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/middleware"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	test "github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/service/strategies"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/cache"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/signing"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/tokens"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/middleware"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 )
 
 const (

@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/application/handlers/notification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/handlers/notification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 type fakeMailer struct {

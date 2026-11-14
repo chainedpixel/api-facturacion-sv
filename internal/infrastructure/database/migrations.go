@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 // modelsToMigrate contains all models that should be migrated

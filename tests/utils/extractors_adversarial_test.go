@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 func netResumen(t *testing.T, resumen string) utils.AuxiliarTotalAmountsExtractor {
