@@ -81,6 +81,9 @@ func positionOf(columns, name string) int {
 	return -1
 }
 
+// QueryContext emulates a locked read: it only returns the counter row when the connection holds the row lock,
+// so a locked read that started before the row existed sees no row, as InnoDB does, and the later insert fails
+// with a duplicate key.
 func (c *counterConn) QueryContext(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
 	if strings.Contains(query, "FOR UPDATE") {
 		c.state.mu.Lock()
@@ -96,7 +99,8 @@ func (c *counterConn) QueryContext(_ context.Context, query string, _ []driver.N
 
 	columns := []string{"id", "branch_id", "dte_type", "year", "last_number", "created_at", "updated_at"}
 	rows := &counterRows{columns: columns}
-	if c.state.exists {
+	lockedReadWithoutRow := strings.Contains(query, "FOR UPDATE") && !c.holdsRow
+	if c.state.exists && !lockedReadWithoutRow {
 		rows.data = [][]driver.Value{{int64(1), int64(1), "01", int64(2026), int64(c.state.last), time.Now(), time.Now()}}
 	}
 	return rows, nil

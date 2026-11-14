@@ -6,7 +6,7 @@
 > - `internal/infrastructure/adapters/events/` — bus en memoria
 > - `internal/infrastructure/adapters/notifier/email/` — mailer SMTP, cooldown y renderer
 > - `internal/application/handlers/notification/` — handler del correo al admin
-> - `assets/mails/` — plantillas HTML, SVG y texto plano
+> - `assets/mails/` — plantillas HTML y texto plano
 
 ## Descripción General
 
@@ -210,8 +210,8 @@ type Cooldown interface {
 
 - Carga las plantillas desde `assets/mails/` con `embed.FS` (binario self-contained).
 - Por cada evento produce `(subject, html, plain)`.
-- Inyecta automáticamente `APIVersion` (de `config.Server.APIVersion`, `3.0.0` si está vacío), `Environment` (código de ambiente `00` = `test`, `01` = `production`) y `Timestamp`.
-- Solo existe plantilla, asunto, badge y título para los tres eventos definidos. Las alertas de vencimiento y de 3 días reutilizan la plantilla de `retransmission_job.failed`: el asunto es `Retransmisión: N documento(s) rechazado(s) por MH` si el evento trae documentos (caso de vencimiento, aunque los documentos no fueron rechazados por Hacienda) y `Job de retransmisión: fallo de ejecución` si no los trae (alerta de 3 días); el mensaje descriptivo viaja en `LastError`.
+- Inyecta automáticamente `APIVersion` (de `config.Server.APIVersion`, `3.0.0` si está vacío), `Environment` (código de ambiente `00` = `de pruebas (00)`, `01` = `de producción (01)`), `Category`, `Title`, `Intro` y `AccentColor` por evento y `Timestamp`.
+- Solo existe plantilla, asunto, categoría, título, intro y color de severidad para los eventos definidos. Las alertas de vencimiento y de 3 días reutilizan la plantilla de `retransmission_job.failed`: el asunto es `[Microservicio DTE] Retransmisión: N documento(s) rechazado(s) por Hacienda` si el evento trae documentos (caso de vencimiento, aunque los documentos no fueron rechazados por Hacienda) y `Job de retransmisión: fallo de ejecución` si no los trae (alerta de 3 días); el mensaje descriptivo viaja en `LastError`.
 
 ---
 
@@ -240,29 +240,28 @@ Los errores de render o del mailer se registran como `ERROR` y se devuelven desd
 
 ```
 assets/mails/
-├── mails.go                          go:embed FS
-├── layout.html                       layout base (header gradiente azul, footer con API v{{.APIVersion}})
-├── contingency_activated.html        bloque {{define "content"}}
-├── emission_failure.html             bloque {{define "content"}}
-├── retransmission_job_failed.html    bloque {{define "content"}}
-├── partials/
-│   ├── icon_warning.svg              SVG ámbar inline (24×24)
-│   ├── icon_error.svg                SVG rojo inline
-│   └── icon_info.svg                 SVG azul inline
+├── mails.go                              go:embed FS
+├── layout.html                           layout base (franja de severidad, encabezado, detalle y pie)
+├── contingency_activated.html            bloque {{define "content"}}
+├── emission_failure.html                 bloque {{define "content"}}
+├── retransmission_job_failed.html        bloque {{define "content"}}
+├── stamped_document_not_persisted.html   bloque {{define "content"}}
 └── plain/
     ├── contingency_activated.txt
     ├── emission_failure.txt
-    └── retransmission_job_failed.txt
+    ├── retransmission_job_failed.txt
+    └── stamped_document_not_persisted.txt
 ```
 
-### UI
+### Diseño
 
-- Layout `table`-based de 600 px, compatible con Outlook / Gmail / Apple Mail.
-- Paleta corporativa azul (`#1E3A8A` indigo, `#2563EB` blue).
-- SVG inline al lado del título, badge de tipo de alerta en el header.
-- Tabla key/value con datos del evento, callout con borde azul para el mensaje de error principal.
-- Footer con `API v{{.APIVersion}}`, ambiente, timestamp y `AggregateID`.
-- Soporte de `prefers-color-scheme: dark` y `@media (max-width: 600px)`.
+- Layout basado en tablas de 600 px, sin `flex`, degradados, sombras ni SVG (Gmail y Outlook bloquean los SVG), compatible con Outlook, Gmail y Apple Mail.
+- Tarjeta blanca con borde gris y una franja superior de 4 px con el color de severidad del evento (`AccentColor`): rojo `#B91C1C` para errores (emisión fallida, DTE sellado sin guardar) y ámbar `#B45309` para advertencias (contingencia, retransmisión).
+- Encabezado con el nombre del servicio (`Microservicio DTE`), la categoría del evento (`Category`) y el ambiente.
+- Título, una frase de contexto, tabla de detalle (valores técnicos en fuente monoespaciada), bloque con la respuesta o el error y una sección "Qué hacer" con los pasos a seguir.
+- Pie con ambiente, `API v{{.APIVersion}}`, fecha de generación y referencia (`AggregateID`).
+- Los asuntos llevan el prefijo `[Microservicio DTE]`.
+- El texto plano replica el mismo contenido para clientes sin HTML.
 
 ---
 
@@ -276,7 +275,7 @@ assets/mails/
 | `SMTP_PORT` | int | `587` | Puerto SMTP.                                                                               |
 | `SMTP_USERNAME` | string | — | Usuario SMTP (opcional).                                                                   |
 | `SMTP_PASSWORD` | string | — | Clave SMTP (opcional).                                                                     |
-| `SMTP_FROM` | string | — | Remitente, ej. `Ordo Factus <noreply@example.com>`. Requerido si `SMTP_HOST` está seteado. |
+| `SMTP_FROM` | string | — | Remitente, ej. `Microservicio DTE <noreply@example.com>`. Requerido si `SMTP_HOST` está seteado. |
 | `SMTP_TLS` | bool | `true` | `true` aplica `STARTTLS`; `false` desactiva TLS (solo dev).                                |
 | `NOTIFY_COOLDOWN_MINUTES` | int | `15` | TTL del cooldown por `<event_name>:<aggregate_id>` en Redis.                               |
 
@@ -401,7 +400,7 @@ La ruta vive en el subrouter protegido (requiere JWT) y solo se registra cuando 
    SMTP_HOST=localhost
    SMTP_PORT=1025
    SMTP_TLS=false
-   SMTP_FROM=Ordo <noreply@local>
+   SMTP_FROM=Microservicio DTE <noreply@local>
    ADMIN_EMAIL=admin@test.local
    API_VERSION=3.0.0
    NOTIFY_COOLDOWN_MINUTES=1
@@ -410,10 +409,9 @@ La ruta vive en el subrouter protegido (requiere JWT) y solo se registra cuando 
 4. Emitir varios DTE seguidos → llega un único correo durante el TTL (cooldown OK).
 5. Esperar el TTL → próxima emisión vuelve a enviar correo.
 6. Validar:
-   - Header con gradiente azul.
-   - SVG warning visible al lado del título.
-   - Tabla con datos de sucursal, motivo, hora.
-   - Footer con `API v3.0.0` y ambiente.
+   - Franja superior ámbar (advertencia) y encabezado `Microservicio DTE`.
+   - Tabla con datos de sucursal, motivo y hora, y sección "Qué hacer".
+   - Pie con `API v3.0.0` y ambiente.
 
 ---
 
@@ -421,7 +419,7 @@ La ruta vive en el subrouter protegido (requiere JWT) y solo se registra cuando 
 
 1. Definir la struct y la constante de nombre en `internal/domain/core/event/events.go` implementando `Event` (y opcionalmente `PersistableEvent`).
 2. Crear las plantillas en `assets/mails/` y agregarlas al `go:embed` de `mails.go`.
-3. En `template_renderer.go` agregar el patrón de subject, badge, título, intro e ícono para el nuevo evento.
+3. En `template_renderer.go` agregar el patrón de asunto, la categoría, el título, la intro y el color de severidad (`accentError` o `accentWarning`) del nuevo evento.
 4. Suscribir el handler en `services.go` → `initNotificationStack()`:
    ```go
    bus.Subscribe(event.EventMiNuevo, handler)

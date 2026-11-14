@@ -146,7 +146,7 @@ El `AggregateID` depende del evento: `branch:<id>` para contingencia activada, `
 | `retransmission_job.failed` | `event.EventRetransmissionJobFailed` |
 | `stamped_document.not_persisted` | `event.EventStampedDocumentNotSaved` |
 
-El evento `stamped_document.not_persisted` se renderiza con las plantillas `stamped_document_not_persisted.html` y `plain/stamped_document_not_persisted.txt`, con asunto `[Ordo-Factus] DTE <número de control> sellado por Hacienda pero no guardado`. El correo incluye NIT, sucursal, tipo de DTE, número de control, código de generación, sello de recepción, fecha de procesamiento y el texto del error, y no incluye el documento firmado.
+El evento `stamped_document.not_persisted` se renderiza con las plantillas `stamped_document_not_persisted.html` y `plain/stamped_document_not_persisted.txt`, con asunto `[Microservicio DTE] DTE <número de control> sellado por Hacienda sin guardar`. El correo incluye NIT, sucursal, tipo de DTE, número de control, código de generación, sello de recepción, fecha de procesamiento y el texto del error, y no incluye el documento firmado.
 
 Cuando el bus (`InMemoryBus`) publica un evento, persiste los eventos persistibles y lanza cada handler suscrito en su propia goroutine (`go b.dispatch(...)`) con un contexto sin cancelación: la llamada a `Handle` es **asíncrona** y no bloquea al publicador. Un pánico del handler se captura y se registra; un error devuelto se registra en el log.
 

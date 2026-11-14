@@ -71,7 +71,7 @@ Todas las claves son opcionales. Si `SMTP_HOST` está vacío el sistema degrada 
 | `SMTP_PORT` | string | No | Puerto SMTP (default `587`; se valida solo si no está vacío) |
 | `SMTP_USERNAME` | string | No | Usuario SMTP                                             |
 | `SMTP_PASSWORD` | string | No | Clave SMTP                                               |
-| `SMTP_FROM` | string | Sí si `SMTP_HOST` | Remitente, ej. `Ordo <noreply@example.com>`              |
+| `SMTP_FROM` | string | Sí si `SMTP_HOST` | Remitente, ej. `Microservicio DTE <noreply@example.com>`              |
 | `SMTP_TLS` | bool | No | `true` aplica STARTTLS, `false` desactiva TLS (solo dev) |
 
 ### Base de Datos

@@ -1,31 +1,21 @@
 {{define "content"}}
-<div class="vf-summary">
-  <p class="vf-summary-title">Resumen del incidente</p>
-  <table class="vf-kv" cellpadding="0" cellspacing="0" border="0">
-    {{if .ClientName}}<tr><td class="k">Cliente</td><td class="v">{{.ClientName}}</td></tr>{{end}}
-    {{if .NIT}}<tr><td class="k">NIT del emisor</td><td class="v">{{.NIT}}</td></tr>{{end}}
-    <tr>
-      <td class="k">Sucursal</td>
-      <td class="v">
-        #{{.BranchID}}{{if .BranchAddress}} &mdash; {{.BranchAddress}}{{end}}
-      </td>
-    </tr>
-    <tr>
-      <td class="k">Tipo de contingencia</td>
-      <td class="v">{{if .ContingencyTypeLabel}}{{.ContingencyTypeLabel}}{{else}}{{.ContingencyType}}{{end}}</td>
-    </tr>
-    <tr><td class="k">Documentos afectados</td><td class="v">{{.AffectedDocs}}</td></tr>
-    <tr><td class="k">Hora de activación</td><td class="v">{{.Timestamp}}</td></tr>
-  </table>
-</div>
-<div class="vf-callout">
-  <span class="label">Motivo reportado</span>
-  {{.Reason}}
-</div>
-<hr class="vf-divider">
-<p style="margin:0;color:#475569;font-size:13px;line-height:1.6;">
-  Mientras dure la contingencia, los DTE se almacenan localmente y serán retransmitidos
-  automáticamente cuando el servicio se restablezca. Te avisaremos si el job de
-  retransmisión presenta fallos.
-</p>
+<p class="mail-section">Detalle</p>
+<table class="mail-kv" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  {{if .ClientName}}<tr><td class="k">Cliente</td><td class="v">{{.ClientName}}</td></tr>{{end}}
+  {{if .NIT}}<tr><td class="k">NIT del emisor</td><td class="v mono">{{.NIT}}</td></tr>{{end}}
+  <tr><td class="k">Sucursal</td><td class="v">#{{.BranchID}}{{if .BranchAddress}} &mdash; {{.BranchAddress}}{{end}}</td></tr>
+  <tr><td class="k">Tipo de contingencia</td><td class="v">{{if .ContingencyTypeLabel}}{{.ContingencyTypeLabel}}{{else}}{{.ContingencyType}}{{end}}</td></tr>
+  <tr><td class="k">Documentos afectados</td><td class="v">{{.AffectedDocs}}</td></tr>
+  <tr><td class="k">Activada</td><td class="v">{{.Timestamp}}</td></tr>
+</table>
+
+<p class="mail-section">Motivo reportado</p>
+<p class="mail-quote">{{.Reason}}</p>
+
+<p class="mail-section">Qué hacer</p>
+<ul class="mail-steps">
+  <li>Los DTE de la sucursal se guardan localmente y se retransmiten a Hacienda cuando el servicio se restablece.</li>
+  <li>Los documentos que no se retransmitan dentro de las 72 horas siguientes al sello del evento de contingencia pasan a estado EXPIRED.</li>
+  <li>Si la contingencia se prolonga, revisar la conectividad con Hacienda y el estado del firmador.</li>
+</ul>
 {{end}}

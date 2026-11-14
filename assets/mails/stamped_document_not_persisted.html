@@ -1,28 +1,22 @@
 {{define "content"}}
-<div class="vf-summary">
-  <p class="vf-summary-title">Detalle del DTE</p>
-  <table class="vf-kv" cellpadding="0" cellspacing="0" border="0">
-    <tr><td class="k">NIT del emisor</td><td class="v">{{.NIT}}</td></tr>
-    <tr><td class="k">Sucursal</td><td class="v">#{{.BranchID}}</td></tr>
-    <tr>
-      <td class="k">Tipo de DTE</td>
-      <td class="v">{{if .DTETypeLabel}}{{.DTETypeLabel}} ({{.DTEType}}){{else}}{{.DTEType}}{{end}}</td>
-    </tr>
-    <tr><td class="k">Número de control</td><td class="v" style="font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:12px;">{{.ControlNumber}}</td></tr>
-    <tr><td class="k">Código de generación</td><td class="v" style="font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:12px;">{{.GenerationCode}}</td></tr>
-    <tr><td class="k">Sello de recepción</td><td class="v" style="font-family:'SFMono-Regular',Consolas,Menlo,monospace;font-size:12px;">{{.ReceptionStamp}}</td></tr>
-    <tr><td class="k">Fecha de procesamiento</td><td class="v">{{.ProcessingDate}}</td></tr>
-    <tr><td class="k">Hora del fallo</td><td class="v">{{.Timestamp}}</td></tr>
-  </table>
-</div>
-<div class="vf-callout">
-  <span class="label">Error de persistencia</span>
-  {{.LastError}}
-</div>
-<hr class="vf-divider">
-<p style="margin:0;color:#475569;font-size:13px;line-height:1.6;">
-  El documento fue aceptado por Hacienda pero no pudo guardarse en la base de datos. No debe
-  emitirse nuevamente. El documento firmado completo se encuentra en el log del servicio,
-  buscar la entrada con el código de generación indicado para recuperarlo manualmente.
-</p>
+<p class="mail-section">Detalle</p>
+<table class="mail-kv" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td class="k">NIT del emisor</td><td class="v mono">{{.NIT}}</td></tr>
+  <tr><td class="k">Sucursal</td><td class="v">#{{.BranchID}}</td></tr>
+  <tr><td class="k">Tipo de DTE</td><td class="v">{{if .DTETypeLabel}}{{.DTETypeLabel}} ({{.DTEType}}){{else}}{{.DTEType}}{{end}}</td></tr>
+  <tr><td class="k">Número de control</td><td class="v mono">{{.ControlNumber}}</td></tr>
+  <tr><td class="k">Código de generación</td><td class="v mono">{{.GenerationCode}}</td></tr>
+  <tr><td class="k">Sello de recepción</td><td class="v mono">{{.ReceptionStamp}}</td></tr>
+  <tr><td class="k">Procesado por Hacienda</td><td class="v">{{.ProcessingDate}}</td></tr>
+  <tr><td class="k">Falla al guardar</td><td class="v">{{.Timestamp}}</td></tr>
+</table>
+
+<p class="mail-section">Error al guardar</p>
+<p class="mail-quote">{{.LastError}}</p>
+
+<p class="mail-section">Qué hacer</p>
+<ul class="mail-steps">
+  <li>No volver a emitir el documento: ya tiene sello de Hacienda.</li>
+  <li>Recuperar el documento firmado desde el log del servicio, buscando el código de generación indicado.</li>
+</ul>
 {{end}}

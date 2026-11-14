@@ -1,22 +1,23 @@
-[ORDO-FACTUS] Contingencia activada
-=========================================
-{{- if .ClientName}}
-Cliente: {{.ClientName}}{{end}}
-{{- if .NIT}}
-NIT del emisor: {{.NIT}}{{end}}
+Microservicio DTE | Contingencia activada
 
-Sucursal: #{{.BranchID}}{{if .BranchAddress}} — {{.BranchAddress}}{{end}}
+La sucursal pasó a modo contingencia.
+
+{{if .ClientName}}Cliente: {{.ClientName}}
+{{end}}{{if .NIT}}NIT del emisor: {{.NIT}}
+{{end}}Sucursal: #{{.BranchID}}{{if .BranchAddress}} - {{.BranchAddress}}{{end}}
 Tipo de contingencia: {{if .ContingencyTypeLabel}}{{.ContingencyTypeLabel}}{{else}}{{.ContingencyType}}{{end}}
 Documentos afectados: {{.AffectedDocs}}
-Hora de activación: {{.Timestamp}}
+Activada: {{.Timestamp}}
 
 Motivo reportado:
 {{.Reason}}
 
-Mientras dure la contingencia, los DTE se almacenan localmente y serán
-retransmitidos automáticamente cuando el servicio se restablezca.
+Qué hacer:
+- Los DTE de la sucursal se guardan localmente y se retransmiten a Hacienda cuando el servicio se restablece.
+- Los documentos que no se retransmitan dentro de las 72 horas siguientes al sello del evento de contingencia pasan a estado EXPIRED.
+- Si la contingencia se prolonga, revisar la conectividad con Hacienda y el estado del firmador.
 
------------------------------------------
-Ordo Factus | Ambiente: {{.Environment}} | API v{{.APIVersion}}
-{{.AggregateID}}
+--
+Microservicio DTE | Ambiente {{.Environment}} | API v{{.APIVersion}}
+Generado el {{.Timestamp}}{{if .AggregateID}} | Ref. {{.AggregateID}}{{end}}
 Correo automático del sistema. No responder.

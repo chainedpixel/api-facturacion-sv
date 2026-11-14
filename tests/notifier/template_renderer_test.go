@@ -40,13 +40,18 @@ func TestRenderContingencyContainsAllExpectedFields(t *testing.T) {
 	if !strings.Contains(subject, "sucursal #7") {
 		t.Errorf("subject missing branch: %q", subject)
 	}
-	for _, want := range []string{"API v3.0.0", "MH no responde", "Contingencia activada", "Ordo"} {
+	for _, want := range []string{"API v3.0.0", "MH no responde", "Contingencia activada", "Microservicio DTE", "Ambiente de pruebas (00)", "#B45309"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("html missing %q", want)
 		}
 	}
-	if !strings.Contains(html, "<svg") {
-		t.Error("html should contain inline SVG")
+	for _, unwanted := range []string{"<svg", "Ordo", "Factus", "linear-gradient", "display:flex"} {
+		if strings.Contains(html, unwanted) {
+			t.Errorf("html should not contain %q", unwanted)
+		}
+	}
+	if !strings.HasPrefix(subject, "[Microservicio DTE] ") {
+		t.Errorf("subject should start with the service name, got %q", subject)
 	}
 	for _, want := range []string{"API v3.0.0", "MH no responde", "Sucursal: #7"} {
 		if !strings.Contains(plain, want) {
@@ -148,7 +153,7 @@ func TestRenderRetransmissionJobInfraFailureShowsLastError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if !strings.Contains(subject, "fallo de ejecución") {
+	if !strings.Contains(subject, "error de ejecución") {
 		t.Errorf("subject for infra failure should indicate execution error, got %q", subject)
 	}
 	for _, want := range []string{"contingency_retransmission", "timeout reaching MH", "API v3.0.0"} {

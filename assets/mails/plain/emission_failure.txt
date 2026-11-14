@@ -1,15 +1,15 @@
-[ORDO-FACTUS] Falla consistente de emisión de DTE
-======================================================
-{{- if .ClientName}}
-Cliente: {{.ClientName}}{{end}}
+Microservicio DTE | DTE no emitido
 
-NIT del emisor: {{.NIT}}
-Sucursal: #{{.BranchID}}{{if .BranchAddress}} — {{.BranchAddress}}{{end}}
+Un DTE no se pudo emitir después de {{.Attempts}} intento(s).
+
+{{if .ClientName}}Cliente: {{.ClientName}}
+{{end}}NIT del emisor: {{.NIT}}
+Sucursal: #{{.BranchID}}{{if .BranchAddress}} - {{.BranchAddress}}{{end}}
 Tipo de DTE: {{if .DTETypeLabel}}{{.DTETypeLabel}} ({{.DTEType}}){{else}}{{.DTEType}}{{end}}
 Número de control: {{.ControlNumber}}
-Intentos realizados: {{.Attempts}}
+Intentos: {{.Attempts}}
 Código de error: {{.ErrorCode}}
-Hora del último intento: {{.Timestamp}}
+Último intento: {{.Timestamp}}
 
 Respuesta de Hacienda:
 {{.LastError}}
@@ -17,10 +17,13 @@ Respuesta de Hacienda:
 Observaciones:
 {{range .HaciendaObservations}}- {{.}}
 {{end}}{{- end}}
-El DTE no pudo ser emitido tras varios intentos consecutivos. Revisa la
-configuración del emisor, el firmador y los logs del servicio.
 
-------------------------------------------------------
-Ordo Factus | Ambiente: {{.Environment}} | API v{{.APIVersion}}
-{{.AggregateID}}
+Qué hacer:
+- Revisar la respuesta de Hacienda y corregir los datos del documento si el rechazo es de validación.
+- Verificar la configuración del emisor y el certificado del firmador.
+- Consultar los logs del servicio con el número de control antes de reintentar manualmente.
+
+--
+Microservicio DTE | Ambiente {{.Environment}} | API v{{.APIVersion}}
+Generado el {{.Timestamp}}{{if .AggregateID}} | Ref. {{.AggregateID}}{{end}}
 Correo automático del sistema. No responder.

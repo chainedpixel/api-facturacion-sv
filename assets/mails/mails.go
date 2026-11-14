@@ -1,3 +1,4 @@
+// Package mails embeds the HTML and plain text templates of the administrator notification emails.
 package mails
 
 import "embed"
@@ -7,9 +8,6 @@ import "embed"
 //go:embed emission_failure.html
 //go:embed retransmission_job_failed.html
 //go:embed stamped_document_not_persisted.html
-//go:embed partials/icon_warning.svg
-//go:embed partials/icon_error.svg
-//go:embed partials/icon_info.svg
 //go:embed plain/contingency_activated.txt
 //go:embed plain/emission_failure.txt
 //go:embed plain/retransmission_job_failed.txt

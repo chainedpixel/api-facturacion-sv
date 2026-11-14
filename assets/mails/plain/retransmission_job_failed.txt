@@ -1,24 +1,34 @@
-[ORDO-FACTUS] Job de retransmisión con fallos
-==================================================
+Microservicio DTE | Retransmisión de contingencia con fallos
 
-Job: {{.JobName}}
-Hora de ejecución: {{.Timestamp}}
-{{if .FailedDocuments}}
-Documentos rechazados por MH ({{len .FailedDocuments}}):
+Tarea: {{.JobName}}
+Ejecutada: {{.Timestamp}}
+{{- if .FailedDocuments}}
+
+Documentos rechazados por Hacienda ({{len .FailedDocuments}}):
 {{range .FailedDocuments}}
-  Número de control : {{.ControlNumber}}
-  Código de error   : {{.ErrorCode}}
-  Descripción       : {{.Description}}
+  Número de control: {{.ControlNumber}}
+  Código de error: {{.ErrorCode}}
+  Descripción: {{.Description}}
   {{- if .Observations}}
   Observaciones:
   {{range .Observations}}  - {{.}}
   {{end}}{{- end}}
 {{end}}{{- end}}
 {{- if .LastError}}
+
 Error de ejecución:
 {{.LastError}}
-{{end}}
---------------------------------------------------
-Ordo Factus | Ambiente: {{.Environment}} | API v{{.APIVersion}}
-{{.AggregateID}}
+{{- end}}
+
+Qué hacer:
+{{- if .FailedDocuments}}
+- Revisar el motivo de cada rechazo y corregir los datos antes de volver a emitir el documento.
+{{- else}}
+- Los documentos pendientes siguen en cola y se intentan de nuevo en la próxima ejecución.
+- Si el error se repite, revisar la conectividad con Hacienda y el estado del firmador.
+{{- end}}
+
+--
+Microservicio DTE | Ambiente {{.Environment}} | API v{{.APIVersion}}
+Generado el {{.Timestamp}}{{if .AggregateID}} | Ref. {{.AggregateID}}{{end}}
 Correo automático del sistema. No responder.

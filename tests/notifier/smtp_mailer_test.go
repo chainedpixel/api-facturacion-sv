@@ -100,7 +100,7 @@ func setupSMTPConfig(t *testing.T, host string, port int) {
 	test.TestMain(t)
 	config.SMTP.Host = host
 	config.SMTP.Port = strconv.Itoa(port)
-	config.SMTP.From = "Ordo <noreply@local>"
+	config.SMTP.From = "Microservicio DTE <noreply@local>"
 	config.SMTP.TLS = false
 	config.Server.AdminEmail = "admin@test.local"
 }
