@@ -3,27 +3,30 @@ package integration_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/application/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	transmitterModels "github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/handlers"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	coreDTE "github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/handlers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -42,6 +45,9 @@ type DTETestConfig struct {
 		ResponseMapper       mapper.ResponseMapperFunc
 	}
 }
+
+// integrationDeferredJWS is the signature returned by the contingency manager mock for the deferred document.
+const integrationDeferredJWS = "eyJhbGciOiJSUzUxMiJ9.eyJkZWZlcnJlZCI6dHJ1ZX0.c2lnbmF0dXJl"
 
 func TestAllDTETypes(t *testing.T) {
 	test.TestMain(t)
@@ -161,10 +167,8 @@ func TestAllDTETypes(t *testing.T) {
 					).
 					Return(mockDTE, nil)
 
-				transmitResponse := &transmitterModels.TransmitResult{
-					Status:         "PROCESADO",
-					ReceptionStamp: utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
-				}
+				// El JWS simulado lleva como payload la estructura transmitida, igual que el firmador real
+				var signedDocument string
 				mockTransmitter.EXPECT().
 					RetryTransmission(
 						gomock.Any(),
@@ -172,7 +176,17 @@ func TestAllDTETypes(t *testing.T) {
 						"test-token",
 						"11111111111111",
 					).
-					Return(transmitResponse, nil)
+					DoAndReturn(func(_ context.Context, document interface{}, _ string, _ string) (*transmitterModels.TransmitResult, error) {
+						payload, _ := json.Marshal(document)
+						signedDocument = "eyJhbGciOiJSUzUxMiJ9." + base64.RawURLEncoding.EncodeToString(payload) + ".firma"
+						return &transmitterModels.TransmitResult{
+							Status:           "PROCESADO",
+							ReceptionStamp:   utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
+							SignedDocument:   signedDocument,
+							ProcessingDate:   "04/11/2026 19:26:17",
+							HaciendaResponse: `{"estado":"PROCESADO"}`,
+						}, nil
+					})
 
 				mockSeqNumberManager.EXPECT().
 					ConfirmReservation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -184,9 +198,16 @@ func TestAllDTETypes(t *testing.T) {
 						gomock.Any(),
 						constants.TransmissionNormal,
 						constants.DocumentReceived,
-						utils.ToStringPointer("2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"),
+						gomock.Any(),
 					).
-					Return(nil)
+					DoAndReturn(func(_ context.Context, _ interface{}, _ string, _ string, evidence *coreDTE.TransmissionEvidence) error {
+						// la evidencia completa de Hacienda llega al guardado (Archivo DTE, Anexo I regla 4.1)
+						assert.Equal(t, "2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM", *evidence.ReceptionStamp)
+						assert.Equal(t, signedDocument, evidence.SignedDocument)
+						assert.Equal(t, "04/11/2026 19:26:17", evidence.ProcessingDate)
+						assert.Equal(t, `{"estado":"PROCESADO"}`, evidence.HaciendaResponse)
+						return nil
+					})
 
 				mockContingency.EXPECT().
 					StoreDocumentInContingency(
@@ -257,6 +278,15 @@ func TestAllDTETypes(t *testing.T) {
 				assert.Equal(t, constants.TransmisionNormal, identification.Identificacion.TipoOperacion)
 				assert.Equal(t, constants.ModeloFacturacionPrevio, identification.Identificacion.TipoModelo)
 				assert.NotEmpty(t, identification.Identificacion.NumeroControl)
+
+				// La respuesta es el Archivo DTE: estructura + firmaElectronica + selloRecibido
+				var archive struct {
+					FirmaElectronica string `json:"firmaElectronica"`
+					SelloRecibido    string `json:"selloRecibido"`
+				}
+				require.NoError(t, json.Unmarshal(response.Data, &archive))
+				assert.NotEmpty(t, archive.FirmaElectronica)
+				assert.Equal(t, "2025AAFEEE1A566A44F19A622C0C35C8A1B6FAZM", archive.SelloRecibido)
 			},
 			handleContingency: false,
 		},
@@ -306,7 +336,13 @@ func TestAllDTETypes(t *testing.T) {
 						dteConfig.DocumentType,
 						int8(constants.NoDisponibilidadMH),
 						constants.ContingencyReasons[constants.NoDisponibilidadMH],
-					).Return(nil)
+					).DoAndReturn(func(_ context.Context, document interface{}, _ string, contingencyType int8, reason string) (*contingency.DeferredDocument, error) {
+					deferred, err := utils.UpdateContingencyIdentification(document, &contingencyType, &reason)
+					if err != nil {
+						return nil, err
+					}
+					return &contingency.DeferredDocument{Document: deferred, SignedDocument: integrationDeferredJWS}, nil
+				})
 			},
 			prepareRequest: func(dteConfig DTETestConfig) (*http.Request, error) {
 				dteRequest := dteConfig.GetRequest()
@@ -348,14 +384,14 @@ func TestAllDTETypes(t *testing.T) {
 
 				var identification struct {
 					Identificacion struct {
-						Version          int    `json:"version"`
-						Ambiente         string `json:"ambiente"`
-						TipoDte          string `json:"tipoDte"`
-						TipoOperacion    int    `json:"tipoOperacion"`
-						TipoModelo       int    `json:"tipoModelo"`
-						NumeroControl    string `json:"numeroControl"`
-						TipoContingencia int    `json:"tipoContingencia"`
-						MotivoContin     string `json:"motivoContin"`
+						Version          int     `json:"version"`
+						Ambiente         string  `json:"ambiente"`
+						TipoDte          string  `json:"tipoDte"`
+						TipoOperacion    int     `json:"tipoOperacion"`
+						TipoModelo       int     `json:"tipoModelo"`
+						NumeroControl    string  `json:"numeroControl"`
+						TipoContingencia int     `json:"tipoContingencia"`
+						MotivoContin     *string `json:"motivoContin"`
 					} `json:"identificacion"`
 				}
 
@@ -366,7 +402,13 @@ func TestAllDTETypes(t *testing.T) {
 				assert.Equal(t, constants.TransmisionContingencia, identification.Identificacion.TipoOperacion)
 				assert.Equal(t, constants.ModeloFacturacionDiferido, identification.Identificacion.TipoModelo)
 				assert.Equal(t, constants.NoDisponibilidadMH, identification.Identificacion.TipoContingencia)
-				assert.Equal(t, constants.ContingencyReasons[constants.NoDisponibilidadMH], identification.Identificacion.MotivoContin)
+				assert.Nil(t, identification.Identificacion.MotivoContin, "motivoContin defaults to null for contingency types 1 to 4")
+
+				var signed struct {
+					FirmaElectronica string `json:"firmaElectronica"`
+				}
+				require.NoError(t, json.Unmarshal(response.Data, &signed))
+				assert.Equal(t, integrationDeferredJWS, signed.FirmaElectronica, "the consumer receives the signed deferred document")
 			},
 			handleContingency: true,
 		},
@@ -469,6 +511,7 @@ func TestAllDTETypes(t *testing.T) {
 						dteConfig.MapperConfig.RequestMapperAdapter,
 						dteConfig.MapperConfig.ResponseMapper,
 						additionalOps,
+						nil,
 					)
 
 					contingencyHandler := helpers.NewContingencyHandler(mockContingency)

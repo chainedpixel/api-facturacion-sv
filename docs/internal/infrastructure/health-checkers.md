@@ -4,7 +4,7 @@
 
 ## Descripción General
 
-El sistema de health checks verifica la conectividad y disponibilidad de cada componente externo del que depende el servicio. El resultado se expone a través del endpoint público `GET /health`.
+El sistema de health checks verifica la conectividad y disponibilidad de cada componente externo del que depende el servicio. El resultado se expone a través del endpoint público `GET /health` (registrado en la raíz del router, **sin** el prefijo `/api/v1`, ver [api-server.md](api-server.md)).
 
 ---
 
@@ -31,34 +31,44 @@ type HealthServiceConfig struct {
 ```
 CheckHealth()
   │
-  ├── Por cada checker registrado:
+  ├── Por cada checker registrado (secuencialmente):
   │     checker.Check()
-  │     → { Status: "up" | "down", Details: string }
+  │     → { Status: "UP" | "DOWN", Details: string }
   │
   └── Resultado agregado:
         {
-          Status:     "up" | "down",
+          Status:     "UP" | "DOWN",
           Components: map[name]Health,
           Timestamp:  "02-01-2006 15:04:05"
         }
 ```
 
+Los valores de estado son `UP` y `DOWN` (mayúsculas, `health/constants`). `Details` se omite del JSON cuando está vacío.
+
+### Respuesta HTTP
+
+`HealthHandler.CheckHealth` responde siempre `200` con el envoltorio estándar `{ "success": true, "data": { "status", "components", "timestamp" } }`, incluso cuando el estado general es `DOWN`: el estado se informa en el cuerpo, no en el código HTTP. Solo se responde `500` si `CheckHealth` devuelve error, lo cual el servicio actual nunca hace.
+
 ### Estado General
 
-- **up**: Todos los componentes están `up`
-- **down**: Al menos un componente está `down`
+- **UP**: Todos los componentes están `UP`
+- **DOWN**: Al menos un componente está `DOWN`
 
 ### Checkers Registrados
 
-| Checker | Nombre | Qué verifica |
+El orden de registro y las claves en `components` son:
+
+| Checker | Nombre (clave) | Qué verifica |
 |---|---|---|
-| `DatabaseChecker` | `"database"` | Conectividad con la base de datos |
-| `RedisChecker` | `"redis"` | Conectividad con Redis |
-| `HaciendaChecker` | `"hacienda"` | Disponibilidad de la API de Hacienda |
-| `FileSystemChecker` | `"filesystem"` | Acceso al sistema de archivos |
-| `SignerChecker` | `"signer"` | Disponibilidad del servicio de firma |
-| `DomainEventsChecker` | `"domain_events"` | Bus de eventos in-process |
-| `SMTPChecker` | `"smtp"` | Servicio SMTP del notifier |
+| `DatabaseChecker` | `database` | Conectividad con la base de datos |
+| `RedisChecker` | `redis` | Conectividad con Redis |
+| `HaciendaChecker` | `hacienda` | Disponibilidad de los endpoints de Hacienda |
+| `FileSystemChecker` | `filesystem` | Acceso de escritura al archivo de logs |
+| `SignerChecker` | `dte_signer` | Disponibilidad del servicio de firma |
+| `DomainEventsChecker` | `domain_events` | Bus de eventos in-process |
+| `SMTPChecker` | `smtp` | Servicio SMTP del notifier |
+
+Los textos de `Details` provienen de `assets/i18n/{es,en}.yaml` bajo `health.up.*`, `health.down.*`, `health.error.*` y `health.notconfigured.*`.
 
 ---
 
@@ -69,14 +79,14 @@ CheckHealth()
 ### Estructura
 
 ```go
-type DatabaseChecker struct {
+type databaseChecker struct {
     db *gorm.DB
 }
 ```
 
 ### Implementación
 
-Utiliza `dimiro1/health` para ejecutar un ping estándar a la base de datos. Reporta `down` si el ping falla o supera el timeout.
+Obtiene el `*sql.DB` de GORM (si falla, `DOWN` con el mensaje `FailedToGetDBConnection`) y ejecuta `dimiro1/health/db.NewMySQLChecker` sobre él. Reporta `DOWN` si la verificación falla, anexando el detalle del error. Nótese que se usa el checker de MySQL independientemente del driver configurado.
 
 ---
 
@@ -92,7 +102,7 @@ type redisChecker struct{}
 
 ### Implementación
 
-Realiza un dial TCP a `:6379` mediante `dimiro1/health/redis`. No requiere inyección de dependencias porque la dirección se resuelve desde la configuración del ambiente. Si la conexión falla, el detalle del error se incluye en el campo `Details` de la respuesta.
+Realiza un dial TCP mediante `dimiro1/health/redis` a la dirección fija `tcp` `:6379` (puerto 6379 en el host local). La dirección **no** se resuelve desde la configuración de Redis del ambiente: si Redis corre en otro host o puerto, este checker reportará `DOWN` aunque el cache funcione. Si la conexión falla, el detalle del error se incluye en `Details`.
 
 ---
 
@@ -102,7 +112,10 @@ Realiza un dial TCP a `:6379` mediante `dimiro1/health/redis`. No requiere inyec
 
 ### Implementación
 
-Envía una HTTP request al endpoint de Hacienda configurado en `config.MHPaths`. Reporta `down` si no hay respuesta o si el status HTTP indica error de servidor.
+El cliente HTTP tiene timeout de 2 segundos. Se ejecutan dos fases:
+
+1. **Disponibilidad de endpoints**: se envía `HEAD` (contexto de 3 s) a `config.MHPaths.AuthURL`, `ReceptionURL` y `ContingencyURL`. Un error de red o un status `>= 500` marca el componente `DOWN` (si el error contiene `dial tcp` se informa como falta de conexión a internet). El recorrido sigue el orden de un mapa de Go, por lo que no es determinista.
+2. **Procesamiento de autenticación**: se envía un `POST` a `AuthURL` con credenciales de prueba (`test_user`/`test_password`; contexto de 5 s, aunque el cliente limita a 2 s). Solo se aceptan los status `200`, `400` y `401`; cualquier otro se reporta como respuesta inesperada y marca `DOWN`.
 
 ---
 
@@ -112,7 +125,9 @@ Envía una HTTP request al endpoint de Hacienda configurado en `config.MHPaths`.
 
 ### Implementación
 
-Ejecuta una operación de lectura/escritura de prueba en el directorio de trabajo del servicio. Verifica que el proceso tenga permisos de escritura en el filesystem local, necesarios para la generación de archivos temporales durante el firmado.
+Intenta crear el directorio de logs y abrir (crear en modo append) el archivo `dte_microservice.log` bajo `config.Log.Path` desde la raíz del proyecto. Verifica así el permiso de escritura en el filesystem local.
+
+> Observación del código: en `checkHealth` se invoca `result.Down()` cuando `checkFileSystem` falla, pero a continuación se invoca `result.Up()` de forma incondicional, por lo que el checker devuelve `UP` incluso si la prueba falló.
 
 ---
 
@@ -122,7 +137,7 @@ Ejecuta una operación de lectura/escritura de prueba en el directorio de trabaj
 
 ### Implementación
 
-Envía una HTTP request de prueba al servicio de firma digital (Java/Spring Boot). Reporta `down` si el servicio no responde dentro del timeout configurado.
+Realiza `GET` a `config.Signer.Health` (variable `SIGNER_HEALTH`) con timeout de 2 segundos. Reporta `DOWN` si hay error de red, si el status HTTP no es `200` o si el cuerpo JSON no indica estado `UP`. Se aceptan dos formatos de respuesta: `{"status":"UP"}` y `{"body":{"status":"UP"}}` (comparación sin distinguir mayúsculas).
 
 ---
 
@@ -133,14 +148,15 @@ Envía una HTTP request de prueba al servicio de firma digital (Java/Spring Boot
 ### Estructura
 
 ```go
-type DomainEventsChecker struct {
-    bus event.Bus
+type domainEventsChecker struct {
+    bus    event.Bus
+    signal chan string
 }
 ```
 
 ### Implementación
 
-Publica un evento `health.probe` en el bus in-process y espera la respuesta del subscriber interno con un timeout de 1 segundo. Verifica que el bus esté activo y procesando eventos correctamente.
+Al construirse, se suscribe al bus con un handler interno para el evento `health.probe`. En cada verificación publica un `health.probe` con un UUID y espera durante 1 segundo a que el handler lo devuelva por el canal. Reporta `DOWN` si el bus es nulo (`domain_events_not_initialized`) o si el evento no se entrega dentro del timeout.
 
 ---
 
@@ -154,10 +170,10 @@ Dos comportamientos según configuración:
 
 | Condición | Resultado |
 |---|---|
-| `SMTP_HOST` vacío | `up` con detalle "no configurado" |
-| `SMTP_HOST` presente | Abre una conexión real con `go-mail` (`Dial`, incluye `EHLO`, TLS y `AUTH PLAIN`) |
+| `SMTP_HOST` vacío | `UP` con detalle "no configurado" (`health.notconfigured.smtp`) |
+| `SMTP_HOST` presente | Abre una conexión real con `go-mail` (`DialWithContext`, 5 s), con las mismas reglas de TLS que el mailer (SSL en el puerto 465, `STARTTLS` obligatorio en otros puertos si `SMTP_TLS=true`, sin TLS si es `false`) y `AUTH PLAIN` si hay credenciales |
 
-Si las credenciales son inválidas o el servidor no responde, retorna `down`.
+Si la conexión falla, el detalle se clasifica según el texto del error: `smtp_invalid_credentials` (auth, credentials, 535, 5.7.8), `smtp_unreachable` (host inexistente, conexión rechazada, timeout, EOF, etc.) o `smtp` (otros).
 
 ---
 
@@ -165,4 +181,5 @@ Si las credenciales son inválidas o el servidor no responde, retorna `down`.
 
 1. **Endpoint público**: `GET /health` no requiere autenticación para permitir que balanceadores de carga y sistemas de monitoreo lo consuman sin token.
 2. **Interfaz `ComponentChecker`**: Agregar un nuevo checker solo requiere implementar `Check() models.Health` y `Name() string`, y registrarlo en `NewHealthService`.
-3. **Fallo no es fatal**: Un checker en `down` no detiene el servicio — permite identificar degradación parcial sin interrumpir la operación.
+3. **Fallo no es fatal**: Un checker en `DOWN` no detiene el servicio ni cambia el código HTTP de `/health`; permite identificar degradación parcial sin interrumpir la operación.
+4. **Ejecución secuencial**: Los checkers se ejecutan uno tras otro en cada petición; el tiempo de respuesta es la suma de sus tiempos.

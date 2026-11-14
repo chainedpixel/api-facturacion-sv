@@ -1,0 +1,299 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Evento de Invalidacion de Documento Tributario Electronico",
+    "type": "object",
+    "properties": {
+        "identificacion": {
+            "description": "Informacion de identificacion de Invalidacion",
+            "type": "object",
+            "properties": {
+                "version": {
+                    "type": "integer",
+                    "description": "Versión",
+                    "const": 3
+                },
+                "ambiente": {
+                    "type": "string",
+                    "description": "Ambiente de destino",
+                    "enum": [
+                        "00",
+                        "01"
+                    ]
+                },
+                "codigoGeneracion": {
+                    "type": "string",
+                    "description": "Codigo Generacion",
+                    "maxLength": 36,
+                    "minLength": 36,
+                    "pattern": "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"
+                },
+                "fecEmi": {
+                    "type": "string",
+                    "description": "Fecha del Evento ",
+                    "format": "date"
+                },
+                "horEmi": {
+                    "type": "string",
+                    "description": "Hora del Evento",
+                    "pattern": "^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]?$"
+                },
+                "fusion": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Fusiónes y otros",
+                    "pattern": "^([0-9]{14}|[0-9]{9})$"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "version",
+                "ambiente",
+                "codigoGeneracion",
+                "fecEmi",
+                "horEmi",
+                "fusion"
+            ]
+        },
+        "emisor": {
+            "description": "Datos del emisor",
+            "type": "object",
+            "properties": {
+                "nit": {
+                    "description": "NIT (Emisor)",
+                    "type": "string"
+                },
+                "nombre": {
+                    "type": "string",
+                    "description": "Nombre (Emisor)",
+                    "minLength": 1,
+                    "maxLength": 250
+                },
+                "codEstableMH": {
+                    "description": "Codigo del establecimiento asignado por el MH",
+                    "type": "string",
+                    "maxLength": 4,
+                    "minLength": 4
+                },
+                "codEstable": {
+                    "description": "Codigo del estalecimiento asignado por el Contribuyente",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 10
+                },
+                "codPuntoVentaMH": {
+                    "description": "Codigo del Punto de venta (Emisor) asignado por el MH",
+                    "type": "string",
+                    "maxLength": 4,
+                    "minLength": 4
+                },
+                "codPuntoVenta": {
+                    "description": "Codigo del Punto de Venta (Emisor) asignado por Contribuyente",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 15
+                },
+                "telefono": {
+                    "type": "string",
+                    "description": "Teléfono (Emisor)",
+                    "minLength": 8,
+                    "maxLength": 30
+                },
+                "correo": {
+                    "type": "string",
+                    "description": "Correo electronico (Emisor)",
+                    "minLength": 1,
+                    "maxLength": 100
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "nit",
+                "nombre",
+                "codEstableMH",
+                "codEstable",
+                "codPuntoVentaMH",
+                "codPuntoVenta",
+                "telefono",
+                "correo"
+            ]
+        },
+        "documento": {
+            "description": "Datos del documento a Invalidar",
+            "type": "object",
+            "properties": {
+                "tipoDte": {
+                    "type": "string",
+                    "description": "Tipo DTE"
+                },
+                "codigoGeneracion": {
+                    "type": "string",
+                    "description": "Codigo de generacion del DTE",
+                    "maxLength": 36,
+                    "minLength": 36
+                },
+                "selloRecibido": {
+                    "type": "string",
+                    "description": "Sello de recepcion",
+                    "maxLength": 40,
+                    "minLength": 40
+                },
+                "numeroControl": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Numero de Control del DTE",
+                    "maxLength": 31,
+                    "minLength": 31
+                },
+                "fecEmi": {
+                    "type": "string",
+                    "description": "Fecha de generación del DTE",
+                    "format": "date"
+                },
+                "codigoGeneracionR": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Codigo Generación del documento que reemplaza al invalidado",
+                    "maxLength": 36,
+                    "minLength": 36
+                },
+                "tipoDocumento": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Tipo documento de identificación (receptor)"
+                },
+                "numDocumento": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Número de documento de Identificación (Receptor)",
+                    "minLength": 1,
+                    "maxLength": 20
+                },
+                "nombre": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Nombre (Receptor)",
+                    "minLength": 1,
+                    "maxLength": 250
+                },
+                "telefono": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Teléfono (Receptor)",
+                    "minLength": 8,
+                    "maxLength": 30
+                },
+                "correo": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Correo electronico del receptor",
+                    "maxLength": 100
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "tipoDte",
+                "codigoGeneracion",
+                "selloRecibido",
+                "numeroControl",
+                "fecEmi",
+                "codigoGeneracionR",
+                "tipoDocumento",
+                "numDocumento",
+                "nombre",
+                "telefono",
+                "correo"
+            ]
+        },
+        "motivo": {
+            "description": "Datos del motivo de Invalidacion",
+            "type": "object",
+            "properties": {
+                "tipoAnulacion": {
+                    "type": "integer",
+                    "description": "Tipo de invalidacion"
+                },
+                "motivoAnulacion": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Motivo",
+                    "minLength": 1,
+                    "maxLength": 200
+                },
+                "nombreResponsable": {
+                    "description": "Nombre de quien realiza el evento",
+                    "type": "string",
+                    "minimum": 1,
+                    "maxLength": 100
+                },
+                "tipDocResponsable": {
+                    "type": "string",
+                    "description": "Tipo documento de identificación de quien realiza el evento"
+                },
+                "numDocResponsable": {
+                    "type": "string",
+                    "description": "Número de documento de identificación de quien realiza el evento ",
+                    "minLength": 1,
+                    "maxLength": 20
+                },
+                "nombreSolicita": {
+                    "description": "Nombre de quien solicita el evento",
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "tipDocSolicita": {
+                    "type": "string",
+                    "description": "Tipo documento de identificación de quien solicita el evento"
+                },
+                "numDocSolicita": {
+                    "type": "string",
+                    "description": "Número de identificación de quien solicita el evento",
+                    "minLength": 1,
+                    "maxLength": 20
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "tipoAnulacion",
+                "motivoAnulacion",
+                "nombreResponsable",
+                "tipDocResponsable",
+                "numDocResponsable",
+                "nombreSolicita",
+                "tipDocSolicita",
+                "numDocSolicita"
+            ]
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "identificacion",
+        "emisor",
+        "documento",
+        "motivo"
+    ]
+}

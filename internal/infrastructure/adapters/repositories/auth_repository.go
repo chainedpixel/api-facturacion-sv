@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
-	errPackage "github.com/chainedpixel/ordo-factus/internal/infrastructure/error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
+	errPackage "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/error"
 )
 
 type AuthRepository struct {
@@ -141,6 +141,7 @@ func (r *AuthRepository) GetBranchByBranchApiKey(ctx context.Context, apiKey str
 		localUser.Address = &user.Address{
 			Municipality: branch.Address.Municipality,
 			Department:   branch.Address.Department,
+			District:     branch.Address.District,
 			Complement:   branch.Address.Complement,
 		}
 	}
@@ -241,6 +242,7 @@ func (r *AuthRepository) Create(ctx context.Context, user *user.User) error {
 					BranchID:     dbBranch.ID,
 					Municipality: user.BranchOffices[i].Address.Municipality,
 					Department:   user.BranchOffices[i].Address.Department,
+					District:     user.BranchOffices[i].Address.District,
 					Complement:   user.BranchOffices[i].Address.Complement,
 				}
 
@@ -309,6 +311,7 @@ func (r *AuthRepository) UpdateBranchOffices(ctx context.Context, userID uint, b
 					BranchID:     branch.ID,
 					Municipality: branch.Address.Municipality,
 					Department:   branch.Address.Department,
+					District:     branch.Address.District,
 					Complement:   branch.Address.Complement,
 				}
 
@@ -396,6 +399,7 @@ func (r *AuthRepository) GetBranchByBranchID(ctx context.Context, branchID uint)
 		localBranch.Address = &user.Address{
 			Municipality: branch.Address.Municipality,
 			Department:   branch.Address.Department,
+			District:     branch.Address.District,
 			Complement:   branch.Address.Complement,
 		}
 	}
@@ -501,6 +505,7 @@ func (r *AuthRepository) GetMatrixBranch(ctx context.Context, userID uint) (*use
 		Address: &user.Address{
 			Municipality: branch.Address.Municipality,
 			Department:   branch.Address.Department,
+			District:     branch.Address.District,
 			Complement:   branch.Address.Complement,
 		},
 	}, nil

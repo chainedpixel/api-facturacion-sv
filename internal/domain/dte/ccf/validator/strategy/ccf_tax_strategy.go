@@ -3,10 +3,11 @@ package strategy
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	commonStrategy "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/validator/strategy"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type CCFTaxStrategy struct {
@@ -47,6 +48,12 @@ func (s *CCFTaxStrategy) Validate() *dte_errors.DTEError {
 	if err := s.validateNonTaxedAmount(); err != nil {
 		logs.Error("Error validating non-taxed amount")
 		return err
+	}
+
+	if s.Document.CreditSummary.Summary != nil {
+		if err := commonStrategy.ValidateBalanceInFavorPayments(s.Document.CreditSummary.Summary, s.Document.CreditSummary.BalanceInFavor.GetValue()); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -141,12 +148,6 @@ func (s *CCFTaxStrategy) validateBaseTotals() *dte_errors.DTEError {
 			totalNonSubject.InexactFloat64())
 	}
 
-	var itemsDiscountSum decimal.Decimal
-	for _, item := range s.Document.CreditItems {
-		itemDiscount := decimal.NewFromFloat(item.GetDiscount()).Mul(decimal.NewFromFloat(item.GetQuantity()).Mul(decimal.NewFromFloat(item.GetUnitPrice())))
-		itemsDiscountSum = itemsDiscountSum.Add(itemDiscount.Div(decimal.NewFromInt(100)))
-	}
-
 	if !totalNonSubject.Equal(summaryNonSubject) {
 		logs.Error("Invalid non-subject total", map[string]interface{}{
 			"calculated": totalNonSubject,
@@ -217,10 +218,6 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxTourismAmount))
 		case constants.TaxTourismAirport:
 			expectedTax = decimal.NewFromFloat(constants.TaxTourismAirportAmount)
-		case constants.TaxFOVIAL:
-			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxFOVIALAmount))
-		case constants.TaxCOTRANS:
-			expectedTax = decimal.NewFromFloat(constants.TaxCOTRANSAmount)
 		case constants.TaxSpecialOther:
 			continue
 		}
@@ -236,8 +233,8 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 
 			return dte_errors.NewDTEErrorSimple("InvalidTaxCalculation",
 				tax.GetCode(),
-				actualTax.InexactFloat64(),
-				expectedTax.InexactFloat64())
+				expectedTax.InexactFloat64(),
+				actualTax.InexactFloat64())
 		}
 	}
 
@@ -254,8 +251,8 @@ func (s *CCFTaxStrategy) validatePerception() *dte_errors.DTEError {
 		diff := expectedPerception.Sub(actualPerception).Abs()
 		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 			return dte_errors.NewDTEErrorSimple("InvalidPerceptionAmount",
-				actualPerception.InexactFloat64(),
-				expectedPerception.InexactFloat64())
+				actualPerception.StringFixed(2),
+				expectedPerception.StringFixed(2))
 		}
 	}
 
@@ -309,22 +306,33 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		}
 	}
 
-	totalToPay := totalOperation
-
-	if taxedAmount.GreaterThan(decimal.Zero) {
-		perception := decimal.NewFromFloat(s.Document.CreditSummary.IVAPerception.GetValue())
-		totalToPay = totalToPay.Add(perception)
-
-		ivaRetention := decimal.NewFromFloat(s.Document.CreditSummary.IVARetention.GetValue())
-		totalToPay = totalToPay.Sub(ivaRetention)
-
-		incomeRetention := decimal.NewFromFloat(s.Document.CreditSummary.IncomeRetention.GetValue())
-		totalToPay = totalToPay.Sub(incomeRetention)
+	// Anexo IV, campo 150: montoTotalOperacion = subTotal + tributos del resumen
+	if err := commonStrategy.ValidateTotalOperation(s.Document.CreditSummary.SubTotal.GetValue(),
+		s.Document.CreditSummary.TotalTaxes, s.Document.CreditSummary.TotalOperation.GetValue()); err != nil {
+		logs.Error("Invalid total operation", map[string]interface{}{
+			"subTotal":       s.Document.CreditSummary.SubTotal.GetValue(),
+			"totalOperation": s.Document.CreditSummary.TotalOperation.GetValue(),
+		})
+		return err
 	}
 
-	totalNonTaxed := decimal.NewFromFloat(s.Document.CreditSummary.TotalNonTaxed.GetValue())
-	if totalNonTaxed.GreaterThan(decimal.Zero) {
-		totalToPay = totalToPay.Add(totalNonTaxed)
+	// Normativa v2.0 (Anexo VI): se elimino "Retencion renta" para CCFE
+	if s.Document.CreditSummary.IncomeRetention.GetValue() != 0 {
+		logs.Error("Income retention is not allowed in CCF", map[string]interface{}{
+			"incomeRetention": s.Document.CreditSummary.IncomeRetention.GetValue(),
+		})
+		return dte_errors.NewDTEErrorSimple("IncomeRetentionNotAllowed")
+	}
+
+	// Anexo IV, campo 153 (CCFE): Monto total de la operacion + IVA percibido - IVA retenido +/- cargos/abonos
+	totalToPay := totalOperation.
+		Add(decimal.NewFromFloat(s.Document.CreditSummary.IVAPerception.GetValue())).
+		Sub(decimal.NewFromFloat(s.Document.CreditSummary.IVARetention.GetValue())).
+		Add(decimal.NewFromFloat(s.Document.CreditSummary.TotalNonTaxed.GetValue()))
+
+	// Regla 7: cuando existan abonos a favor del receptor y el resultado sea negativo, se ingresa 0.00
+	if totalToPay.IsNegative() {
+		totalToPay = decimal.Zero
 	}
 
 	actualTotalToPay := decimal.NewFromFloat(s.Document.CreditSummary.TotalToPay.GetValue())
@@ -332,13 +340,13 @@ func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 	diff = totalToPay.Sub(actualTotalToPay).Abs()
 	if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
 		logs.Error("Invalid total to pay", map[string]interface{}{
-			"calculated":      totalToPay,
-			"declared":        actualTotalToPay,
-			"difference":      diff,
-			"operation":       totalOperation,
-			"perception":      s.Document.CreditSummary.IVAPerception.GetValue(),
-			"ivaRetention":    s.Document.CreditSummary.IVARetention.GetValue(),
-			"incomeRetention": s.Document.CreditSummary.IncomeRetention.GetValue(),
+			"calculated":    totalToPay,
+			"declared":      actualTotalToPay,
+			"difference":    diff,
+			"operation":     totalOperation,
+			"perception":    s.Document.CreditSummary.IVAPerception.GetValue(),
+			"ivaRetention":  s.Document.CreditSummary.IVARetention.GetValue(),
+			"totalNonTaxed": s.Document.CreditSummary.TotalNonTaxed.GetValue(),
 		})
 		return dte_errors.NewDTEErrorSimple("InvalidTotalToPayCalculation",
 			actualTotalToPay.InexactFloat64(),

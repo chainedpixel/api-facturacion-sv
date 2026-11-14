@@ -13,7 +13,7 @@ El directorio `pkg/` contiene componentes reutilizables que no pertenecen a una 
 | `pkg/mapper/response_mapper/` | Mappers Modelo de Dominio → Formato Hacienda |
 | `pkg/shared/logs/` | Logger estructurado con logrus (colores, archivo, niveles) |
 | `pkg/shared/shared_error/` | ServiceError: wrapper de errores con traducción y modo debug |
-| `pkg/shared/utils/` | Utilidades: tiempo, punteros, números a letras, extractors JSON |
+| `pkg/shared/utils/` | Utilidades: tiempo y fechas de DTE, punteros, números a letras, extractors JSON, traducciones |
 | `pkg/error/` | Errores centinela de logging |
 
 ---
@@ -25,7 +25,7 @@ El directorio `pkg/` contiene componentes reutilizables que no pertenecen a una 
 | Documento | Descripción |
 |---|---|
 | [Mapper Core](mapper.md) | DTEMapper interface, ResponseMapperFunc, MapperFactory, adaptadores genéricos |
-| [Request Mappers](request-mappers.md) | Transformación HTTP → Dominio para los 8 tipos de DTE, estructuras de request, mappers comunes |
+| [Request Mappers](request-mappers.md) | Transformación HTTP → Dominio para los 8 tipos de DTE, estructuras de request, receptor por tipo de DTE, mappers comunes |
 | [Response Mappers](response-mappers.md) | Transformación Dominio → JSON Hacienda para los 8 tipos de DTE, estructuras de respuesta |
 
 ### Infraestructura Compartida
@@ -33,8 +33,8 @@ El directorio `pkg/` contiene componentes reutilizables que no pertenecen a una 
 | Documento | Descripción |
 |---|---|
 | [Logs](logs.md) | Logger con logrus, CustomFormatter (colores ANSI), WriteHook (archivo), niveles de log, inicialización |
-| [Errores (ServiceError)](shared-error.md) | ServiceError (wrapper con contexto/traducción), errores centinela por capa (dominio, infra, config) |
-| [Utilidades](utils.md) | TimeNow (zona horaria), punteros, InLetters (montos a español), extractors JSON, FindProjectRoot |
+| [Errores (ServiceError)](shared-error.md) | ServiceError (wrapper con contexto/traducción), construcción de `error.code`/`message`/`details` en la respuesta HTTP, errores centinela por capa (dominio, infra, config) |
+| [Utilidades](utils.md) | TimeNow (zona horaria), fechas de procesamiento y generación, punteros, InLetters (montos a español), extractors JSON, FindProjectRoot |
 
 ---
 
@@ -48,11 +48,11 @@ HTTP Request (JSON)
   ├── MapperFactory.CreateXXXMapperAdapter()
   │     └── DTEMapper.MapToDomainModel(request, issuer)
   │           ├── Validar campos requeridos
-  │           ├── Mapear componentes comunes (identificación, emisor, receptor)
-  │           ├── Mapear componentes específicos (ítems, resumen)
+  │           ├── Mapear ítems, receptor, identificación, resumen y emisor
+  │           ├── Mapear campos opcionales (venta a terceros, otros documentos, documentos relacionados, apéndices)
   │           └── Retornar modelo de dominio
   │
-  ├── [Procesamiento de dominio: validación, cálculos, números de control]
+  ├── [Procesamiento de dominio: validación, cálculos (ver ../api/calculations.md), números de control]
   │
   ├── MapperFactory.GetXXXResponseMapper()
   │     └── ResponseMapperFunc(domainModel)

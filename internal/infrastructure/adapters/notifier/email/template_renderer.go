@@ -8,9 +8,9 @@ import (
 	texttemplate "text/template"
 	"time"
 
-	mails "github.com/chainedpixel/ordo-factus/assets/mails"
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
+	mails "github.com/chainedpixel/api-facturacion-sv/assets/mails"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
 )
 
 var contingencyTypeLabels = map[int]string{
@@ -35,30 +35,28 @@ var dteTypeLabels = map[string]string{
 	"15": "Comprobante de Donación Electrónico",
 }
 
+const subjectPrefix = "[Microservicio DTE] "
+
+const (
+	accentError   = htmltemplate.CSS("#B91C1C")
+	accentWarning = htmltemplate.CSS("#B45309")
+)
+
+// TemplateRenderer renders the administrator notification emails in HTML and plain text.
 type TemplateRenderer struct {
-	icons        map[string]htmltemplate.HTML
-	htmlByEvent  map[string]*htmltemplate.Template
-	plainByEvent map[string]*texttemplate.Template
-	subjectByEvt map[string]string
-	badgeByEvt   map[string]string
-	titleByEvt   map[string]string
-	introByEvt   map[string]string
-	iconByEvt    map[string]string
+	htmlByEvent   map[string]*htmltemplate.Template
+	plainByEvent  map[string]*texttemplate.Template
+	subjectByEvt  map[string]string
+	categoryByEvt map[string]string
+	titleByEvt    map[string]string
+	introByEvt    map[string]string
+	accentByEvt   map[string]htmltemplate.CSS
 }
 
 func NewTemplateRenderer() (*TemplateRenderer, error) {
 	r := &TemplateRenderer{
-		icons:        make(map[string]htmltemplate.HTML),
 		htmlByEvent:  make(map[string]*htmltemplate.Template),
 		plainByEvent: make(map[string]*texttemplate.Template),
-	}
-
-	for _, name := range []string{"icon_warning", "icon_error", "icon_info"} {
-		b, err := mails.FS.ReadFile("partials/" + name + ".svg")
-		if err != nil {
-			return nil, fmt.Errorf("read svg %s: %w", name, err)
-		}
-		r.icons[name] = htmltemplate.HTML(string(b))
 	}
 
 	layoutBytes, err := mails.FS.ReadFile("layout.html")
@@ -70,6 +68,7 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		event.EventContingencyActivated:    "contingency_activated.html",
 		event.EventEmissionFailure:         "emission_failure.html",
 		event.EventRetransmissionJobFailed: "retransmission_job_failed.html",
+		event.EventStampedDocumentNotSaved: "stamped_document_not_persisted.html",
 	}
 	for evtName, path := range contentTemplates {
 		b, err := mails.FS.ReadFile(path)
@@ -90,6 +89,7 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		event.EventContingencyActivated:    "plain/contingency_activated.txt",
 		event.EventEmissionFailure:         "plain/emission_failure.txt",
 		event.EventRetransmissionJobFailed: "plain/retransmission_job_failed.txt",
+		event.EventStampedDocumentNotSaved: "plain/stamped_document_not_persisted.txt",
 	}
 	for evtName, path := range plainFiles {
 		b, err := mails.FS.ReadFile(path)
@@ -104,29 +104,34 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 	}
 
 	r.subjectByEvt = map[string]string{
-		event.EventContingencyActivated:    "[Ordo-Factus] Contingencia activada en sucursal #%d",
-		event.EventEmissionFailure:         "[Ordo-Factus] DTE %s falla tras %d intento(s)",
-		event.EventRetransmissionJobFailed: "[Ordo-Factus] Job de retransmisión: fallo de ejecución",
+		event.EventContingencyActivated:    subjectPrefix + "Contingencia activada en la sucursal #%d",
+		event.EventEmissionFailure:         subjectPrefix + "DTE %s no emitido tras %d intento(s)",
+		event.EventRetransmissionJobFailed: subjectPrefix + "Retransmisión de contingencia con error de ejecución",
+		event.EventStampedDocumentNotSaved: subjectPrefix + "DTE %s sellado por Hacienda sin guardar",
 	}
-	r.badgeByEvt = map[string]string{
+	r.categoryByEvt = map[string]string{
 		event.EventContingencyActivated:    "Contingencia",
 		event.EventEmissionFailure:         "Emisión",
-		event.EventRetransmissionJobFailed: "Job",
+		event.EventRetransmissionJobFailed: "Retransmisión",
+		event.EventStampedDocumentNotSaved: "Persistencia",
 	}
 	r.titleByEvt = map[string]string{
 		event.EventContingencyActivated:    "Contingencia activada",
-		event.EventEmissionFailure:         "Falla consistente de emisión",
-		event.EventRetransmissionJobFailed: "Job de retransmisión con fallos",
+		event.EventEmissionFailure:         "DTE no emitido",
+		event.EventRetransmissionJobFailed: "Retransmisión de contingencia con fallos",
+		event.EventStampedDocumentNotSaved: "DTE sellado sin guardar",
 	}
 	r.introByEvt = map[string]string{
-		event.EventContingencyActivated:    "El sistema detectó una contingencia y activó el modo offline para la sucursal afectada.",
-		event.EventEmissionFailure:         "Un DTE no pudo emitirse después de varios intentos. Requiere atención.",
-		event.EventRetransmissionJobFailed: "El job programado de retransmisión finalizó con documentos fallidos.",
+		event.EventContingencyActivated:    "La sucursal pasó a modo contingencia.",
+		event.EventEmissionFailure:         "Un DTE no se pudo emitir después de varios intentos.",
+		event.EventRetransmissionJobFailed: "La tarea de retransmisión de contingencia terminó con errores.",
+		event.EventStampedDocumentNotSaved: "Hacienda selló el documento, pero no se pudo guardar en la base de datos.",
 	}
-	r.iconByEvt = map[string]string{
-		event.EventContingencyActivated:    "icon_warning",
-		event.EventEmissionFailure:         "icon_error",
-		event.EventRetransmissionJobFailed: "icon_warning",
+	r.accentByEvt = map[string]htmltemplate.CSS{
+		event.EventContingencyActivated:    accentWarning,
+		event.EventEmissionFailure:         accentError,
+		event.EventRetransmissionJobFailed: accentWarning,
+		event.EventStampedDocumentNotSaved: accentError,
 	}
 
 	return r, nil
@@ -176,9 +181,15 @@ func (r *TemplateRenderer) buildSubject(evt event.Event) (string, error) {
 			id = e.GenerationCode
 		}
 		return fmt.Sprintf(pattern, id, e.Attempts), nil
+	case event.StampedDocumentNotPersistedEvent:
+		id := e.ControlNumber
+		if id == "" {
+			id = e.GenerationCode
+		}
+		return fmt.Sprintf(pattern, id), nil
 	case event.RetransmissionJobFailedEvent:
 		if len(e.FailedDocuments) > 0 {
-			return fmt.Sprintf("[Ordo-Factus] Retransmisión: %d documento(s) rechazado(s) por MH", len(e.FailedDocuments)), nil
+			return fmt.Sprintf(subjectPrefix+"Retransmisión: %d documento(s) rechazado(s) por Hacienda", len(e.FailedDocuments)), nil
 		}
 		return pattern, nil
 	}
@@ -206,6 +217,9 @@ func (r *TemplateRenderer) buildData(evt event.Event, subject string) map[string
 		"attempts":              "Attempts",
 		"job_name":              "JobName",
 		"failed_documents":      "FailedDocuments",
+		"generation_code":       "GenerationCode",
+		"reception_stamp":       "ReceptionStamp",
+		"processing_date":       "ProcessingDate",
 	}
 	for snake, pascal := range aliases {
 		if v, ok := data[snake]; ok {
@@ -227,10 +241,10 @@ func (r *TemplateRenderer) buildData(evt event.Event, subject string) map[string
 	}
 
 	data["Subject"] = subject
-	data["Badge"] = r.badgeByEvt[evt.Name()]
+	data["Category"] = r.categoryByEvt[evt.Name()]
 	data["Title"] = r.titleByEvt[evt.Name()]
 	data["Intro"] = r.introByEvt[evt.Name()]
-	data["Icon"] = r.icons[r.iconByEvt[evt.Name()]]
+	data["AccentColor"] = r.accentByEvt[evt.Name()]
 	data["APIVersion"] = currentAPIVersion()
 	data["Environment"] = currentEnvironment()
 	data["Timestamp"] = formatTimestamp(evt.OccurredAt())
@@ -247,13 +261,13 @@ func currentAPIVersion() string {
 
 func currentEnvironment() string {
 	if config.Server == nil || config.Server.AmbientCode == "" {
-		return "unknown"
+		return "desconocido"
 	}
 	switch config.Server.AmbientCode {
 	case "00":
-		return "test"
+		return "de pruebas (00)"
 	case "01":
-		return "production"
+		return "de producción (01)"
 	}
 	return config.Server.AmbientCode
 }

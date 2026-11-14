@@ -46,27 +46,28 @@ func (s *invoiceService) Create(ctx context.Context, input interface{}, branchID
 ### Flujo de Ejecución
 
 ```
-1. Cast del input genérico → InvoiceData
+1. Cast del input genérico → *InvoiceData
 2. Crear documento base (DTEDocument) desde InvoiceData
 3. Ensamblar ElectronicInvoice con ítems y resumen específicos
-4. Validar reglas de negocio de factura
-5. Generar código de generación (UUID) y número de control
-6. Retornar ElectronicInvoice validada y con identificadores asignados
+4. Validar reglas específicas de factura (InvoiceRulesValidator)
+5. Validar reglas genéricas de DTE (ValidateDTEDocument)
+6. Generar número de control (SequentialNumberManager) y código de generación (UUID)
+7. Retornar ElectronicInvoice validada y con identificadores asignados
 ```
 
 ### Paso 1: Cast del Input
 
-Se convierte el `interface{}` recibido al tipo concreto `*invoice_models.InvoiceData`. Si el cast falla, se retorna un error de tipo.
+Se convierte el `interface{}` recibido al tipo concreto `*invoice_models.InvoiceData`. El cast no está protegido: si el tipo no coincide se produce un pánico.
 
 ### Paso 2: Crear Documento Base
 
 ```go
-func (s *invoiceService) createBaseDocument(data *invoice_models.InvoiceData) *models.DTEDocument
+func createBaseDocument(data *invoice_models.InvoiceData) *models.DTEDocument
 ```
 
 Se transforma `InvoiceData` en un `DTEDocument` base, mapeando:
-- Identificación, Emisor, Receptor
-- Extensión, Documentos Relacionados
+- Identificación, Emisor, Receptor (si no se envía receptor se usa un receptor vacío con dirección vacía)
+- Documentos Relacionados (la `Extension` de `InputDataCommon` es un remanente sin uso: no se recibe en el request, siempre es nil y no se envía a Hacienda)
 - Otros Documentos, Venta a Terceros, Apéndices
 
 ### Paso 3: Ensamblar ElectronicInvoice
@@ -81,7 +82,9 @@ Se construye el modelo `ElectronicInvoice` embebiendo el documento base y agrega
 func (s *invoiceService) validate(invoice *invoice_models.ElectronicInvoice) error
 ```
 
-Se ejecuta `s.validator.Validate(invoice)` que aplica las estrategias de validación específicas de factura (ver [validación de factura](../validation/invoice-validation.md)).
+Se crea `InvoiceRulesValidator` con el documento y se ejecuta `Validate()`, que aplica tres estrategias (`InvoiceItemsStrategy`, `InvoiceTaxStrategy` e `InvoiceTotalsStrategy`) y agrupa los errores en un error compuesto (ver [validación de factura](../validation/invoice-validation.md)). Luego se ejecuta la validación genérica `ValidateDTEDocument`.
+
+`InvoiceRelatedDocStrategy` (documentos relacionados permitidos `04`, `08` y `09`) existe en el paquete de estrategias, pero no forma parte de la lista de estrategias de `InvoiceRulesValidator`.
 
 ### Paso 5: Generar Identificadores
 
@@ -89,20 +92,20 @@ Se ejecuta `s.validator.Validate(invoice)` que aplica las estrategias de validac
 func (s *invoiceService) generateCodeAndIdentifiers(ctx context.Context, invoice *invoice_models.ElectronicInvoice, branchID uint) error
 ```
 
-1. Se genera un UUID v4 como código de generación (`GenerateCode()`)
-2. Se reserva el siguiente número de control secuencial
+1. Se genera y asigna el número de control (`generateControlNumber`)
+2. Se genera un UUID v4 como código de generación (`GenerateCode()`)
 
 ```go
 func (s *invoiceService) generateControlNumber(ctx context.Context, invoice *invoice_models.ElectronicInvoice, branchID uint) error
 ```
 
-Se utiliza `seqNumberManager.ReserveNextNumber()` con los parámetros:
+Se utiliza `seqNumberManager.GetNextControlNumber(ctx, dteType, branchID, posCode, establishmentCode)` con:
 - `dteType`: `"01"`
 - `branchID`: ID de la sucursal
-- `posCode`: Código del punto de venta
-- `establishmentCode`: Código del establecimiento
-- `documentData`: Datos del documento para trazabilidad
-- `isContingency`: `false` para transmisión normal
+- `posCode`: Código del punto de venta del emisor
+- `establishmentCode`: Código del establecimiento del emisor
+
+El número obtenido se asigna con `Identification.SetControlNumber` (error `FailedToSetControlNumber` si no es válido). Ver [sequential-numbers.md](../sequential-numbers.md).
 
 ---
 
@@ -161,13 +164,7 @@ Cada ítem puede tener solo **un tipo de venta**. No se permite mezclar `NonSubj
 
 #### Cálculo del IVA a Nivel de Ítem
 
-En factura, el IVA se calcula **incluido en el precio** (IVA incluido):
-
-```
-IVA = (TaxedSale / 1.13) * 0.13
-```
-
-Tolerancia: `±0.01`
+En factura, el IVA va **incluido en el precio** y se informa en `IVAItem` por ítem y en `TotalIva` en el resumen; no se informa como tributo (los códigos `20` y `C3` no se permiten en los tributos del ítem ni del resumen, `TaxNotAllowedInInvoice` y `TaxNotAllowedInInvoiceSummary`). La fórmula y la tolerancia se documentan en [calculations.md](../../../api/calculations.md).
 
 ### InvoiceSummary
 
@@ -186,41 +183,24 @@ type InvoiceSummary struct {
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `TaxedDiscount` | `Amount` | Descuento aplicado sobre el monto gravado |
-| `IVARetention` | `Amount` | Retención de IVA (1% cuando aplica) |
-| `IncomeRetention` | `Amount` | Retención de renta |
+| `IVARetention` | `Amount` | Retención de IVA (solo con venta gravada, `InvalidIVARetentionWithoutTaxedAmount`) |
+| `IncomeRetention` | `Amount` | Retención de renta; debe ser 0 (`IncomeRetentionNotAllowed`, eliminada en la Normativa de Cumplimiento DTE v2.0) |
 | `TotalIva` | `Amount` | Total del IVA calculado |
 | `BalanceInFavor` | `Amount` | Saldo a favor del contribuyente |
 | `ElectronicPaymentNumber` | `*string` | Referencia de pago electrónico (opcional) |
 
 ---
 
-## Fórmulas de Cálculo
+## Cálculos
 
-### SubTotal
+Las fórmulas de la factura (IVA por ítem, subtotales, total de la operación y total a pagar) y la tolerancia se documentan en [calculations.md](../../../api/calculations.md). Reglas de coherencia que valida el dominio:
 
-```
-SubTotal = TotalTaxed - TaxedDiscount + TotalExempt - ExemptDiscount + TotalNonSubject - NonSubjectDiscount
-```
-
-### Total Operación
-
-```
-TotalOperation = SubTotal + Sum(Taxes)
-```
-
-### Total a Pagar
-
-```
-TotalToPay = SubTotal + Taxes - IVARetention - IncomeRetention + NonTaxed
-```
-
-### Validación de Totales de Ítems
-
-```
-Sum(item.TaxedSale)      == Summary.TotalTaxed       (±0.01)
-Sum(item.ExemptSale)     == Summary.TotalExempt       (±0.01)
-Sum(item.NonSubjectSale) == Summary.TotalNonSubject   (±0.01)
-```
+- Los totales gravado, exento y no sujeto del resumen deben coincidir con la suma de los ítems.
+- `SubTotalSales` es la suma de no sujeto, exento y gravado; `SubTotal` descuenta además los descuentos del resumen.
+- Los descuentos no pueden ser negativos ni exceder su base (`NegativeDiscount`, `DiscountExceedsBase`).
+- El total de la operación es el subtotal más los tributos del resumen.
+- La venta de cada ítem debe ser `(precio unitario x cantidad) - descuento` (`InvalidItemSaleAmount`).
+- Máximo 2000 ítems (`ExceededItemsLimit`).
 
 ---
 
@@ -228,10 +208,10 @@ Sum(item.NonSubjectSale) == Summary.TotalNonSubject   (±0.01)
 
 | Error | Causa |
 |---|---|
-| Cast fallido del input | El `interface{}` no es `*InvoiceData` |
-| Error de validación | Las reglas de negocio no se cumplen (ver validación) |
+| Pánico por cast | El `interface{}` no es `*InvoiceData` |
+| `ValidationFailed` | Las reglas de negocio específicas no se cumplen (envuelve el error compuesto; ver validación) |
 | Error de generación de código | Falla al generar UUID |
-| Error de número de control | Falla al reservar número secuencial |
+| Error de número de control | Falla al obtener el siguiente número (propagado desde `SequentialNumberManager`) o `FailedToSetControlNumber` |
 
 ---
 
@@ -251,15 +231,18 @@ validate() ──→ InvoiceRulesValidator
     │                 │
     │    ┌────────────┼────────────┐
     │    ▼            ▼            ▼
-    │  Items      Tax/Totals   Related Docs
-    │  Strategy   Strategy     Strategy
+    │  Items         Tax         Totals
+    │  Strategy    Strategy     Strategy
+    │
+    ▼
+ValidateDTEDocument() (reglas genéricas)
     │
     ▼
 generateCodeAndIdentifiers()
     │
-    ├──→ GenerateCode() (UUID v4)
+    ├──→ GetNextControlNumber() (Número de Control)
     │
-    └──→ ReserveNextNumber() (Número de Control)
+    └──→ GenerateCode() (UUID v4)
     │
     ▼
 ElectronicInvoice (validada y con identificadores)
@@ -272,7 +255,7 @@ ElectronicInvoice (validada y con identificadores)
 | Archivo | Propósito |
 |---|---|
 | `internal/domain/dte/invoice/invoice_service.go` | Servicio principal |
-| `internal/domain/dte/invoice/models/invoice_model.go` | Modelos de factura |
+| `internal/domain/dte/invoice/invoice_models/` | Modelos de factura |
 | `internal/domain/dte/invoice/validator/` | Estrategias de validación |
 | `internal/domain/dte/common/models/` | Modelos base compartidos |
 | `internal/domain/dte/common/constants/` | Constantes del sistema |
@@ -281,7 +264,7 @@ ElectronicInvoice (validada y con identificadores)
 
 ## Notas
 
-1. **IVA incluido**: A diferencia del CCF, en factura el IVA está incluido en el precio. El cálculo es `TaxedSale / 1.13 * 0.13`.
+1. **IVA incluido**: A diferencia del CCF, en factura el IVA está incluido en el precio y se informa en `IVAItem` y `TotalIva`.
 2. **Receptor opcional**: Aunque la factura requiere receptor, algunos campos del receptor son opcionales (NRC, ActivityCode).
 3. **Precio sugerido**: El campo `SuggestedPrice` es informativo y no afecta los cálculos.
-4. **No gravado**: Los ítems con `NonTaxed > 0` no pueden tener otros tipos de venta y deben tener `UnitPrice = 0`.
+4. **No gravado**: Los ítems con `NonTaxed > 0` no pueden tener otros tipos de venta y deben tener `UnitPrice = 0` (`InvalidUnitPriceForNonTaxed`).

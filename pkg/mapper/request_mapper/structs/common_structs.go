@@ -4,6 +4,7 @@ package structs
 type AddressRequest struct {
 	Department   string `json:"department"`
 	Municipality string `json:"municipality"`
+	District     string `json:"district"`
 	Complement   string `json:"complement"`
 }
 
@@ -65,6 +66,7 @@ type SummaryRequest struct {
 	Taxes              []TaxRequest     `json:"taxes,omitempty"`
 	PaymentTypes       []PaymentRequest `json:"payment_types"`
 	TotalInWords       *string          `json:"total_in_words,omitempty"`
+	Observations       *string          `json:"observations,omitempty"`
 }
 
 // TaxRequest structure for mapping a tax of a document
@@ -116,6 +118,7 @@ type DoctorRequest struct {
 
 // ThirdPartySaleRequest structure for mapping a third-party sale of an invoice
 type ThirdPartySaleRequest struct {
-	NIT  string `json:"nit"`
-	Name string `json:"name"`
+	NIT            string `json:"nit"`
+	Name           string `json:"name"`
+	FiscalDomicile int    `json:"fiscal_domicile"` // CAT-032: 1 Domiciliado, 2 No Domiciliado
 }

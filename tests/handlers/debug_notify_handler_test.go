@@ -8,10 +8,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/notifier/email"
-	apihandlers "github.com/chainedpixel/ordo-factus/internal/infrastructure/api/handlers"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/notifier/email"
+	apihandlers "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/handlers"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 type captureMailer struct {

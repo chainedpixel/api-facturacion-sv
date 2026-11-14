@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note/debit_note_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/debit_note/debit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 // DTEOperations defines specific operations for each DTE type

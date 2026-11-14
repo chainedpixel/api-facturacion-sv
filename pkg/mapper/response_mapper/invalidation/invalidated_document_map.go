@@ -1,11 +1,12 @@
 package invalidation
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
+// MapInvalidatedDocumentResponse maps an invalidated document domain model to the Hacienda document response.
 func MapInvalidatedDocumentResponse(doc *invalidation_models.InvalidatedDocument) *structs.DocumentResponse {
 	if doc == nil {
 		return nil
@@ -15,9 +16,8 @@ func MapInvalidatedDocumentResponse(doc *invalidation_models.InvalidatedDocument
 		TipoDte:          doc.Type.GetValue(),
 		CodigoGeneracion: doc.GenerationCode.GetValue(),
 		SelloRecibido:    doc.ReceptionStamp,
-		NumeroControl:    doc.ControlNumber.GetValue(),
+		NumeroControl:    utils.ToStringPointer(doc.ControlNumber.GetValue()),
 		FecEmi:           doc.EmissionDate.GetValue().Format("2006-01-02"),
-		MontoIva:         doc.IVAAmount.GetValue(),
 		TipoDocumento:    utils.ToStringPointer(doc.DocumentType.GetValue()),
 		NumDocumento:     utils.ToStringPointer(doc.DocumentNumber.GetValue()),
 		Correo:           utils.ToStringPointer(doc.Email.GetValue()),

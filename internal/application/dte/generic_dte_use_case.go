@@ -4,22 +4,28 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	appPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	transmissionPorts "github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/hacienda_error"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	appPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	transmissionPorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/response"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
+
+const persistRetryDelay = 200 * time.Millisecond
 
 // GenericDTEUseCase implements a generic use case for any DTE type
 type GenericDTEUseCase struct {
@@ -31,6 +37,7 @@ type GenericDTEUseCase struct {
 	mapper            mapper.DTEMapper
 	responseMapper    mapper.ResponseMapperFunc
 	additionalOps     AdditionalOperationsFunc
+	bus               event.Bus
 }
 
 // NewGenericDTEUseCase creates a new instance of GenericDTEUseCase
@@ -43,6 +50,7 @@ func NewGenericDTEUseCase(
 	mapper mapper.DTEMapper,
 	responseMapper mapper.ResponseMapperFunc,
 	additionalOps AdditionalOperationsFunc,
+	bus event.Bus,
 ) *GenericDTEUseCase {
 	return &GenericDTEUseCase{
 		authService:       authService,
@@ -53,6 +61,7 @@ func NewGenericDTEUseCase(
 		mapper:            mapper,
 		responseMapper:    responseMapper,
 		additionalOps:     additionalOps,
+		bus:               bus,
 	}
 }
 
@@ -144,31 +153,129 @@ func (u *GenericDTEUseCase) Create(ctx context.Context, req interface{}) (interf
 		return mhModel, options, err
 	}
 	options.ReceptionStamp = transmitResult.ReceptionStamp
+	options.Observations = dte.ObservationsFromHaciendaResponse(transmitResult.HaciendaResponse)
 
-	confirmErr := u.sequentialManager.ConfirmReservation(ctx, controlNumber, generationCode, claims.BranchID)
+	confirmErr := retryOnce(ctx, "confirming reservation", func() error {
+		return u.sequentialManager.ConfirmReservation(ctx, controlNumber, generationCode, claims.BranchID)
+	})
 	if confirmErr != nil {
-		logs.Error("Error confirming reservation after successful transmission", map[string]interface{}{
-			"controlNumber": controlNumber,
-			"error":         confirmErr.Error(),
+		logs.Error("Reservation could not be confirmed after retry, continuing to persist the stamped document; manual reconciliation required", map[string]interface{}{
+			"controlNumber":  controlNumber,
+			"generationCode": generationCode,
+			"error":          confirmErr.Error(),
 		})
-		return mhModel, options, confirmErr
 	}
 
-	err = u.dteService.Create(ctx, mhModel, constants.TransmissionNormal, constants.DocumentReceived, transmitResult.ReceptionStamp)
+	evidence := &dte.TransmissionEvidence{
+		ReceptionStamp:   transmitResult.ReceptionStamp,
+		SignedDocument:   transmitResult.SignedDocument,
+		ProcessingDate:   transmitResult.ProcessingDate,
+		HaciendaResponse: transmitResult.HaciendaResponse,
+	}
+	err = u.persistWithRetry(ctx, mhModel, evidence)
 	if err != nil {
-		logs.Error("Error saving document in database", map[string]interface{}{"error": err.Error()})
-		return mhModel, options, err
+		return mhModel, options, u.reportStampedNotPersisted(ctx, claims, mhModel, evidence, generationCode, controlNumber, err)
 	}
 
 	if u.additionalOps != nil {
 		err = u.additionalOps(ctx, result, claims.BranchID, mhModel)
 		if err != nil {
 			logs.Error("Error executing additional operations", map[string]interface{}{"error": err.Error()})
+			if u.shouldHandleAsContingency(err) {
+				err = shared_error.NewFormattedGeneralServiceWithError("GenericDTEUseCase", "AdditionalOperations", err, "AdditionalOperationsFailed", generationCode)
+			}
 			return mhModel, options, err
 		}
 	}
 
-	return mhModel, options, nil
+	// Normativa v2.0 (Anexo I, regla 4.1): se responde el Archivo DTE listo para entregar al receptor
+	// (estructura firmada + firmaElectronica + selloRecibido). Si no se pudiera armar, se responde la estructura.
+	archive, archiveErr := dte_documents.BuildArchive(transmitResult.SignedDocument, transmitResult.ReceptionStamp)
+	if archiveErr != nil {
+		logs.Warn("Could not build DTE archive for response", map[string]interface{}{"error": archiveErr.Error()})
+		return mhModel, options, nil
+	}
+
+	return archive, options, nil
+}
+
+// persistWithRetry saves the stamped document and retries once after a short delay when the first attempt fails.
+func (u *GenericDTEUseCase) persistWithRetry(ctx context.Context, mhModel interface{}, evidence *dte.TransmissionEvidence) error {
+	return retryOnce(ctx, "saving stamped document", func() error {
+		return u.dteService.Create(ctx, mhModel, constants.TransmissionNormal, constants.DocumentReceived, evidence)
+	})
+}
+
+// retryOnce runs the operation and, when it fails, runs it a second time after a fixed delay unless the context ends first.
+func retryOnce(ctx context.Context, description string, operation func() error) error {
+	err := operation()
+	if err == nil {
+		return nil
+	}
+
+	logs.Warn("Error "+description+", retrying once", map[string]interface{}{"error": err.Error()})
+
+	select {
+	case <-ctx.Done():
+		return err
+	case <-time.After(persistRetryDelay):
+	}
+
+	return operation()
+}
+
+// reportStampedNotPersisted records everything needed to recover a stamped document that could not be saved,
+// notifies the administrator and builds the error returned to the client.
+func (u *GenericDTEUseCase) reportStampedNotPersisted(
+	ctx context.Context,
+	claims *models.AuthClaims,
+	mhModel interface{},
+	evidence *dte.TransmissionEvidence,
+	generationCode, controlNumber string,
+	cause error,
+) error {
+	receptionStamp := ""
+	if evidence.ReceptionStamp != nil {
+		receptionStamp = *evidence.ReceptionStamp
+	}
+	dteType := extractDTEType(mhModel)
+
+	logs.Error("CRITICAL: document stamped by Hacienda could not be saved, manual recovery required", map[string]interface{}{
+		"generationCode": generationCode,
+		"controlNumber":  controlNumber,
+		"dteType":        dteType,
+		"branchID":       claims.BranchID,
+		"receptionStamp": receptionStamp,
+		"processingDate": evidence.ProcessingDate,
+		"signedDocument": evidence.SignedDocument,
+		"error":          cause.Error(),
+	})
+
+	if u.bus != nil {
+		u.bus.Publish(ctx, event.StampedDocumentNotPersistedEvent{
+			BranchID:       claims.BranchID,
+			NIT:            claims.NIT,
+			ControlNumber:  controlNumber,
+			GenerationCode: generationCode,
+			DTEType:        dteType,
+			ReceptionStamp: receptionStamp,
+			ProcessingDate: evidence.ProcessingDate,
+			LastError:      cause.Error(),
+			OccurredAtTime: utils.TimeNow(),
+		})
+	}
+
+	return shared_error.NewFormattedGeneralServiceWithError("GenericDTEUseCase", "PersistStampedDocument", cause, "StampedDocumentNotPersisted", generationCode, receptionStamp)
+}
+
+// extractDTEType extracts the DTE type code, returning an empty string when it is unavailable
+func extractDTEType(mhModel interface{}) string {
+	extractor, err := utils.ExtractAuxiliarIdentification(mhModel)
+	if err != nil {
+		return ""
+	}
+
+	return extractor.Identification.DTEType
 }
 
 // extractGenerationCode extracts the generation code using reflection
@@ -202,6 +309,10 @@ func extractControlNumber(mhModel interface{}) (string, error) {
 }
 
 func (u *GenericDTEUseCase) shouldHandleAsContingency(err error) bool {
+	if errors.Is(err, appPorts.ErrSigning) {
+		return false
+	}
+
 	var validationErr *dte_errors.ValidationError
 	if errors.As(err, &validationErr) {
 		return false

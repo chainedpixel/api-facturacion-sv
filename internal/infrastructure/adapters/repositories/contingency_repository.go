@@ -4,19 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
 )
 
 type ContingencyRepository struct {
@@ -59,6 +58,8 @@ func (r *ContingencyRepository) GetPending(ctx context.Context, limit int) ([]dt
 		Joins("JOIN dte_details ON contingency_documents.document_id = dte_details.id").
 		Where("dte_details.status = ?", constants.DocumentPending).
 		Limit(limit).
+		Order("contingency_documents.event_stamped_at IS NULL").
+		Order("contingency_documents.event_stamped_at asc").
 		Order("contingency_documents.created_at asc").
 		Find(&dbDocs).Error
 	if err != nil {
@@ -73,7 +74,7 @@ func (r *ContingencyRepository) GetPending(ctx context.Context, limit int) ([]dt
 	return docs, nil
 }
 
-func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, observations []string, stamps map[string]string, batchID string, mhBatchID string, status string) (returnErr error) {
+func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, observations []string, results map[string]dte.ReceptionResult, batchID string, mhBatchID string, status string) (returnErr error) {
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return tx.Error
@@ -81,7 +82,7 @@ func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, o
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Println("recovered from panic", rec)
+			logs.Error("Recovered from panic during contingency batch update", map[string]interface{}{"panic": fmt.Sprint(rec)})
 			tx.Rollback()
 			returnErr = fmt.Errorf("panic during batch update: %v", rec)
 		}
@@ -114,37 +115,15 @@ func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, o
 			"status": status,
 		}
 
-		if stamps != nil {
-			if stamp, exists := stamps[id]; exists && stamp != "" {
-				dteUpdate["reception_stamp"] = stamp
-
-				var dteDoc db_models.DTEDetails
-				if err := tx.Where("id = ?", contingencyDoc.DocumentID).First(&dteDoc).Error; err != nil {
-					logs.Error("Failed to get user", map[string]interface{}{
-						"error": err.Error(),
-					})
-					tx.Rollback()
-					return fmt.Errorf("failed to get DTE for appendix update %s: %w", contingencyDoc.DocumentID, err)
+		if result, exists := results[id]; exists {
+			if result.ReceptionStamp != "" {
+				dteUpdate["reception_stamp"] = result.ReceptionStamp
+				if result.ProcessingDate != "" {
+					dteUpdate["processing_date"] = result.ProcessingDate
 				}
-
-				updatedJSON, err := utils.SetReceptionStampIntoAppendix(dteDoc.JSONData, &stamp)
-				if err != nil {
-					logs.Error("Failed to set reception stamp into appendix", map[string]interface{}{
-						"error": err.Error(),
-					})
-					tx.Rollback()
-					return fmt.Errorf("failed to update appendix: %w", err)
-				}
-
-				if err := tx.Model(&db_models.DTEDetails{}).
-					Where("id = ?", contingencyDoc.DocumentID).
-					Update("json_data", updatedJSON).Error; err != nil {
-					logs.Error("Failed to update DTE json_data", map[string]interface{}{
-						"error": err.Error(),
-					})
-					tx.Rollback()
-					return fmt.Errorf("failed to update DTE json_data %s: %w", contingencyDoc.DocumentID, err)
-				}
+			}
+			if result.HaciendaResponse != "" {
+				dteUpdate["hacienda_response"] = result.HaciendaResponse
 			}
 		}
 
@@ -157,6 +136,21 @@ func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, o
 	}
 
 	return tx.Commit().Error
+}
+
+// MarkEventStamped stores the contingency event stamp date on the given documents, only when it was not set
+// before, so a resent event does not restart the transmission window.
+func (r *ContingencyRepository) MarkEventStamped(ctx context.Context, ids []string, stampedAt time.Time) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Model(&db_models.ContingencyDocument{}).
+		Where("id IN ? AND event_stamped_at IS NULL", ids).
+		Updates(map[string]interface{}{
+			"event_stamped_at": stampedAt,
+			"updated_at":       utils.TimeNow(),
+		}).Error
 }
 
 func (r *ContingencyRepository) GetFirstContingencyTimestamp(ctx context.Context, branchID uint) (*time.Time, error) {
@@ -192,6 +186,9 @@ func convertToDomainModel(doc *db_models.ContingencyDocument) dte.ContingencyDoc
 			ReceptionStamp: doc.Document.ReceptionStamp,
 			JSONData:       doc.Document.JSONData,
 		}
+		if doc.Document.SignedDocument != nil {
+			document.SignedDocument = *doc.Document.SignedDocument
+		}
 	}
 
 	return dte.ContingencyDocument{
@@ -200,6 +197,8 @@ func convertToDomainModel(doc *db_models.ContingencyDocument) dte.ContingencyDoc
 		DocumentID:      doc.DocumentID,
 		ContingencyType: doc.ContingencyType,
 		Reason:          doc.Reason,
+		EventStampedAt:  doc.EventStampedAt,
+		CreatedAt:       doc.CreatedAt,
 		Document:        document,
 		Branch: &user.BranchOffice{
 			User: &user.User{

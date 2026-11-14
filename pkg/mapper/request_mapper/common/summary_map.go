@@ -1,10 +1,10 @@
 package common
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // MapCommonRequestSummary maps a common summary to a summary model -> Source: Request
@@ -105,6 +105,7 @@ func MapCommonRequestSummary(summary structs.SummaryRequest) (*models.Summary, e
 		TotalTaxes:         taxes,
 		PaymentTypes:       paymentTypes,
 		TotalInWords:       *summary.TotalInWords,
+		Observations:       summary.Observations,
 	}, nil
 }
 
@@ -120,6 +121,9 @@ func validateSummaryFields(summary structs.SummaryRequest) error {
 	}
 	if summary.TotalToPay == 0 {
 		return dte_errors.NewValidationError("RequiredField", "TotalToPay")
+	}
+	if summary.Observations != nil && len(*summary.Observations) > 3000 {
+		return dte_errors.NewValidationError("InvalidLength", "Summary->Observations", 3000)
 	}
 
 	return nil

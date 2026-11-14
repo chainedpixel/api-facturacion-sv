@@ -3,12 +3,12 @@ package dte_documents
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
 )
 
 // DTERepositoryPort is an interface that defines the methods of a DTE repository.
 type DTERepositoryPort interface {
-	Create(ctx context.Context, document interface{}, transmission, status string, receptionStamp *string) error
+	Create(ctx context.Context, document interface{}, transmission, status string, evidence *dte.TransmissionEvidence) error
 	Update(ctx context.Context, branchID uint, document dte.DTEDetails) error
 	GetByGenerationCode(ctx context.Context, branchID uint, id string) (*dte.DTEDocument, error)
 	GetDTEBalanceControl(ctx context.Context, branchID uint, id string) (*dte.BalanceControl, error)
@@ -17,4 +17,5 @@ type DTERepositoryPort interface {
 	GetTotalCount(ctx context.Context, filters *dte.DTEFilters) (int64, error)
 	GetSummaryStats(ctx context.Context, filters *dte.DTEFilters) (*dte.ListSummary, error)
 	GetPagedDocuments(ctx context.Context, filters *dte.DTEFilters) ([]dte.DTEModelResponse, error)
+	GetActiveAdjustmentNotes(ctx context.Context, branchID uint, originalDTE string) ([]string, error)
 }

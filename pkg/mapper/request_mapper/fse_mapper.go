@@ -1,16 +1,16 @@
 package request_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse/fse_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/fse"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse/fse_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/fse"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // FSEMapper maps Factura de Sujeto Excluido creation requests to the FSE domain model.
@@ -42,7 +42,7 @@ func (m *FSEMapper) MapToFSEData(req *structs.CreateFSERequest, client *dte.Issu
 		return nil, shared_error.NewFormattedGeneralServiceWithError("FSEMapper", "MapToFSEData", err, "ErrorMapping", "FSE->Summary")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(1, 1, constants.FacturaSujetoExcluidoElectronica)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 2, constants.FacturaSujetoExcluidoElectronica)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("FSEMapper", "MapToFSEData", err, "ErrorMapping", "FSE->Identification")
 	}
@@ -94,14 +94,6 @@ func validateFSERequest(req *structs.CreateFSERequest) error {
 
 // mapFSEOptionalFields maps the optional fields of the FSE request into the result model.
 func mapFSEOptionalFields(req *structs.CreateFSERequest, result *fse_models.FSEData) error {
-	if req.Extension != nil {
-		extension, err := common.MapCommonRequestExtension(req.Extension)
-		if err != nil {
-			return err
-		}
-		result.Extension = extension
-	}
-
 	if len(req.Appendixes) > 0 {
 		appendixes, err := common.MapCommonRequestAppendix(req.Appendixes)
 		if err != nil {

@@ -1,9 +1,9 @@
 package common
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // MapCommonResponsePayments maps payments to a payments model -> Source: Response
@@ -12,8 +12,11 @@ func MapCommonResponsePayments(payments []interfaces.PaymentType) []structs.DTEP
 	for i, payment := range payments {
 
 		result[i] = structs.DTEPayment{
-			Codigo:    payment.GetCode(),
 			MontoPago: payment.GetAmount(),
+		}
+
+		if code := payment.GetCode(); code != "" {
+			result[i].Codigo = utils.ToStringPointer(code)
 		}
 
 		if reference := payment.GetReference(); reference != "" {

@@ -1,15 +1,15 @@
 package request_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/credit_note"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/credit_note"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // CreditNoteMapper maps credit note creation requests to the credit note domain model.
@@ -36,7 +36,7 @@ func (m *CreditNoteMapper) MapToCreditNoteData(req *structs.CreateCreditNoteRequ
 		return nil, shared_error.NewFormattedGeneralServiceWithError("CreditNoteMapper", "MapToCreditNoteData", err, "ErrorMapping", "CreditNote->Receiver")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 3, constants.NotaCreditoElectronica)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 4, constants.NotaCreditoElectronica)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("CreditNoteMapper", "MapToCreditNoteData", err, "ErrorMapping", "CreditNote->Identification")
 	}
@@ -98,7 +98,6 @@ func validateCreditNoteRequest(req *structs.CreateCreditNoteRequest) error {
 func mapCreditNoteOptionalFields(req *structs.CreateCreditNoteRequest, result *credit_note_models.CreditNoteInput) error {
 	if err := common.MapCommonOptionalToInputData(common.CommonOptionalFields{
 		ThirdPartySale: req.ThirdPartySale,
-		Extension:      req.Extension,
 		OtherDocs:      req.OtherDocs,
 		Appendixes:     req.Appendixes,
 	}, result.InputDataCommon); err != nil {

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type InMemoryBus struct {

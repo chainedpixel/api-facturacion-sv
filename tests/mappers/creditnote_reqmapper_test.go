@@ -3,10 +3,10 @@ package mappers
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -158,14 +158,14 @@ func TestMapToCreditNoteData(t *testing.T) {
 			errorCode: "RequiredField",
 		},
 		{
-			name: "CreditNote without commercial name",
+			// Anexo IV, campo 45: el nombre comercial del receptor es opcional
+			name: "CreditNote without commercial name is allowed",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.Receiver.CommercialName = nil
 				return req
 			},
-			wantErr:   true,
-			errorCode: "RequiredField",
+			wantErr: false,
 		},
 		{
 			name: "CreditNote with invalid NIT format",
@@ -386,19 +386,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "CreditNote with invalid discount (>100%)",
-			req: func() *structs.CreateCreditNoteRequest {
-				req := fixtures.CreateDefaultCreditNoteRequest()
-				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.CreditNoteItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 		{
 			name: "CreditNote with invalid payment condition",
@@ -419,27 +407,13 @@ func TestMapToCreditNoteData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "CreditNote with invalid extension",
-			req: func() *structs.CreateCreditNoteRequest {
-				req := fixtures.CreateDefaultCreditNoteRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "CreditNote with invalid third party sale",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},
@@ -708,30 +682,13 @@ func TestMapToCreditNoteData(t *testing.T) {
 		},
 
 		{
-			name: "CreditNote with valid extension",
-			req: func() *structs.CreateCreditNoteRequest {
-				req := fixtures.CreateDefaultCreditNoteRequest()
-				observation := "Observación válida"
-				vehiculePlate := "P123456"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Juan Martínez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "María González",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-					VehiculePlate:    &vehiculePlate,
-				}
-				return req
-			},
-			wantErr: false,
-		},
-		{
 			name: "CreditNote with valid third party sale",
 			req: func() *structs.CreateCreditNoteRequest {
 				req := fixtures.CreateDefaultCreditNoteRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "06141804941035",
-					Name: "Tercero Válido, S.A. de C.V.",
+					FiscalDomicile: 1,
+					NIT:            "06141804941035",
+					Name:           "Tercero Válido, S.A. de C.V.",
 				}
 				return req
 			},
@@ -791,6 +748,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 4, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.InputDataCommon.Receiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.CreditSummary)
@@ -799,10 +757,6 @@ func TestMapToCreditNoteData(t *testing.T) {
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.OtherDocs != nil {

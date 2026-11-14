@@ -1,15 +1,15 @@
 package request_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/remission_note_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/remission_note"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/remission_note/remission_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/remission_note"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 )
 
 // RemissionNoteMapper maps remission note creation requests to the remission note domain model.
@@ -36,7 +36,7 @@ func (m *RemissionNoteMapper) MapToRemissionNoteData(req *structs.CreateRemissio
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->Receiver")
 	}
 
-	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 3, constants.NotaRemisionElectronica)
+	identification, err := common.MapCommonRequestIdentification(constants.ModeloFacturacionPrevio, 4, constants.NotaRemisionElectronica)
 	if err != nil {
 		return nil, shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->Identification")
 	}
@@ -117,14 +117,6 @@ func mapRemissionNoteOptionalFields(req *structs.CreateRemissionNoteRequest, res
 			return shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->ThirdPartySales")
 		}
 		result.ThirdPartySale = thirdPartySale
-	}
-
-	if req.Extension != nil {
-		extension, err := common.MapCommonRequestExtension(req.Extension)
-		if err != nil {
-			return shared_error.NewFormattedGeneralServiceWithError("RemissionNoteMapper", "MapToRemissionNoteData", err, "ErrorMapping", "RemissionNote->Extension")
-		}
-		result.Extension = extension
 	}
 
 	if req.Summary.Payments != nil {

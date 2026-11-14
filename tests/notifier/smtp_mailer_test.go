@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/notifier/email"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/notifier/email"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 type fakeSMTPServer struct {
@@ -100,7 +100,7 @@ func setupSMTPConfig(t *testing.T, host string, port int) {
 	test.TestMain(t)
 	config.SMTP.Host = host
 	config.SMTP.Port = strconv.Itoa(port)
-	config.SMTP.From = "Ordo <noreply@local>"
+	config.SMTP.From = "Microservicio DTE <noreply@local>"
 	config.SMTP.TLS = false
 	config.Server.AdminEmail = "admin@test.local"
 }

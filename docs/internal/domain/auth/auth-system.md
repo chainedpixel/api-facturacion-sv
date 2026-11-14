@@ -36,7 +36,7 @@ type AuthCredentials struct {
 | `APISecret` | Clave secreta de la sucursal (comparación en tiempo constante). Requerido. |
 | `MHCredentials` | Credenciales del usuario en Hacienda (se cachean en Redis tras el login). Requerido. |
 
-El método `Validate()` verifica que los tres campos y sus subcampos no estén vacíos.
+El método `Validate()` verifica que los tres campos y sus subcampos no estén vacíos. `AuthService.Login` aplica una verificación equivalente con `credentialsExists` (API key, API secret, y usuario y contraseña de Hacienda no vacíos).
 
 ---
 
@@ -203,8 +203,9 @@ Login(ctx, credentials)
 |---|---|
 | `GetHaciendaCredentials(ctx, nit, token)` | Resuelve el tipo de auth por NIT y delega a la estrategia para obtener las creds de Hacienda del cache |
 | `GetIssuer(ctx, branchID)` | Delega a `authRepo.GetIssuerInfoByBranchID` — usado por los mappers de DTE |
-| `ValidateToken(token)` | Valida un JWT existente delegando en `tokenService` |
-| `RevokeToken(token)` | Revoca un token delegando en `tokenService` |
+| `ValidateToken(token)` | Valida un JWT existente delegando en `tokenService` (método de `AuthService`; no forma parte de la interfaz `AuthManager`) |
+| `RevokeToken(token)` | Revoca un token delegando en `tokenService` (método de `AuthService`; no forma parte de la interfaz `AuthManager`) |
+| `GetByNIT(ctx, nit)` y `GetBranchByBranchID(ctx, branchID)` | Delegan en `authRepo` y normalizan errores de escritura con `handleGormError` |
 | `Create(ctx, user)` | Crea un usuario; maneja errores de duplicidad (NIT, email, phone, NRC) |
 
 ### Manejo de Errores de Escritura
@@ -252,7 +253,11 @@ Authenticate(ctx, credentials)
 
 La comparación del secret usa `crypto/subtle.ConstantTimeCompare` para prevenir ataques de timing.
 
-`GetTokenLifetime` lee `user.TokenLifetime` (campo en días) y lo convierte a `time.Duration`: `days * 24 * time.Hour`.
+`GetTokenLifetime` consulta de nuevo el usuario por API key (`GetByBranchApiKey`), lee `user.TokenLifetime` (campo en días) y lo convierte a `time.Duration`: `days * 24 * time.Hour`. Si la consulta falla retorna `ServerError`.
+
+`ValidateCredentials` solo exige API key y API secret (`RequiredField`); el usuario y la contraseña de Hacienda se exigen en `AuthService.Login`.
+
+`GetHaciendaCredentials(token)` obtiene las credenciales del caché con `cacheService.GetCredentials(token)` y, si falla, retorna `FailedToGetCredentials`.
 
 ---
 
@@ -261,4 +266,5 @@ La comparación del secret usa `crypto/subtle.ConstantTimeCompare` para prevenir
 1. **Extensibilidad**: Para agregar un nuevo tipo de auth, se implementa `AuthStrategy` y se registra en el mapa `strategies` de `NewAuthService`. No se requiere modificar la lógica del servicio.
 2. **Cache de credenciales MH**: Las credenciales de Hacienda se cachean con el JWT del sistema como clave. El TTL coincide con el lifetime del token para que expiren juntos.
 3. **`subtle.ConstantTimeCompare`**: Obligatorio para comparar secrets. Las comparaciones de strings estándar son vulnerables a ataques de timing side-channel.
-4. **`IssuerDTE` en el contexto DTE**: `GetIssuerInfoByBranchID` es el puente entre la capa de auth y los mappers de DTE. Devuelve todos los datos del emisor necesarios para construir el JSON de Hacienda.
+4. **Dependencia de infraestructura**: `auth_service.go` importa `internal/infrastructure/error` para comparar `ErrUserNotFound` y `gorm.io/gorm` para normalizar errores, por lo que este paquete depende de otras capas pese a la regla de aislamiento del dominio.
+5. **`IssuerDTE` en el contexto DTE**: `GetIssuerInfoByBranchID` es el puente entre la capa de auth y los mappers de DTE. Devuelve todos los datos del emisor necesarios para construir el JSON de Hacienda.

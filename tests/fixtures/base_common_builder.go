@@ -5,21 +5,21 @@ import (
 	"math"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf/ccf_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/item"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note/credit_note_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention/retention_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf/ccf_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/item"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note/credit_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/retention/retention_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type DTEBuilder struct {
@@ -89,7 +89,7 @@ func (b *DTEBuilder) AddIdentification() *DTEBuilder {
 	b.setError(identification.SetVersion(1))
 	b.setError(identification.SetAmbient(constants.Testing))
 	b.setError(identification.SetDTEType(constants.FacturaElectronica))
-	b.setError(identification.SetControlNumber("DTE-01-12345678-123456789012345"))
+	b.setError(identification.SetControlNumber("DTE-01-M001P001-000000000000001"))
 	b.setError(identification.GenerateCode())
 	b.setError(identification.SetModelType(constants.ModeloFacturacionPrevio))
 	b.setError(identification.SetOperationType(1))
@@ -147,6 +147,7 @@ func (b *DTEBuilder) AddIssuer() *DTEBuilder {
 	address := &models.Address{}
 	b.setError(address.SetDepartment("06"))
 	b.setError(address.SetMunicipality("21"))
+	b.setError(address.SetDistrict("01"))
 	b.setError(address.SetComplement("Example Street, Central Building #123"))
 
 	if b.err == nil {
@@ -157,7 +158,7 @@ func (b *DTEBuilder) AddIssuer() *DTEBuilder {
 	b.setError(issuer.SetEmail("info@google.com"))
 	b.setError(issuer.SetCommercialName("ELECTRO STORE"))
 
-	establishmentCode := "001"
+	establishmentCode := "0001"
 	establishmentMHCode := "EST001"
 	posCode := "POS01"
 	posMHCode := "POS001"
@@ -215,6 +216,7 @@ func (b *DTEBuilder) AddReceiver() *DTEBuilder {
 	address := &models.Address{}
 	b.setError(address.SetDepartment("06"))
 	b.setError(address.SetMunicipality("22"))
+	b.setError(address.SetDistrict("01"))
 	b.setError(address.SetComplement("Example Neighborhood, House #456"))
 
 	if b.err == nil {
@@ -416,7 +418,7 @@ func (b *DTEBuilder) AddSummary() *DTEBuilder {
 	tax := &models.Tax{}
 	b.setError(tax.SetCode(constants.TaxIVA))
 	b.setError(tax.SetDescription("IVA 13%"))
-	b.setError(tax.SetValue(iva))
+	b.setError(tax.SetValue(math.Round(iva*100) / 100))
 
 	var taxes []interfaces.Tax
 	if b.err == nil {
@@ -459,19 +461,20 @@ func (b *DTEBuilder) AddSummaryWithCredit() *DTEBuilder {
 	b.setError(summary.SetOperationCondition(constants.Credit))
 
 	if len(summary.GetPaymentTypes()) > 0 {
-		paymentType, ok := summary.GetPaymentTypes()[0].(*models.PaymentType)
-		if ok {
-			b.setError(paymentType.SetCode(constants.TransBancaria))
-			b.setError(paymentType.SetReference("Bank transfer"))
-
-			term := "01"
-			period := 30
-			b.setError(paymentType.SetTerm(&term))
-			b.setError(paymentType.SetPeriod(&period))
-		}
+		b.setError(summary.SetPaymentTypes([]interfaces.PaymentType{NewCreditPayment("01", 30)}))
 	}
 
 	return b
+}
+
+// NewCreditPayment builds a credit payment with a null code, a 0.00 amount, a null reference and the given term
+// and period
+func NewCreditPayment(term string, period int) *models.PaymentType {
+	return &models.PaymentType{
+		Amount: *financial.NewValidatedAmount(0),
+		Term:   financial.NewValidatedPaymentTerm(term),
+		Period: &period,
+	}
 }
 
 // AddSummaryWithInvalidPayment adds a summary with invalid payments for testing
@@ -718,6 +721,7 @@ func (b *DTEBuilder) AddThirdPartySale() *DTEBuilder {
 
 	b.setError(thirdPartySale.SetNIT("98765432101234"))
 	b.setError(thirdPartySale.SetName("Third Party Company, Inc."))
+	b.setError(thirdPartySale.SetFiscalDomicile(constants.Domiciled))
 
 	if b.err == nil {
 		b.setError(b.document.SetThirdPartySale(thirdPartySale))
@@ -746,6 +750,7 @@ func (b *DTEBuilder) AddInvalidThirdPartySale() *DTEBuilder {
 
 	b.setError(thirdPartySale.SetNIT("98765432101234"))
 	b.setError(thirdPartySale.SetName("Third Party Company, Inc."))
+	b.setError(thirdPartySale.SetFiscalDomicile(constants.Domiciled))
 
 	if b.err == nil {
 		b.setError(b.document.SetThirdPartySale(thirdPartySale))
@@ -1795,6 +1800,9 @@ func (b *DTEBuilder) createInvalidatedDocument() (*invalidation_models.Invalidat
 		Email:          email,
 		Phone:          phone,
 		Name:           &name,
+
+		GenerationDateTime: emissionDate.GetValue(),
+		StampDate:          emissionDate.GetValue(),
 	}, nil
 }
 

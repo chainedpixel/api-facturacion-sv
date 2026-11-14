@@ -2,22 +2,25 @@ package contingency
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	haciendaPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
-	authPorts "github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	haciendaPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	authPorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // ContingencyEventService orchestrates preparation and transmission of contingency events.
@@ -25,6 +28,7 @@ type ContingencyEventService struct {
 	authManager  auth.AuthManager
 	repo         contingency.ContingencyRepositoryPort
 	timeProvider authPorts.TimeProvider
+	dteManager   dte_documents.DTEManager
 	tokenSvc     *contingencyTokenService
 	httpSvc      *contingencyHTTPService
 	connection   *drivers.DbConnection
@@ -40,15 +44,22 @@ func NewContingencyEventService(
 	repo contingency.ContingencyRepositoryPort,
 	timeProvider authPorts.TimeProvider,
 	connection *drivers.DbConnection,
+	dteManager dte_documents.DTEManager,
 ) *ContingencyEventService {
 	return &ContingencyEventService{
 		authManager:  authManager,
 		repo:         repo,
 		timeProvider: timeProvider,
+		dteManager:   dteManager,
 		connection:   connection,
 		tokenSvc:     newContingencyTokenService(cache, tokenService, authManager),
 		httpSvc:      newContingencyHTTPService(haciendaAuth, signer, cache),
 	}
+}
+
+// GetHTTPTimeout returns the configured timeout duration for the HTTP client.
+func (s *ContingencyEventService) GetHTTPTimeout() time.Duration {
+	return s.httpSvc.httpClient.Timeout
 }
 
 // PrepareAndSendContingencyEvent builds a contingency event from the given documents and sends it to Hacienda.
@@ -75,7 +86,7 @@ func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Con
 
 	event := &models.ContingencyEvent{
 		Identification: models.ContingencyIdentification{
-			Version:          3,
+			Version:          4,
 			Ambient:          config.Server.AmbientCode,
 			GenerationCode:   strings.ToUpper(uuid.New().String()),
 			TransmissionDate: utils.TimeNow().Format("2006-01-02"),
@@ -91,7 +102,7 @@ func (s *ContingencyEventService) PrepareAndSendContingencyEvent(ctx context.Con
 			Phone:                *client.Phone,
 			Email:                *client.Email,
 			EstablishmentCodeMH:  client.EstablishmentCodeMH,
-			POSCode:              client.POSCode,
+			POSCode:              client.POSCodeMH, // codPuntoVentaMH: codigo asignado por el MH (4 caracteres), no el interno
 		},
 		DTEDetails: s.prepareDTEDetails(docs),
 		Reason:     reason,
@@ -124,14 +135,64 @@ func (s *ContingencyEventService) prepareContingencyReason(ctx context.Context, 
 		return models.ContingencyReason{}, shared_error.NewGeneralServiceError("ContingencyEventService", "prepareContingencyReason", "no pending contingency documents found for branch", nil)
 	}
 
+	var contingencyReason *string
+	if doc.Reason != "" {
+		contingencyReason = &doc.Reason
+	}
+
 	return models.ContingencyReason{
 		StartDate:         startTime.Format("2006-01-02"),
 		EndDate:           now.Format("2006-01-02"),
 		StartTime:         startTime.Add(-60 * time.Second).Format("15:04:05"),
 		EndTime:           now.Add(10 * time.Second).Format("15:04:05"),
 		ContingencyType:   doc.ContingencyType,
-		ContingencyReason: doc.Reason,
+		ContingencyReason: contingencyReason,
 	}, nil
+}
+
+// registerEvent stores the contingency event with its evidence (JWS, stamp, date and Hacienda response) and the
+// given status: received when Hacienda stamped it, rejected when Hacienda answered without stamping it. A failure to
+// store it does not stop the contingency flow.
+func (s *ContingencyEventService) registerEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, evidence *dte.TransmissionEvidence, status string) {
+	if s.dteManager == nil || evidence == nil {
+		return
+	}
+	jsonData, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+	if err := s.dteManager.RegisterEvent(ctx, &dte.DTEEvent{
+		GenerationCode:   event.Identification.GenerationCode,
+		BranchID:         branchID,
+		EventType:        dte.EventContingency,
+		JSONData:         string(jsonData),
+		SignedDocument:   evidence.SignedDocument,
+		ReceptionStamp:   evidence.ReceptionStamp,
+		ProcessingDate:   evidence.ProcessingDate,
+		HaciendaResponse: evidence.HaciendaResponse,
+		Status:           status,
+		CreatedAt:        utils.TimeNow(),
+	}); err != nil {
+		logs.Warn("Failed to register contingency event", map[string]interface{}{"error": err.Error()})
+	}
+}
+
+func (s *ContingencyEventService) markDocumentsStamped(ctx context.Context, docs []dte.ContingencyDocument, evidence *dte.TransmissionEvidence) {
+	stampedAt := s.timeProvider.Now()
+	if evidence != nil {
+		if processed, ok := utils.ParseProcessingDate(evidence.ProcessingDate); ok {
+			stampedAt = processed
+		}
+	}
+
+	ids := make([]string, len(docs))
+	for i, doc := range docs {
+		ids[i] = doc.ID
+	}
+
+	if err := s.repo.MarkEventStamped(ctx, ids, stampedAt); err != nil {
+		logs.Error("Failed to store contingency event stamp date", map[string]interface{}{"error": err.Error()})
+	}
 }
 
 func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, docs []dte.ContingencyDocument) error {
@@ -145,9 +206,17 @@ func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, even
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to generate matching token", err)
 	}
 
-	isDuplicate, err := s.httpSvc.SignAndSend(ctx, event, client.NIT, token)
+	isDuplicate, evidence, err := s.httpSvc.SignAndSend(ctx, event, client.NIT, token)
 	if err != nil {
+		if evidence != nil && isDefinitiveEventRejection(evidence.HaciendaResponse) {
+			s.registerEvent(ctx, event, branchID, evidence, constants.DocumentRejected)
+		}
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to sign and send contingency event", err)
+	}
+
+	if !isDuplicate {
+		s.registerEvent(ctx, event, branchID, evidence, constants.DocumentReceived)
+		s.markDocumentsStamped(ctx, docs, evidence)
 	}
 
 	if isDuplicate {
@@ -158,4 +227,26 @@ func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, even
 	}
 
 	return nil
+}
+
+// isDefinitiveEventRejection reports whether a stored Hacienda response is a definitive rejection of the event: status
+// RECHAZADO, whatever the type of the message, or a text message saying the validations were not passed. Transient
+// answers such as unexpected statuses or non-text messages without that status are not definitive.
+func isDefinitiveEventRejection(rawResponse string) bool {
+	if rawResponse == "" {
+		return false
+	}
+
+	var response struct {
+		Status  interface{} `json:"estado"`
+		Message interface{} `json:"mensaje"`
+	}
+	if err := json.Unmarshal([]byte(rawResponse), &response); err != nil {
+		return false
+	}
+
+	status, _ := response.Status.(string)
+	message, _ := response.Message.(string)
+
+	return status == "RECHAZADO" || strings.Contains(strings.ToLower(message), "no superadas")
 }

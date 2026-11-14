@@ -5,44 +5,46 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	notificationHandlers "github.com/chainedpixel/ordo-factus/internal/application/handlers/notification"
-	appPorts "github.com/chainedpixel/ordo-factus/internal/application/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/service/strategies"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/notification"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/ccf"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/credit_note"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/debit_note"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/fse"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/retention"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/transmitter/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/health"
-	"github.com/chainedpixel/ordo-factus/internal/domain/metrics"
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/domain/test_endpoint"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/cache"
-	adapterContingecy "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/contingency"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/crypt"
-	adapterEvents "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/events"
-	adapterHealth "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/health"
-	adapterMetric "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/metrics"
-	adapterEmail "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/notifier/email"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/repositories"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/signing"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/signing/signer"
-	adapterTest "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/test_endpoint"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/tokens"
-	adapterTransmitter "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter"
-	batch "github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/transmitter/batch"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	notificationHandlers "github.com/chainedpixel/api-facturacion-sv/internal/application/handlers/notification"
+	appPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/service/strategies"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/notification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/ccf"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/calendar"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/credit_note"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/debit_note"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/fse"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation/policy"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/remission_note"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/retention"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/health"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/metrics"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/test_endpoint"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/cache"
+	adapterContingecy "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/contingency"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/crypt"
+	adapterEvents "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/events"
+	adapterHealth "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/health"
+	adapterMetric "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/metrics"
+	adapterEmail "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/notifier/email"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/repositories"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/signing"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/signing/signer"
+	adapterTest "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/test_endpoint"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/tokens"
+	adapterTransmitter "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter"
+	batch "github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/batch"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type ServicesContainer struct {
@@ -96,11 +98,11 @@ func (c *ServicesContainer) Initialize() error {
 	c.signerManager = signer.NewDTESigner(c.repos.AuthRepo())
 	c.haciendaAuthManager = signing.NewHaciendaAuthService(c.cacheManager, c.authManager)
 	c.transmitterManager = adapterTransmitter.NewMHTransmitter(c.haciendaAuthManager, c.repos.FailedSequentialNumberRepo())
-	c.dteManager = dte_documents.NewDTEService(c.repos.DTERepo())
+	c.dteManager = dte_documents.NewDTEService(c.repos.DTERepo(), c.repos.DTEEventRepo())
 	c.sequentialManager = dte_documents.NewSequentialNumberService(c.repos.SequentialNumberRepo(), c.repos.AuthRepo(), c.repos.ReservedSequenceRepo())
 	c.invoiceManager = invoice.NewInvoiceService(c.sequentialManager)
 	c.ccfManager = ccf.NewCCFService(c.sequentialManager)
-	c.invalidationManager = invalidation.NewInvalidationService(c.dteManager)
+	c.invalidationManager = invalidation.NewInvalidationService(c.dteManager, newInvalidationDeadlines())
 	c.retentionManager = retention.NewRetentionService(c.sequentialManager, c.dteManager)
 	c.creditNoteManager = credit_note.NewCreditNoteService(c.sequentialManager, c.dteManager)
 	c.remissionNoteManager = remission_note.NewRemissionNoteService(c.sequentialManager, c.dteManager)
@@ -136,6 +138,7 @@ func (c *ServicesContainer) Initialize() error {
 		c.repos.ContingencyRepo(),
 		&transmitter.RealTimeProvider{},
 		c.repos.connection,
+		c.dteManager,
 	)
 
 	c.contingencyManager = contingency.NewContingencyManager(
@@ -196,6 +199,7 @@ func (c *ServicesContainer) initNotificationStack() {
 	c.eventBus.Subscribe(event.EventContingencyActivated, handler)
 	c.eventBus.Subscribe(event.EventEmissionFailure, handler)
 	c.eventBus.Subscribe(event.EventRetransmissionJobFailed, handler)
+	c.eventBus.Subscribe(event.EventStampedDocumentNotSaved, handler)
 }
 
 func buildCooldownRedisClient() *redis.Client {
@@ -306,4 +310,12 @@ func (c *ServicesContainer) Mailer() notification.Mailer {
 
 func (c *ServicesContainer) MailRenderer() *adapterEmail.TemplateRenderer {
 	return c.mailRenderer
+}
+
+func newInvalidationDeadlines() *policy.Deadlines {
+	holidays, err := calendar.ParseHolidays(config.Server.ExtraHolidays)
+	if err != nil {
+		holidays = nil
+	}
+	return policy.NewDeadlines(calendar.NewBusinessCalendar(holidays))
 }

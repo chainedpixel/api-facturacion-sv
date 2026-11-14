@@ -6,10 +6,10 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
-	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	authPorts "github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
+	authModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	authPorts "github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
 )
 
 // contingencyTokenService handles JWT token generation for contingency operations.

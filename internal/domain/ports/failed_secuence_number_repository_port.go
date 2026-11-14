@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
 )
 
 // FailedSequenceNumberRepositoryPort defines the interface for the failed sequence number repository

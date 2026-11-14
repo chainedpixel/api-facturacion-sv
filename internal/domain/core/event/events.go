@@ -9,6 +9,7 @@ const (
 	EventContingencyActivated    = "contingency.activated"
 	EventEmissionFailure         = "emission.failure"
 	EventRetransmissionJobFailed = "retransmission_job.failed"
+	EventStampedDocumentNotSaved = "stamped_document.not_persisted"
 )
 
 type RejectedDocSummary struct {
@@ -98,5 +99,39 @@ func (e RetransmissionJobFailedEvent) Payload() map[string]any {
 		"job_name":         e.JobName,
 		"failed_documents": e.FailedDocuments,
 		"last_error":       e.LastError,
+	}
+}
+
+// StampedDocumentNotPersistedEvent reports a document already stamped by Hacienda whose local persistence failed.
+// It never carries the signed document; that content is only written to the application log for manual recovery.
+type StampedDocumentNotPersistedEvent struct {
+	BranchID       uint
+	NIT            string
+	ControlNumber  string
+	GenerationCode string
+	DTEType        string
+	ReceptionStamp string
+	ProcessingDate string
+	LastError      string
+	OccurredAtTime time.Time
+}
+
+func (e StampedDocumentNotPersistedEvent) Name() string { return EventStampedDocumentNotSaved }
+func (e StampedDocumentNotPersistedEvent) OccurredAt() time.Time {
+	return e.OccurredAtTime
+}
+func (e StampedDocumentNotPersistedEvent) AggregateID() string {
+	return fmt.Sprintf("dte:%s", e.GenerationCode)
+}
+func (e StampedDocumentNotPersistedEvent) Payload() map[string]any {
+	return map[string]any{
+		"branch_id":       e.BranchID,
+		"nit":             e.NIT,
+		"control_number":  e.ControlNumber,
+		"generation_code": e.GenerationCode,
+		"dte_type":        e.DTEType,
+		"reception_stamp": e.ReceptionStamp,
+		"processing_date": e.ProcessingDate,
+		"last_error":      e.LastError,
 	}
 }

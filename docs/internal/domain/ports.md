@@ -55,12 +55,12 @@ type FailedSequenceNumberRepositoryPort interface {
         failureReason string, responseCode string,
         originalRequestData interface{}, mhResponse string,
     ) error
-    GetFailedSequences(ctx context.Context, branchID uint, dteType string, limit int) ([]FailedSequenceNumber, error)
-    GetFailedSequencesByYear(ctx context.Context, branchID uint, dteType string, year uint, limit int) ([]FailedSequenceNumber, error)
+    GetFailedSequences(ctx context.Context, branchID uint, dteType string, limit int) ([]db_models.FailedSequenceNumber, error)
+    GetFailedSequencesByYear(ctx context.Context, branchID uint, dteType string, year uint, limit int) ([]db_models.FailedSequenceNumber, error)
 }
 ```
 
-Se registran y consultan números secuenciales fallidos para auditoría y recuperación.
+Se registran y consultan números secuenciales fallidos para auditoría y recuperación. El puerto retorna el modelo de persistencia `db_models.FailedSequenceNumber` (importado desde `internal/infrastructure/database/db_models`).
 
 ---
 
@@ -137,6 +137,8 @@ type CacheListManager interface {
     LRange(key string, start, stop int64) ([]string, error)
     LLen(key string) (int64, error)
     LTrim(key string, start, stop int64) error
+    Expire(key string, ttl time.Duration) error
+    ScanKeys(pattern string) ([]string, error)
 }
 ```
 
@@ -216,27 +218,31 @@ Se orquesta el flujo de autenticación completo.
 
 ```go
 type DTEManager interface {
-    Create(ctx context.Context, document interface{}, transmission, status string, receptionStamp *string) error
-    UpdateDTE(ctx context.Context, branchID uint, document DTEDetails) error
+    Create(ctx context.Context, document interface{}, transmission, status string, evidence *dte.TransmissionEvidence) error
+    UpdateDTE(ctx context.Context, branchID uint, document dte.DTEDetails) error
     VerifyStatus(ctx context.Context, branchID uint, id string) (string, error)
-    GetByGenerationCode(ctx context.Context, branchID uint, generationCode string) (*DTEDocument, error)
+    GetByGenerationCode(ctx context.Context, branchID uint, generationCode string) (*dte.DTEDocument, error)
     GenerateBalanceTransaction(ctx context.Context, branchID uint, transactionType, id, originalDTE string, document interface{}) error
     GenerateBalanceTransactionWithAmounts(ctx context.Context, branchID uint, transactionType, originalDTE, adjustmentDTE string, taxedSale, exemptSale, notSubjectSale float64) error
     ValidateForCreditNote(ctx context.Context, branchID uint, originalDTE string, document interface{}) error
     ValidateForDebitNote(ctx context.Context, branchID uint, originalDTE string, document interface{}) error
-    GetByGenerationCodeConsult(ctx context.Context, branchID uint, generationCode string) (*DTEResponse, error)
-    GetAllDTEs(ctx context.Context, filters *DTEFilters) (*DTEListResponse, error)
+    GetByGenerationCodeConsult(ctx context.Context, branchID uint, generationCode string) (*dte.DTEResponse, error)
+    GetAllDTEs(ctx context.Context, filters *dte.DTEFilters) (*dte.DTEListResponse, error)
+    RegisterEvent(ctx context.Context, event *dte.DTEEvent) error
+    GetArchive(ctx context.Context, branchID uint, generationCode string) (json.RawMessage, error)
+    GetEvents(ctx context.Context, branchID uint, generationCode string) ([]dte.EventArchiveResponse, error)
+    GetActiveAdjustmentNotes(ctx context.Context, branchID uint, originalDTE string) ([]string, error)
 }
 ```
 
-Se gestiona el ciclo de vida completo de los DTE: creación, actualización, consulta, y control de balance.
+Se gestiona el ciclo de vida completo de los DTE: creación con su evidencia de transmisión, actualización, consulta, control de balance, eventos y Archivo DTE. `Create` exige sello de recepción salvo en transmisión `CONTINGENCY` (`MissingReceptionStamp`). `GetActiveAdjustmentNotes` retorna los códigos de generación de las notas de crédito o débito en estado `RECEIVED` o `PENDING` que ajustan el documento. `GetArchive` arma el Archivo DTE (estructura firmada, `firmaElectronica`, `selloRecibido`) y retorna `ArchiveNotAvailable` si el documento no tiene JWS guardado; `GetEvents` retorna los eventos relacionados con el documento.
 
 ### SequentialNumberManager
 
 ```go
 type SequentialNumberManager interface {
     GetNextControlNumber(ctx context.Context, dteType string, branchID uint, posCode, establishmentCode *string) (string, error)
-    ReserveNextNumber(ctx context.Context, dteType string, branchID uint, posCode, establishmentCode *string, documentData interface{}, isContingency bool) (string, error)
+    ReserveNextNumber(ctx context.Context, dteType string, branchID uint, posCode, establishmentCode *string, documentData string, isContingency bool) (string, uint, error)
     ConfirmReservation(ctx context.Context, controlNumber, documentID string, branchID uint) error
     ReleaseReservation(ctx context.Context, controlNumber, rejectionReason, haciendaCode string, branchID uint) error
     ConfirmReservationByDocumentID(ctx context.Context, documentID string) error
@@ -246,7 +252,7 @@ type SequentialNumberManager interface {
 }
 ```
 
-Se gestiona el ciclo de vida de números de control: reserva, confirmación, liberación, y marcado de contingencia.
+Se gestiona el ciclo de vida de números de control: reserva, confirmación, liberación, y marcado de contingencia. Ver [sequential-numbers.md](sequential-numbers.md).
 
 ### ContingencyManager
 
@@ -261,11 +267,89 @@ type ContingencyManager interface {
 
 ```go
 type InvalidationManager interface {
-    Validate(ctx context.Context, branchID uint, document interface{}) error
-    ValidateStatus(ctx context.Context, branchID uint, req interface{}) error
+    Validate(ctx context.Context, branchID uint, document *invalidation_models.InvalidationDocument) error
+    ValidateStatus(ctx context.Context, branchID uint, req structs.CreateInvalidationRequest) error
+    ValidateDependencies(ctx context.Context, branchID uint, doc *dte.DTEDocument) error
     InvalidateDocument(ctx context.Context, branchID uint, originalCode string) error
 }
 ```
+
+Ver [dte/invalidation.md](dte/invalidation.md).
+
+### Puertos de repositorio de DTE Documents
+
+```go
+type DTERepositoryPort interface {
+    Create(ctx, document interface{}, transmission, status string, evidence *dte.TransmissionEvidence) error
+    Update(ctx, branchID uint, document dte.DTEDetails) error
+    GetByGenerationCode(ctx, branchID uint, id string) (*dte.DTEDocument, error)
+    GetDTEBalanceControl(ctx, branchID uint, id string) (*dte.BalanceControl, error)
+    GenerateBalanceTransaction(ctx, branchID uint, originalDTE string, transaction *dte.BalanceTransaction) error
+    VerifyStatus(ctx, branchID uint, id string) (string, error)
+    GetTotalCount(ctx, filters *dte.DTEFilters) (int64, error)
+    GetSummaryStats(ctx, filters *dte.DTEFilters) (*dte.ListSummary, error)
+    GetPagedDocuments(ctx, filters *dte.DTEFilters) ([]dte.DTEModelResponse, error)
+    GetActiveAdjustmentNotes(ctx, branchID uint, originalDTE string) ([]string, error)
+}
+
+type DTEEventRepositoryPort interface {
+    Create(ctx, event *dte.DTEEvent) error
+    ListByRelatedDTE(ctx, branchID uint, relatedDTEID string) ([]dte.DTEEvent, error)
+}
+
+type ReservedSequenceRepositoryPort interface {
+    Create(ctx, reservation *ReservedSequence) (uint, error)
+    GetOldestReleasedNumber(ctx, branchID uint, dteType string, year int) (*ReservedSequence, error)
+    MarkAsReserved(ctx, reservationID uint, expiresAt *time.Time) error
+    UpdateStatus(ctx, branchID uint, dteType string, seqNum uint, year int, status string, timestamp time.Time) error
+    UpdateStatusWithReason(ctx, branchID uint, dteType string, seqNum uint, year int, status string, timestamp time.Time, reason, haciendaCode string) error
+    UpdateStatusWithDocumentID(ctx, branchID uint, dteType string, seqNum uint, year int, status string, timestamp time.Time, documentID string) error
+    UpdateAsContingency(ctx, reservationID uint, documentID, contingencyDocID string) error
+    UpdateAsContingencyByControlNumber(ctx, branchID uint, dteType string, seqNum uint, year int, documentID, contingencyDocID string) error
+    GetByDocumentID(ctx, documentID string) (*ReservedSequence, error)
+    GetExpiredNonContingencyReservations(ctx) ([]ReservedSequence, error)
+}
+```
+
+Los tres puertos se definen en `internal/domain/dte/dte_documents/`. El puerto de eventos persiste los eventos de invalidación y contingencia con su evidencia.
+
+### Puertos de contingencia y transmisión
+
+```go
+type ContingencyRepositoryPort interface {
+    Create(ctx, doc *dte.ContingencyDocument) error
+    GetPending(ctx, limit int) ([]dte.ContingencyDocument, error)
+    UpdateBatch(ctx, ids, observations []string, results map[string]dte.ReceptionResult, batchID, mhBatchID, status string) error
+    GetFirstContingencyTimestamp(ctx, branchID uint) (*time.Time, error)
+    MarkEventStamped(ctx, ids []string, stampedAt time.Time) error
+}
+
+type ContingencyEventSender interface {
+    PrepareAndSendContingencyEvent(ctx, docs []dte.ContingencyDocument) error
+}
+
+type BatchTransmitterPort interface {
+    TransmitBatch(ctx, systemNIT, dteType string, documents []string, token string, credentials authModels.HaciendaCredentials) (*models.BatchResponse, string, error)
+    VerifyContingencyBatchStatus(ctx, batchID, mhBatchID, token string, branchID uint, docsMap map[string]dte.ContingencyDocument) error
+    GetDTEVersion(dteType string) int
+}
+```
+
+Ver [dte/contingency.md](dte/contingency.md) y [dte/transmitter-models.md](dte/transmitter-models.md).
+
+---
+
+## Puertos de Eventos, Notificación y Operación
+
+| Puerto | Paquete | Descripción |
+|---|---|---|
+| `event.Bus` | `core/event` | `Publish` y `Subscribe`; ver [core/event-system.md](core/event-system.md) |
+| `event.Handler` | `core/event` | `Name()` y `Handle(ctx, evt)` |
+| `event.Repository` | `core/event` | `Save(ctx, eventType, userID, branchID, payloadJSON, occurredAt)` |
+| `notification.Mailer` | `core/notification` | `SendAdminAlert(ctx, subject, htmlBody, plainBody)` |
+| `health.ComponentChecker` y `health.HealthManager` | `health` | Verificación de estado (`Check()`, `Name()`, `CheckHealth()`); estados `UP` y `DOWN` |
+| `metrics.MetricsManager` | `metrics` | `GetAllMetricsEndpoint(systemNIT)` y `GetEndpointMetrics(systemNIT, method, endpoint)` |
+| `test_endpoint.TestManager` | `test_endpoint` | `RunSystemTest(ctx)` |
 
 ---
 
@@ -283,6 +367,10 @@ Capa de Dominio (define interfaces)
 ├── ports.TimeProvider ───────────── implementado por ──→ Real/Mock Time
 ├── auth.AuthRepositoryPort ──────── implementado por ──→ GORM Auth Repository
 ├── auth.AuthStrategy ────────────── implementado por ──→ API Key Strategy
+├── dte_documents.DTERepositoryPort / DTEEventRepositoryPort / ReservedSequenceRepositoryPort ──→ GORM Repositories
+├── contingency.ContingencyRepositoryPort / ContingencyEventSender ──→ GORM Repository / adaptador de eventos
+├── transmitter.BatchTransmitterPort ─ implementado por ──→ BatchTransmitterService
+├── event.Bus / event.Repository ──── implementado por ──→ InMemoryBus / EventRepository
 │
 └── Todos apuntan hacia el dominio (Dependency Inversion)
 ```
@@ -292,3 +380,5 @@ Capa de Dominio (define interfaces)
 ## Regla de Oro
 
 > El dominio **define** interfaces. La infraestructura **implementa** interfaces. Las flechas de dependencia siempre apuntan **hacia adentro** (hacia el dominio).
+
+Algunos puertos actuales referencian tipos de otras capas (por ejemplo `FailedSequenceNumberRepositoryPort` con `db_models` y `CacheManager` con `redis.Client`); ver el README de esta carpeta.

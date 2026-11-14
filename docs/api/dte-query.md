@@ -2,10 +2,12 @@
 
 ## Descripción
 
-La API expone dos endpoints de consulta para acceder a los DTEs emitidos por la sucursal autenticada:
+La API expone cuatro endpoints de consulta, todos protegidos con `Authorization: Bearer <token>` y limitados a los DTEs de la sucursal autenticada (salvo el parámetro `all` del listado, que amplía la consulta a las sucursales del mismo emisor):
 
-- **Obtener un DTE específico** por su `codigoGeneracion`
-- **Listar todos los DTEs** con filtros opcionales y paginación
+- **Obtener un DTE específico** por su `codigoGeneracion` (`GET /api/v1/dte/{id}`)
+- **Obtener el Archivo DTE** de un documento (`GET /api/v1/dte/{id}/archivo`)
+- **Obtener los eventos** de un documento, como su invalidación (`GET /api/v1/dte/{id}/eventos`)
+- **Listar todos los DTEs** con filtros opcionales y paginación (`GET /api/v1/dte`)
 
 ---
 
@@ -39,6 +41,8 @@ Authorization: Bearer <token>
     "status": "RECEIVED",
     "created_at": "2024-01-15T14:30:00Z",
     "updated_at": "2024-01-15T14:30:05Z",
+    "processing_date": "15/01/2024 14:30:05",
+    "observations": [],
     "json_data": { /* Estructura completa del DTE según tipo */ }
   }
 }
@@ -55,6 +59,8 @@ Authorization: Bearer <token>
 | `status` | string | Estado actual del DTE (ver tabla de estados) |
 | `created_at` | string (ISO 8601) | Fecha/hora de creación |
 | `updated_at` | string (ISO 8601) | Fecha/hora de última actualización |
+| `processing_date` | string | Fecha de procesamiento informada por Hacienda (`fhProcesamiento`), con el mismo valor y formato con que se guarda. Se omite si el documento no la tiene guardada. Es la fecha del sello desde la que se cuentan los plazos de invalidación (ver [Anulación](./invalidation.md#plazos-y-fecha-del-evento)) |
+| `observations` | string[] | Observaciones de Hacienda sobre el documento, leídas de la respuesta guardada; en documentos de contingencia aparecen cuando el lote se procesa. Siempre presente: arreglo vacío si Hacienda no informó observaciones o si el documento todavía no fue transmitido (contingencia). Un documento con observaciones es válido |
 | `json_data` | object | Estructura completa del DTE en formato MH (varía según tipo) |
 
 #### Estados posibles (`status`)
@@ -65,18 +71,96 @@ Authorization: Bearer <token>
 | `PENDING` | En contingencia pendiente de transmisión a Hacienda |
 | `REJECTED` | Rechazado por Hacienda |
 | `INVALIDATED` | Anulado exitosamente |
+| `EXPIRED` | Generado en contingencia y no transmitido dentro de las 72 horas desde el sello del evento de contingencia; se considera no emitido y no tiene sello de recepción |
+
+> Esta respuesta no incluye la firma del documento; para obtener el documento firmado y sellado se usa `GET /api/v1/dte/{id}/archivo`.
 
 #### Respuestas de error
 
-| HTTP | Cuándo ocurre |
-|------|---------------|
-| `400` | `codigoGeneracion` no corresponde a un DTE de la sucursal |
-| `404` | DTE no encontrado |
-| `500` | Error interno |
+| HTTP | `code` | Cuándo ocurre |
+|------|--------|---------------|
+| `400` | `FAILEDTOGETDTE` | `codigoGeneracion` no corresponde a un DTE de la sucursal (`error.details` indica que no existe registro) |
+| `401` | `UNAUTHORIZED` | Token ausente o inválido |
+| `500` | `SYSTEM_ERROR` | Error interno |
 
 ---
 
-### 2. Listar DTEs
+### 2. Obtener el Archivo DTE
+
+> Este endpoint devuelve el archivo JSON tal cual, sin envoltorio, porque el Archivo DTE se entrega al receptor sin alteraciones. Por eso no incluye `observations`; las observaciones del documento se consultan con `GET /api/v1/dte/{codigoGeneracion}`.
+
+```
+GET /api/v1/dte/{codigoGeneracion}/archivo
+Authorization: Bearer <token>
+```
+
+**Respuesta exitosa:** `HTTP 200 OK`
+
+Devuelve el **Archivo DTE** listo para entregar al receptor: la estructura firmada del documento, íntegra y sin alteraciones, más los atributos `firmaElectronica` (JWS) y `selloRecibido`. A diferencia del resto de endpoints, la respuesta **no** se envuelve en `success`/`data`: el cuerpo es el JSON del archivo tal cual, con `Content-Type: application/json` y `Content-Disposition: attachment; filename="<codigoGeneracion>.json"`.
+
+```json
+{
+  "identificacion": { },
+  "emisor": { },
+  "receptor": { },
+  "cuerpoDocumento": [ ],
+  "resumen": { },
+  "firmaElectronica": "<JWS>",
+  "selloRecibido": "20260115AAFEEE1A566A44F19A622C0C35C8A1B6FAZM"
+}
+```
+
+#### Respuestas de error
+
+| HTTP | `code` | Cuándo ocurre |
+|------|--------|---------------|
+| `400` | `FAILEDTOGETDTE` | El DTE no existe en la sucursal |
+| `400` | `ARCHIVENOTAVAILABLE` | El documento se emitió antes de guardarse la firma electrónica, o la firma guardada no es válida |
+
+---
+
+### 3. Obtener los eventos de un DTE
+
+```
+GET /api/v1/dte/{codigoGeneracion}/eventos
+Authorization: Bearer <token>
+```
+
+**Respuesta exitosa:** `HTTP 200 OK`
+
+Devuelve la lista de eventos transmitidos sobre el documento (hoy, su invalidación), incluidos los intentos que Hacienda rechazó (`status: "REJECTED"`). Si el documento existe pero no tiene eventos, `data` es una lista vacía. Cada elemento tiene la misma estructura que la respuesta de la [anulación](./invalidation.md#respuesta-exitosa): datos del evento, `hacienda_response`, `observations` y `archivo_dte`. Un evento rechazado no tiene sello ni `archivo_dte`, pero conserva `hacienda_response` y sus `observations`.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "generation_code": "A1B2C3D4-0000-4000-8000-1234567890AB",
+      "branch_id": 1,
+      "event_type": "INVALIDATION",
+      "related_dte_id": "3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C",
+      "replacement_dte_id": null,
+      "reception_stamp": "20260115AAFEEE1A566A44F19A622C0C35C8A1B6FAZM",
+      "processing_date": "15/01/2026 14:30:05",
+      "status": "RECEIVED",
+      "created_at": "2026-01-15T14:30:06-06:00",
+      "hacienda_response": { },
+      "observations": [],
+      "archivo_dte": { }
+    }
+  ]
+}
+```
+
+#### Respuestas de error
+
+| HTTP | `code` | Cuándo ocurre |
+|------|--------|---------------|
+| `400` | `FAILEDTOGETDTE` | El DTE no existe en la sucursal |
+
+---
+
+### 4. Listar DTEs
 
 ```
 GET /api/v1/dte
@@ -85,20 +169,20 @@ Authorization: Bearer <token>
 
 **Respuesta exitosa:** `HTTP 200 OK`
 
-Retorna todos los DTEs de la sucursal autenticada, con soporte para filtros y paginación.
+Retorna los DTEs de la sucursal autenticada (o, con `all=true`, de las sucursales del emisor), con soporte para filtros y paginación.
 
 #### Query Parameters
 
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
 | `page` | integer | No | Número de página. Por defecto: `1` |
-| `page_size` | integer | No | Cantidad de registros por página. Por defecto: `5` |
+| `page_size` | integer | No | Cantidad de registros por página. Por defecto: `5`. Un valor inválido o menor a 1 se reemplaza por el valor por defecto (igual que `page`, que se reemplaza por `1`) |
 | `status` | string | No | Filtrar por estado (ver valores válidos) |
 | `type` | string | No | Filtrar por tipo de DTE. Soporta múltiples separados por coma |
 | `transmission` | string | No | Filtrar por tipo de transmisión |
-| `startDate` | string (RFC3339) | No | Fecha de inicio del rango de consulta |
+| `startDate` | string (RFC3339) | No | Inicio del rango; se compara con la fecha de registro del documento (`created_at`) |
 | `endDate` | string (RFC3339) | No | Fecha de fin del rango de consulta |
-| `all` | boolean | No | Si `true`, incluye DTEs de todas las sucursales (requiere permisos) |
+| `all` | boolean | No | Si es `true`, se listan los DTEs de todas las sucursales que pertenecen al mismo emisor (NIT) del usuario autenticado (`branch_offices.user_id` → `users.nit`). Si el token no incluye NIT, se ignora y se lista solo la sucursal autenticada. El servicio no aplica una verificación de permisos adicional para este parámetro |
 
 #### Valores válidos por parámetro
 
@@ -110,6 +194,7 @@ Retorna todos los DTEs de la sucursal autenticada, con soporte para filtros y pa
 | `PENDING` | En contingencia, pendientes |
 | `REJECTED` | Rechazados por Hacienda |
 | `INVALIDATED` | Anulados |
+| `EXPIRED` | Contingencia vencida (72 horas) |
 
 **`transmission`** (case-insensitive):
 
@@ -152,6 +237,7 @@ Para múltiples tipos: `?type=01,03,06`
       {
         "status": "RECEIVED",
         "transmission_type": "NORMAL",
+        "observations": [],
         "document": { /* Estructura completa del DTE */ }
       }
     ],
@@ -179,9 +265,12 @@ Para múltiples tipos: `?type=01,03,06`
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `status` | string | Estado del DTE (`RECEIVED`, `PENDING`, `REJECTED`, `INVALIDATED`) |
+| `status` | string | Estado del DTE (`RECEIVED`, `PENDING`, `REJECTED`, `INVALIDATED`, `EXPIRED`) |
 | `transmission_type` | string | Tipo de transmisión (`NORMAL`, `CONTINGENCY`) |
-| `document` | object | Estructura completa del DTE en formato MH |
+| `observations` | string[] | Observaciones de Hacienda sobre el documento. Siempre presente: arreglo vacío si Hacienda no informó observaciones o si el documento todavía no fue transmitido (contingencia). Un documento con observaciones es válido |
+| `document` | object | Estructura completa del DTE en formato MH (sin firma ni sello; para el Archivo DTE usar `/archivo`) |
+
+Los documentos se ordenan por fecha de registro descendente.
 
 **`summary`**
 
@@ -192,8 +281,10 @@ Para múltiples tipos: `?type=01,03,06`
 | `invalid` | integer | Cantidad con estado `INVALIDATED` |
 | `rejected` | integer | Cantidad con estado `REJECTED` |
 | `pending` | integer | Cantidad con estado `PENDING` |
-| `by_contingency` | integer | Enviados por contingencia |
-| `by_normal` | integer | Enviados directamente a Hacienda |
+| `by_contingency` | integer | Con transmisión `CONTINGENCY` |
+| `by_normal` | integer | Con transmisión `NORMAL` |
+
+> `summary` no tiene un contador para `EXPIRED`: esos documentos cuentan en `total` y `by_contingency`, pero no en `received`, `invalid`, `rejected` ni `pending`.
 
 **`pagination`**
 
@@ -209,8 +300,9 @@ Para múltiples tipos: `?type=01,03,06`
 
 | HTTP | `code` | Cuándo ocurre |
 |------|--------|---------------|
-| `400` | `InvalidQueryParam` | `status`, `transmission` o `type` con valor inválido |
-| `400` | `InvalidQueryParam` | `startDate` o `endDate` no tiene formato RFC3339 |
+| `400` | `INVALIDQUERYPARAM` | `status`, `transmission` o `type` con valor inválido |
+| `400` | `INVALIDQUERYPARAM` | `startDate` o `endDate` no tiene formato RFC3339 |
+| `401` | `UNAUTHORIZED` | Token ausente o inválido |
 | `500` | `SYSTEM_ERROR` | Error interno |
 
 ---
@@ -221,6 +313,20 @@ Para múltiples tipos: `?type=01,03,06`
 
 ```
 GET /api/v1/dte/3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C
+Authorization: Bearer eyJhbGci...
+```
+
+### Obtener el Archivo DTE de un documento
+
+```
+GET /api/v1/dte/3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C/archivo
+Authorization: Bearer eyJhbGci...
+```
+
+### Obtener los eventos de un documento
+
+```
+GET /api/v1/dte/3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C/eventos
 Authorization: Bearer eyJhbGci...
 ```
 

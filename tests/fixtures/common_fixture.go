@@ -1,14 +1,14 @@
 package fixtures
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/user"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // CreateDefaultAddress creates a valid default address
@@ -16,6 +16,7 @@ func CreateDefaultAddress() *structs.AddressRequest {
 	return &structs.AddressRequest{
 		Department:   "06",
 		Municipality: "20",
+		District:     "01",
 		Complement:   "Colonia Escalón, Calle La Reforma #123, San Salvador",
 	}
 }
@@ -108,8 +109,9 @@ func CreateDefaultPayment() structs.PaymentRequest {
 // CreateDefaultThirdPartySale creates a valid default third-party sale
 func CreateDefaultThirdPartySale() *structs.ThirdPartySaleRequest {
 	return &structs.ThirdPartySaleRequest{
-		NIT:  "06141804941035",
-		Name: "Empresa Tercero S.A. de C.V.",
+		FiscalDomicile: 1,
+		NIT:            "06141804941035",
+		Name:           "Empresa Tercero S.A. de C.V.",
 	}
 }
 
@@ -138,6 +140,7 @@ func CreateDefaultIssuer() *dte.IssuerDTE {
 		Address: &user.Address{
 			Department:   "06",
 			Municipality: "20",
+			District:     "01",
 			Complement:   "BOULEVARD SANTA ELENA SUR, SANTA TECLA",
 		},
 		EstablishmentType:   "02",

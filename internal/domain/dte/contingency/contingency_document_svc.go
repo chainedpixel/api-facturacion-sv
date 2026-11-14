@@ -3,12 +3,12 @@ package contingency
 import (
 	"context"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // contingencyDocumentSvc manages DTE creation, contingency registration, and status updates.
@@ -30,9 +30,9 @@ func newContingencyDocumentSvc(
 	}
 }
 
-// store creates the DTE record in contingency mode and registers the contingency document.
+// store creates the DTE record in contingency mode with its signed document and registers the contingency document.
 // It fills in the DocumentID on contingencyDoc from the extracted DTE identification.
-func (s *contingencyDocumentSvc) store(ctx context.Context, document interface{}, contingencyDoc *dte.ContingencyDocument) error {
+func (s *contingencyDocumentSvc) store(ctx context.Context, document interface{}, contingencyDoc *dte.ContingencyDocument, signedDocument string) error {
 	dteInfo, err := utils.ExtractAuxiliarIdentification(document)
 	if err != nil {
 		logs.Error("Failed to extract general DTE info", map[string]interface{}{
@@ -45,7 +45,8 @@ func (s *contingencyDocumentSvc) store(ctx context.Context, document interface{}
 		return shared_error.NewFormattedGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "MissingDTEIdentification")
 	}
 
-	if err = s.dteManager.Create(ctx, document, constants.TransmissionContingency, constants.DocumentPending, nil); err != nil {
+	evidence := &dte.TransmissionEvidence{SignedDocument: signedDocument}
+	if err = s.dteManager.Create(ctx, document, constants.TransmissionContingency, constants.DocumentPending, evidence); err != nil {
 		logs.Error("Failed to store DTE", map[string]interface{}{
 			"error": err.Error(),
 		})
@@ -91,13 +92,22 @@ func (s *contingencyDocumentSvc) updateStatus(ctx context.Context, branchID uint
 	return s.dteManager.UpdateDTE(ctx, branchID, updatedDoc)
 }
 
+func (s *contingencyDocumentSvc) markExpired(ctx context.Context, ids []string, observations []string) {
+	if err := s.repo.UpdateBatch(ctx, ids, observations, nil, "expired", "", constants.DocumentExpired); err != nil {
+		logs.Error("Failed to mark contingency documents as expired", map[string]interface{}{
+			"error": err.Error(),
+			"count": len(ids),
+		})
+	}
+}
+
 // markContingencyBatchVerified marks a batch of contingency records with the verified status
 // and their reception stamps so that the records are not left without tracking information.
-func (s *contingencyDocumentSvc) markContingencyBatchVerified(ctx context.Context, ids []string, stamps map[string]string, status string) {
+func (s *contingencyDocumentSvc) markContingencyBatchVerified(ctx context.Context, ids []string, results map[string]dte.ReceptionResult, status string) {
 	if len(ids) == 0 {
 		return
 	}
-	if err := s.repo.UpdateBatch(ctx, ids, nil, stamps, "verified", "", status); err != nil {
+	if err := s.repo.UpdateBatch(ctx, ids, nil, results, "verified", "", status); err != nil {
 		logs.Warn("Failed to mark contingency records as verified", map[string]interface{}{
 			"error": err.Error(),
 			"count": len(ids),

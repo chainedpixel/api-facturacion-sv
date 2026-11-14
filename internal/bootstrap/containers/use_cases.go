@@ -1,9 +1,9 @@
 package containers
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/application/auth"
-	"github.com/chainedpixel/ordo-factus/internal/application/dte"
-	"github.com/chainedpixel/ordo-factus/internal/application/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/auth"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/dte"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
 )
 
 type UseCaseContainer struct {
@@ -39,7 +39,8 @@ func (c *UseCaseContainer) Initialize() {
 		c.services.AuthManager(),
 		c.services.DTEManager(),
 		c.baseTransmitter,
-		c.services.SequentialManager())
+		c.services.SequentialManager(),
+		c.services.EventBus())
 
 	c.invoiceUseCase = c.dteUseCaseFactory.CreateInvoiceUseCase(c.services.InvoiceService())
 	c.ccfUseCase = c.dteUseCaseFactory.CreateCCFUseCase(c.services.CCFService())

@@ -1,9 +1,9 @@
 package response_mapper
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/remission_note/remission_note_models"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/remission_note"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/remission_note/remission_note_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/remission_note"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 // ToMHRemissionNote converts a Remission Note domain model to the format required by the Ministry of Finance
@@ -21,7 +21,6 @@ func ToMHRemissionNote(domain interface{}) interface{} {
 		ThirdPartySale:   remission_note.MapRemissionNoteThirdPartySale(remissionNoteModel),
 		DocumentBody:     remission_note.MapRemissionNoteItems(remissionNoteModel),
 		Summary:          remission_note.MapRemissionNoteSummary(remissionNoteModel.Summary),
-		Extension:        remission_note.MapRemissionNoteExtension(remissionNoteModel),
 		Appendix:         remission_note.MapRemissionNoteAppendix(remissionNoteModel),
 	}
 }

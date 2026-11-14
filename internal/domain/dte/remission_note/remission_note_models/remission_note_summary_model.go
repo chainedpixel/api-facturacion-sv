@@ -1,9 +1,9 @@
 package remission_note_models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
 )
 
 type RemissionNoteSummary struct {

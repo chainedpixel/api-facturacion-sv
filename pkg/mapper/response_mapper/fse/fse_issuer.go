@@ -1,9 +1,9 @@
 package fse
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/common"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/common"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 // MapFSEResponseIssuer maps the specific FSE issuer excluding non-allowed fields
@@ -27,19 +27,8 @@ func MapFSEResponseIssuer(issuer interfaces.Issuer) structs.FSEIssuer {
 		Direccion:     common.MapCommonResponseAddress(issuer.GetAddress()),
 		Telefono:      issuer.GetPhone(),
 		Correo:        issuer.GetEmail(),
-	}
-
-	if code := issuer.GetEstablishmentCode(); code != nil {
-		result.CodEstable = code
-	}
-	if code := issuer.GetEstablishmentMHCode(); code != nil {
-		result.CodEstableMH = code
-	}
-	if code := issuer.GetPOSCode(); code != nil {
-		result.CodPuntoVenta = code
-	}
-	if code := issuer.GetPOSMHCode(); code != nil {
-		result.CodPuntoVentaMH = code
+		CodEstable:    issuer.GetEstablishmentCode(),
+		CodPuntoVenta: issuer.GetPOSCode(),
 	}
 
 	return result

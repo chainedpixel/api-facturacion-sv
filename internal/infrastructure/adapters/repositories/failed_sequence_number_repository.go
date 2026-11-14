@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/database/db_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/database/db_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 	"gorm.io/gorm"
 )
 

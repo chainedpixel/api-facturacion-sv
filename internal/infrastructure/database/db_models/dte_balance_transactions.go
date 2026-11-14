@@ -3,8 +3,8 @@ package db_models
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 	"gorm.io/gorm"
 )
 
@@ -30,7 +30,7 @@ func (DTEBalanceTransaction) TableName() string {
 }
 
 func (d *DTEBalanceTransaction) AfterCreate(tx *gorm.DB) error {
-	if d.TransactionType == constants.NotaCreditoElectronica {
+	if d.TransactionType == constants.NotaCreditoElectronica || d.TransactionType == constants.DebitNoteInvalid {
 		d.BalanceControl.RemainingTaxedAmount -= d.TaxedAmount
 		d.BalanceControl.RemainingExemptAmount -= d.ExemptAmount
 		d.BalanceControl.RemainingNotSubjectAmount -= d.NotSubjectAmount

@@ -3,11 +3,11 @@ package common
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/temporal"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/temporal"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // MapCommonRequestRelatedDocuments maps a list of related documents to a related document model -> Source: Request

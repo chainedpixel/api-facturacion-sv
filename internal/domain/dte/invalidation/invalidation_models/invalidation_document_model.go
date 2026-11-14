@@ -1,7 +1,7 @@
 package invalidation_models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
 )
 
 type InvalidationDocument struct {

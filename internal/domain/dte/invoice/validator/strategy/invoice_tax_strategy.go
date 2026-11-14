@@ -3,12 +3,12 @@ package strategy
 import (
 	"github.com/shopspring/decimal"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator/strategy"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/validator/strategy"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 // InvoiceTaxStrategy implements the tax validation of an electronic invoice
@@ -39,38 +39,6 @@ func (s *InvoiceTaxStrategy) Validate() *dte_errors.DTEError {
 		return err
 	}
 
-	for _, item := range s.Document.InvoiceItems {
-		if len(s.Document.RelatedDocuments) > 0 {
-
-			if item.GetRelatedDoc() == nil {
-				logs.Error("Missing related document in item when related_docs is present", map[string]interface{}{
-					"itemNumber": item.GetNumber(),
-				})
-				return dte_errors.NewDTEErrorSimple("MissingItemRelatedDoc", item.GetNumber())
-			}
-
-			found := false
-			itemRelatedDoc := *item.GetRelatedDoc()
-
-			for _, relatedDoc := range s.Document.RelatedDocuments {
-				if relatedDoc.GetDocumentNumber() == itemRelatedDoc {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				logs.Error("Item related document not found in document related docs", map[string]interface{}{
-					"itemNumber": item.GetNumber(),
-					"relatedDoc": itemRelatedDoc,
-				})
-				return dte_errors.NewDTEErrorSimple("InvalidItemRelatedDoc",
-					item.GetNumber(),
-					itemRelatedDoc)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -97,34 +65,15 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			actualSubTotal.InexactFloat64())
 	}
 
-	if taxedAmount.GreaterThan(decimal.Zero) {
-		if len(s.Document.InvoiceSummary.TotalTaxes) > 0 {
-			hasIVA := false
-			for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
-				if tax.GetCode() == constants.TaxIVA {
-					hasIVA = true
-					break
-				}
-			}
+	// En FE el IVA va incluido en el precio: los tributos del resumen son solo los adicionales
+	// (secciones 1 y 3 de CAT-015, excepto 20 y C3), por lo que no se exige el tributo 20
 
-			if !hasIVA {
-				logs.Error("Missing IVA tax in TotalTaxes", map[string]interface{}{
-					"taxedAmount": taxedAmount,
-					"totalTaxes":  len(s.Document.InvoiceSummary.TotalTaxes),
-				})
-				return dte_errors.NewDTEErrorSimple("MissingIVAInTaxes")
-			}
-		}
-	}
-
-	totalToPay := totalOperation
-
-	if taxedAmount.GreaterThan(decimal.Zero) {
-		ivaRetention := decimal.NewFromFloat(s.Document.InvoiceSummary.IVARetention.GetValue())
-		totalToPay = totalToPay.Sub(ivaRetention)
-
-		incomeRetention := decimal.NewFromFloat(s.Document.InvoiceSummary.IncomeRetention.GetValue())
-		totalToPay = totalToPay.Sub(incomeRetention)
+	// Normativa v2.0 (Anexo VI): se elimino "Retencion renta" para FE
+	if s.Document.InvoiceSummary.IncomeRetention.GetValue() != 0 {
+		logs.Error("Income retention is not allowed in invoice", map[string]interface{}{
+			"incomeRetention": s.Document.InvoiceSummary.IncomeRetention.GetValue(),
+		})
+		return dte_errors.NewDTEErrorSimple("IncomeRetentionNotAllowed")
 	}
 
 	if s.Document.InvoiceSummary.IVARetention.GetValue() > 0 && taxedAmount.IsZero() {
@@ -134,13 +83,9 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 		})
 		return dte_errors.NewDTEErrorSimple("InvalidIVARetentionWithoutTaxedAmount")
 	}
-	if s.Document.InvoiceSummary.IncomeRetention.GetValue() > 0 && taxedAmount.IsZero() {
-		logs.Error("Income retention without taxed amount", map[string]interface{}{
-			"incomeRetention": s.Document.InvoiceSummary.IncomeRetention.GetValue(),
-			"taxedAmount":     taxedAmount,
-		})
-		return dte_errors.NewDTEErrorSimple("InvalidIncomeRetentionWithoutTaxedAmount")
-	}
+
+	// Anexo IV, campo 153 (FE): Monto total de la operacion - IVA retenido +/- cargos/abonos
+	totalToPay := totalOperation.Sub(decimal.NewFromFloat(s.Document.InvoiceSummary.IVARetention.GetValue()))
 
 	var nonTaxed decimal.Decimal
 	for _, item := range s.Document.InvoiceItems {
@@ -158,20 +103,22 @@ func (s *InvoiceTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
 			nonTaxed.InexactFloat64())
 	}
 
-	if totalNonTaxed.GreaterThan(decimal.Zero) {
-		totalToPay = totalToPay.Add(totalNonTaxed)
+	totalToPay = totalToPay.Add(totalNonTaxed)
+
+	// Regla 7: cuando existan abonos a favor del receptor y el resultado sea negativo, se ingresa 0.00
+	if totalToPay.IsNegative() {
+		totalToPay = decimal.Zero
 	}
 
 	actualTotalToPay := decimal.NewFromFloat(s.Document.InvoiceSummary.TotalToPay.GetValue())
 
 	if !s.CompareTaxWithTolerance(totalToPay, actualTotalToPay, 0.01) {
 		logs.Error("Invalid total to pay", map[string]interface{}{
-			"calculated":      totalToPay,
-			"declared":        actualTotalToPay,
-			"difference":      diff,
-			"operation":       totalOperation,
-			"ivaRetention":    s.Document.InvoiceSummary.IVARetention.GetValue(),
-			"incomeRetention": s.Document.InvoiceSummary.IncomeRetention.GetValue(),
+			"calculated":    totalToPay,
+			"declared":      actualTotalToPay,
+			"operation":     totalOperation,
+			"ivaRetention":  s.Document.InvoiceSummary.IVARetention.GetValue(),
+			"totalNonTaxed": totalNonTaxed,
 		})
 		return dte_errors.NewDTEErrorSimple("InvalidTotalToPayCalculation",
 			totalToPay.InexactFloat64(),
@@ -256,10 +203,6 @@ func (s *InvoiceTaxStrategy) validateTaxCalculation(tax interfaces.Tax, baseTaxe
 		expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxTourismAmount))
 	case constants.TaxTourismAirport:
 		expectedTax = decimal.NewFromFloat(constants.TaxTourismAirportAmount)
-	case constants.TaxFOVIAL:
-		expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxFOVIALAmount))
-	case constants.TaxCOTRANS:
-		expectedTax = decimal.NewFromFloat(constants.TaxCOTRANSAmount)
 	case constants.TaxSpecialOther:
 		return nil
 	}
@@ -326,6 +269,28 @@ func (s *InvoiceTaxStrategy) validateSummaryTaxes() *dte_errors.DTEError {
 			"summaryIVA":  summaryIVA.InexactFloat64(),
 		})
 		return dte_errors.NewDTEErrorSimple("MissingIVAForTaxedAmount")
+	}
+
+	// Anexo IV, campo 157 (FE): totalIva = suma de ivaItem - IVA del descuento global a ventas gravadas.
+	// El precio de la FE incluye IVA, por lo que el IVA del descuento es descuGravada / 1.13 x 13%.
+	var sumItemsIVA decimal.Decimal
+	for _, item := range s.Document.InvoiceItems {
+		sumItemsIVA = sumItemsIVA.Add(decimal.NewFromFloat(item.IVAItem.GetValue()))
+	}
+	taxedDiscountIVA := decimal.NewFromFloat(s.Document.InvoiceSummary.TaxedDiscount.GetValue()).
+		Div(decimal.NewFromFloat(1.13)).
+		Mul(decimal.NewFromFloat(constants.TaxIvaAmount))
+	expectedIVA := sumItemsIVA.Sub(taxedDiscountIVA)
+
+	if !strategy.WithinTolerance(expectedIVA, summaryIVA) {
+		logs.Error("Invalid total IVA", map[string]interface{}{
+			"expected":         expectedIVA,
+			"declared":         summaryIVA,
+			"sumItemsIVA":      sumItemsIVA,
+			"taxedDiscountIVA": taxedDiscountIVA,
+		})
+		return dte_errors.NewDTEErrorSimple("InvalidTotalIVA",
+			summaryIVA.InexactFloat64(), expectedIVA.InexactFloat64())
 	}
 
 	return nil

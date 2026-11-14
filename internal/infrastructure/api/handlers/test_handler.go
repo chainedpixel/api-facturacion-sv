@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/test_endpoint"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/test_endpoint"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/response"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type TestHandler struct {

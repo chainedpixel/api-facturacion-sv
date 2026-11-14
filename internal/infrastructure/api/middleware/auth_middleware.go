@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/response"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 type AuthMiddleware struct {
@@ -40,7 +40,6 @@ func (m *AuthMiddleware) Handle(next http.Handler) http.Handler {
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			logs.Warn("Invalid Authorization header format", map[string]interface{}{
-				"header": authHeader,
 				"path":   r.URL.Path,
 				"method": r.Method,
 			})

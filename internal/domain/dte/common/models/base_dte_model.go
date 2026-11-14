@@ -1,9 +1,9 @@
 package models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/validator"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/validator"
 )
 
 // DTEDocument is a struct that represents a DTE document, containing Identification, Issuer, Receiver, Items, Summary, Extension and Appendix

@@ -1,9 +1,9 @@
 package fixtures
 
 import (
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	respStructs "github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	respStructs "github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 // CreateDefaultInvoiceItem creates a valid default invoice item
@@ -146,7 +146,6 @@ func CreateInvoiceRequestWithInvalidReceiver() *structs.CreateInvoiceRequest {
 // CreateInvoiceRequestWithAllOptionalFields creates an invoice request with all optional fields
 func CreateInvoiceRequestWithAllOptionalFields() *structs.CreateInvoiceRequest {
 	req := CreateDefaultInvoiceRequest()
-	req.Extension = CreateDefaultExtension()
 	req.ThirdPartySale = CreateDefaultThirdPartySale()
 	req.RelatedDocs = []structs.RelatedDocRequest{CreateDefaultRelatedDocument()}
 	req.OtherDocs = []structs.OtherDocRequest{CreateDefaultOtherDocument()}
@@ -172,24 +171,21 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 	}
 
 	emisor := respStructs.DTEIssuer{
-		NIT:                 "11111111111111",
-		NRC:                 "1111111",
-		Nombre:              "EMPRESA DE PRUEBAS SA DE CV",
-		CodActividad:        "11111",
-		DescActividad:       "Venta al por mayor de otros productos",
-		NombreComercial:     utils.ToStringPointer("EJEMPLO SA"),
-		TipoEstablecimiento: "02",
+		NIT:             "11111111111111",
+		NRC:             "1111111",
+		Nombre:          "EMPRESA DE PRUEBAS SA DE CV",
+		CodActividad:    "11111",
+		DescActividad:   "Venta al por mayor de otros productos",
+		NombreComercial: utils.ToStringPointer("EJEMPLO SA"),
 		Direccion: respStructs.DTEAddress{
 			Departamento: "06",
 			Municipio:    "20",
 			Complemento:  "BOULEVARD SANTA ELENA SUR, SANTA TECLA",
 		},
-		Telefono:        "22567890",
-		Correo:          "email@gmail.com",
-		CodEstableMH:    nil,
-		CodEstable:      utils.ToStringPointer("C001"),
-		CodPuntoVentaMH: nil,
-		CodPuntoVenta:   nil,
+		Telefono:      "22567890",
+		Correo:        "email@gmail.com",
+		CodEstable:    utils.ToStringPointer("C001"),
+		CodPuntoVenta: nil,
 	}
 
 	receptor := respStructs.InvoiceReceiver{
@@ -256,9 +252,7 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		PorcentajeDescuento: 0,
 		TotalDescu:          0,
 		SubTotal:            100,
-		ReteRenta:           0,
-		IvaRete1:            0,
-		IvaPerci1:           nil,
+		IvaRete:             0,
 		MontoTotalOperacion: 100,
 		TotalNoGravado:      0,
 		TotalPagar:          100,
@@ -268,7 +262,7 @@ func CreateExpectedInvoiceResponse() *respStructs.InvoiceDTEResponse {
 		CondicionOperacion:  1,
 		Pagos: []respStructs.DTEPayment{
 			{
-				Codigo:     "01",
+				Codigo:     utils.ToStringPointer("01"),
 				MontoPago:  100,
 				Referencia: utils.ToStringPointer(""),
 				Plazo:      nil,

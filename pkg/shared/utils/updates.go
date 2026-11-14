@@ -1,33 +1,37 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 )
 
-// UpdateContingencyIdentification updates the contingency identification in the DTE JSON.
+const maxContingencyReasonLength = 500
+
+// UpdateContingencyIdentification sets the deferred model, the contingency transmission type and the contingency
+// type in the DTE identification. The contingency reason is required for type 5 (other) and defaults to null for
+// types 1 to 4.
 func UpdateContingencyIdentification(document interface{}, contiType *int8, reason *string) (map[string]interface{}, error) {
-	var dteDoc map[string]interface{}
+	var raw []byte
 	switch v := document.(type) {
 	case string:
-		if err := json.Unmarshal([]byte(v), &dteDoc); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
-		}
+		raw = []byte(v)
 	case []byte:
-		if err := json.Unmarshal(v, &dteDoc); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
-		}
+		raw = v
 	default:
 		jsonBytes, err := json.Marshal(document)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal DTE JSON: %w", err)
 		}
+		raw = jsonBytes
+	}
 
-		if err = json.Unmarshal(jsonBytes, &dteDoc); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
-		}
+	dteDoc, err := decodePreservingNumbers(raw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
 	}
 
 	if identifi, exist := dteDoc["identificacion"]; exist {
@@ -38,50 +42,39 @@ func UpdateContingencyIdentification(document interface{}, contiType *int8, reas
 		identification["tipoModelo"] = constants.ModeloFacturacionDiferido
 		identification["tipoOperacion"] = constants.TransmisionContingencia
 		identification["tipoContingencia"] = *contiType
-		identification["motivoContin"] = *reason
+		identification["motivoContin"] = nil
+		if int(*contiType) == constants.OtroMotivo {
+			identification["motivoContin"] = otherContingencyReason(reason)
+		}
 	}
 
 	return dteDoc, nil
 }
 
-// SetReceptionStampIntoAppendix adds the reception stamp to the document appendix.
-func SetReceptionStampIntoAppendix(document string, receptionStamp *string) (string, error) {
-	if receptionStamp == nil || *receptionStamp == "" {
-		return document, nil
+// decodePreservingNumbers decodes a JSON object keeping every number with its original text, so amounts and large
+// integers are written back exactly as they were received.
+func decodePreservingNumbers(raw []byte) (map[string]interface{}, error) {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var document map[string]interface{}
+	if err := decoder.Decode(&document); err != nil {
+		return nil, err
 	}
+	return document, nil
+}
 
-	dteInfo, err := ExtractAuxiliarIdentificationFromStringJSON(document)
-	if err != nil || dteInfo.Identification.DTEType == "" {
-		return "", fmt.Errorf("failed to determine DTE type: %w", err)
+// otherContingencyReason returns the reason of a type 5 contingency: the given text, or the catalog description when
+// it is empty, limited to the 500 characters accepted by the DTE.
+func otherContingencyReason(reason *string) string {
+	text := ""
+	if reason != nil {
+		text = strings.TrimSpace(*reason)
 	}
-
-	var dteDoc map[string]interface{}
-	if err := json.Unmarshal([]byte(document), &dteDoc); err != nil {
-		return "", fmt.Errorf("failed to unmarshal DTE JSON: %w", err)
+	if text == "" {
+		text = constants.GetContingencyReason(constants.OtroMotivo)
 	}
-
-	stampEntry := map[string]interface{}{
-		"Campo":    "Datos del documento",
-		"Etiqueta": "Sello de recepción",
-		"Valor":    *receptionStamp,
+	if runes := []rune(text); len(runes) > maxContingencyReasonLength {
+		text = string(runes[:maxContingencyReasonLength])
 	}
-
-	if appendix, exist := dteDoc["apendice"]; exist {
-		if appendix == nil {
-			dteDoc["apendice"] = []map[string]interface{}{stampEntry}
-		} else {
-			appendices, ok := appendix.([]interface{})
-			if !ok {
-				return "", fmt.Errorf("unexpected appendix type: expected []interface{}")
-			}
-			dteDoc["apendice"] = append(appendices, stampEntry)
-		}
-	}
-
-	jsonData, err := json.Marshal(dteDoc)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal DTE JSON: %w", err)
-	}
-
-	return string(jsonData), nil
+	return text
 }

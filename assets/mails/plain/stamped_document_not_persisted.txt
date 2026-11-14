@@ -1,0 +1,24 @@
+Microservicio DTE | DTE sellado sin guardar
+
+Hacienda selló el documento, pero no se pudo guardar en la base de datos.
+
+NIT del emisor: {{.NIT}}
+Sucursal: #{{.BranchID}}
+Tipo de DTE: {{if .DTETypeLabel}}{{.DTETypeLabel}} ({{.DTEType}}){{else}}{{.DTEType}}{{end}}
+Número de control: {{.ControlNumber}}
+Código de generación: {{.GenerationCode}}
+Sello de recepción: {{.ReceptionStamp}}
+Procesado por Hacienda: {{.ProcessingDate}}
+Falla al guardar: {{.Timestamp}}
+
+Error al guardar:
+{{.LastError}}
+
+Qué hacer:
+- No volver a emitir el documento: ya tiene sello de Hacienda.
+- Recuperar el documento firmado desde el log del servicio, buscando el código de generación indicado.
+
+--
+Microservicio DTE | Ambiente {{.Environment}} | API v{{.APIVersion}}
+Generado el {{.Timestamp}}{{if .AggregateID}} | Ref. {{.AggregateID}}{{end}}
+Correo automático del sistema. No responder.

@@ -3,10 +3,10 @@ package mappers
 import (
 	"testing"
 
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -180,19 +180,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "Invoice with invalid discount (>100%)",
-			req: func() *structs.CreateInvoiceRequest {
-				req := fixtures.CreateDefaultInvoiceRequest()
-				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.InvoiceItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 
 		{
@@ -203,27 +191,13 @@ func TestMapToInvoiceData(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Invoice with invalid extension",
-			req: func() *structs.CreateInvoiceRequest {
-				req := fixtures.CreateDefaultInvoiceRequest()
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "",
-					DeliveryDocument: "123456",
-					ReceiverName:     "Ana López",
-					ReceiverDocument: "98765432-1",
-				}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "RequiredField",
-		},
-		{
 			name: "Invoice with invalid third party sale",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "",
-					Name: "Empresa Tercero",
+					FiscalDomicile: 1,
+					NIT:            "",
+					Name:           "Empresa Tercero",
 				}
 				return req
 			},
@@ -500,30 +474,14 @@ func TestMapToInvoiceData(t *testing.T) {
 			},
 			wantErr: false,
 		},
-
-		{
-			name: "Invoice with valid extension",
-			req: func() *structs.CreateInvoiceRequest {
-				req := fixtures.CreateDefaultInvoiceRequest()
-				observation := "Observación válida"
-				req.Extension = &structs.ExtensionRequest{
-					DeliveryName:     "Juan Martínez",
-					DeliveryDocument: "12345678-9",
-					ReceiverName:     "María González",
-					ReceiverDocument: "98765432-1",
-					Observation:      &observation,
-				}
-				return req
-			},
-			wantErr: false,
-		},
 		{
 			name: "Invoice with valid third party sale",
 			req: func() *structs.CreateInvoiceRequest {
 				req := fixtures.CreateDefaultInvoiceRequest()
 				req.ThirdPartySale = &structs.ThirdPartySaleRequest{
-					NIT:  "06141804941035",
-					Name: "Tercero Válido, S.A. de C.V.",
+					FiscalDomicile: 1,
+					NIT:            "06141804941035",
+					Name:           "Tercero Válido, S.A. de C.V.",
 				}
 				return req
 			},
@@ -619,16 +577,13 @@ func TestMapToInvoiceData(t *testing.T) {
 			assert.NotNil(t, got.InputDataCommon)
 			assert.NotNil(t, got.InputDataCommon.Issuer)
 			assert.NotNil(t, got.InputDataCommon.Identification)
+			assert.Equal(t, 2, got.InputDataCommon.Identification.GetVersion())
 			assert.NotNil(t, got.InputDataCommon.Receiver)
 			assert.Len(t, got.Items, len(req.Items))
 			assert.NotNil(t, got.InvoiceSummary)
 
 			if req.ThirdPartySale != nil {
 				assert.NotNil(t, got.ThirdPartySale)
-			}
-
-			if req.Extension != nil {
-				assert.NotNil(t, got.Extension)
 			}
 
 			if req.RelatedDocs != nil {

@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/ports"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
 )
 
 type JWTService struct {
@@ -67,7 +67,6 @@ func (s *JWTService) GenerateToken(claims *models.AuthClaims, tokenLifetime time
 		)
 	}
 
-	fmt.Printf("token, %s\n", signedToken)
 	key := "token:" + signedToken
 	jsonClaims, err := json.Marshal(claims)
 	if err != nil {
@@ -145,7 +144,6 @@ func (s *JWTService) ValidateToken(tokenString string) (*models.AuthClaims, erro
 	claims, err := s.cacheService.Get(key)
 	if err != nil {
 		logs.Error("Failed to retrieve token from cacheService", map[string]interface{}{
-			"token": tokenString,
 			"error": err.Error(),
 		})
 		return nil, shared_error.NewFormattedGeneralServiceWithError(
@@ -159,7 +157,6 @@ func (s *JWTService) ValidateToken(tokenString string) (*models.AuthClaims, erro
 	var authClaims models.AuthClaims
 	if err = json.Unmarshal([]byte(claims), &authClaims); err != nil {
 		logs.Error("Failed to unmarshal claims", map[string]interface{}{
-			"token": tokenString,
 			"error": err.Error(),
 		})
 		return nil, shared_error.NewFormattedGeneralServiceError(
@@ -174,7 +171,6 @@ func (s *JWTService) ValidateToken(tokenString string) (*models.AuthClaims, erro
 	})
 	if err != nil {
 		logs.Error("Failed to parse token", map[string]interface{}{
-			"token": tokenString,
 			"error": err.Error(),
 		})
 		return nil, shared_error.NewFormattedGeneralServiceError(
@@ -185,9 +181,7 @@ func (s *JWTService) ValidateToken(tokenString string) (*models.AuthClaims, erro
 	}
 
 	if !token.Valid {
-		logs.Error("Invalid token", map[string]interface{}{
-			"token": tokenString,
-		})
+		logs.Error("Invalid token", map[string]interface{}{})
 		return nil, shared_error.NewFormattedGeneralServiceError(
 			"JWTService",
 			"ValidateToken",
@@ -195,9 +189,7 @@ func (s *JWTService) ValidateToken(tokenString string) (*models.AuthClaims, erro
 		)
 	}
 
-	logs.Info("Token validated successfully", map[string]interface{}{
-		"token": tokenString,
-	})
+	logs.Info("Token validated successfully", map[string]interface{}{})
 
 	return &authClaims, nil
 }
@@ -207,7 +199,6 @@ func (s *JWTService) RevokeToken(token string) error {
 	err := s.cacheService.Delete(token)
 	if err != nil {
 		logs.Error("Failed to revoke token", map[string]interface{}{
-			"token": token,
 			"error": err.Error(),
 		})
 		return shared_error.NewGeneralServiceError(
@@ -218,9 +209,7 @@ func (s *JWTService) RevokeToken(token string) error {
 		)
 	}
 
-	logs.Info("Token revoked successfully", map[string]interface{}{
-		"token": token,
-	})
+	logs.Info("Token revoked successfully", map[string]interface{}{})
 
 	return nil
 }

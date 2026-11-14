@@ -1,8 +1,8 @@
 package common
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/response_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 )
 
 func MapCommonItems(item interfaces.Item) structs.DTEItem {
@@ -16,6 +16,7 @@ func MapCommonItems(item interfaces.Item) structs.DTEItem {
 		MontoDescu:      item.GetDiscount(),
 		NumeroDocumento: item.GetRelatedDoc(),
 	}
+	result.Codigo, result.CodTributo = MapItemCodes(item)
 
 	if item.GetTaxes() != nil {
 		MapTaxCodes(item.GetTaxes())

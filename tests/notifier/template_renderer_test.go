@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/notifier/email"
-	test "github.com/chainedpixel/ordo-factus/tests"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/core/event"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/notifier/email"
+	test "github.com/chainedpixel/api-facturacion-sv/tests"
 )
 
 func setupRendererConfig(t *testing.T) {
@@ -40,13 +40,18 @@ func TestRenderContingencyContainsAllExpectedFields(t *testing.T) {
 	if !strings.Contains(subject, "sucursal #7") {
 		t.Errorf("subject missing branch: %q", subject)
 	}
-	for _, want := range []string{"API v3.0.0", "MH no responde", "Contingencia activada", "Ordo"} {
+	for _, want := range []string{"API v3.0.0", "MH no responde", "Contingencia activada", "Microservicio DTE", "Ambiente de pruebas (00)", "#B45309"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("html missing %q", want)
 		}
 	}
-	if !strings.Contains(html, "<svg") {
-		t.Error("html should contain inline SVG")
+	for _, unwanted := range []string{"<svg", "Ordo", "Factus", "linear-gradient", "display:flex"} {
+		if strings.Contains(html, unwanted) {
+			t.Errorf("html should not contain %q", unwanted)
+		}
+	}
+	if !strings.HasPrefix(subject, "[Microservicio DTE] ") {
+		t.Errorf("subject should start with the service name, got %q", subject)
 	}
 	for _, want := range []string{"API v3.0.0", "MH no responde", "Sucursal: #7"} {
 		if !strings.Contains(plain, want) {
@@ -148,7 +153,7 @@ func TestRenderRetransmissionJobInfraFailureShowsLastError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if !strings.Contains(subject, "fallo de ejecución") {
+	if !strings.Contains(subject, "error de ejecución") {
 		t.Errorf("subject for infra failure should indicate execution error, got %q", subject)
 	}
 	for _, want := range []string{"contingency_retransmission", "timeout reaching MH", "API v3.0.0"} {
@@ -517,6 +522,7 @@ func TestAllTemplatesRenderWithMinimalEvent(t *testing.T) {
 		event.ContingencyActivatedEvent{OccurredAtTime: time.Now()},
 		event.EmissionFailureEvent{OccurredAtTime: time.Now()},
 		event.RetransmissionJobFailedEvent{OccurredAtTime: time.Now()},
+		event.StampedDocumentNotPersistedEvent{OccurredAtTime: time.Now()},
 	}
 	for _, evt := range evts {
 		_, html, plain, err := r.Render(evt)
@@ -598,4 +604,40 @@ func extractSnippet(s, keyword string) string {
 		end = len(s)
 	}
 	return s[start:end]
+}
+
+func TestRenderStampedDocumentNotPersistedExcludesSignedDocument(t *testing.T) {
+	setupRendererConfig(t)
+	r, err := email.NewTemplateRenderer()
+	if err != nil {
+		t.Fatalf("renderer: %v", err)
+	}
+
+	evt := event.StampedDocumentNotPersistedEvent{
+		BranchID:       2,
+		NIT:            "06140101001111",
+		ControlNumber:  "DTE-01-M001P001-000000000000009",
+		GenerationCode: "GEN-CODE-9",
+		DTEType:        "01",
+		ReceptionStamp: "2026STAMP0009",
+		ProcessingDate: "2026-11-13T10:00:00",
+		LastError:      "db down",
+		OccurredAtTime: time.Now(),
+	}
+	subject, html, plain, err := r.Render(evt)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+
+	if !strings.Contains(subject, evt.ControlNumber) {
+		t.Errorf("subject must contain control number, got %q", subject)
+	}
+	for _, want := range []string{evt.GenerationCode, evt.ReceptionStamp, evt.ProcessingDate, evt.LastError, "Factura Electrónica"} {
+		if !strings.Contains(html, want) || !strings.Contains(plain, want) {
+			t.Errorf("html and plain must contain %q", want)
+		}
+	}
+	if _, ok := evt.Payload()["signed_document"]; ok {
+		t.Error("payload must not carry the signed document")
+	}
 }

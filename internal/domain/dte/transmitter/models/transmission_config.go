@@ -3,8 +3,8 @@ package models
 import (
 	"time"
 
-	"github.com/chainedpixel/ordo-factus/config"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency/models"
+	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency/models"
 )
 
 // TransmissionConfig specific configuration for the contingency service

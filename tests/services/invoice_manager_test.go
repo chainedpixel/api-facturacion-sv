@@ -11,17 +11,17 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/models"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/financial"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invoice/invoice_models"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/shared_error"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
-	"github.com/chainedpixel/ordo-factus/tests"
-	"github.com/chainedpixel/ordo-factus/tests/fixtures"
-	"github.com/chainedpixel/ordo-factus/tests/mocks"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invoice/invoice_models"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/tests"
+	"github.com/chainedpixel/api-facturacion-sv/tests/fixtures"
+	"github.com/chainedpixel/api-facturacion-sv/tests/mocks"
 )
 
 func TestInvoiceServiceCreate(t *testing.T) {
@@ -151,7 +151,45 @@ func TestInvoiceServiceCreate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid Invoice with IVA and income retentions",
+			name: "Valid Invoice with IVA retention",
+			setupInvoiceData: func() (*invoice_models.InvoiceData, error) {
+				invoice, err := fixtures.BuildValidInvoice()
+				if err != nil {
+					return nil, err
+				}
+
+				taxedAmount := invoice.InvoiceSummary.Summary.GetTotalTaxed()
+				ivaRetention := financial.NewValidatedAmount(math.Round(taxedAmount * 0.01))
+
+				invoice.InvoiceSummary.IVARetention = *ivaRetention
+
+				totalOperation := invoice.InvoiceSummary.Summary.GetTotalOperation()
+				newTotalToPay := totalOperation - ivaRetention.GetValue()
+				newTotalToPay = decimal.NewFromFloat(newTotalToPay).Round(2).InexactFloat64()
+				invoice.InvoiceSummary.Summary.SetTotalToPay(newTotalToPay)
+
+				payments := invoice.InvoiceSummary.Summary.GetPaymentTypes()
+				for i, payment := range payments {
+					if i == 0 {
+						payment.SetAmount(newTotalToPay)
+					}
+				}
+
+				return fixtures.BuildAsInvoiceData(invoice), nil
+			},
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {
+				mock.EXPECT().GetNextControlNumber(
+					gomock.Any(),
+					constants.FacturaElectronica,
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return("DTE-01-F0010001-000000000012345", nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error - Invoice with income retention (removed in v2.0)",
 			setupInvoiceData: func() (*invoice_models.InvoiceData, error) {
 				invoice, err := fixtures.BuildValidInvoice()
 				if err != nil {
@@ -179,16 +217,9 @@ func TestInvoiceServiceCreate(t *testing.T) {
 
 				return fixtures.BuildAsInvoiceData(invoice), nil
 			},
-			setupMock: func(mock *mocks.MockSequentialNumberManager) {
-				mock.EXPECT().GetNextControlNumber(
-					gomock.Any(),
-					constants.FacturaElectronica,
-					gomock.Any(),
-					gomock.Any(),
-					gomock.Any(),
-				).Return("DTE-01-F0010001-000000000012345", nil)
-			},
-			wantErr: false,
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
+			wantErr:   true,
+			errorCode: "IncomeRetentionNotAllowed",
 		},
 		{
 			name: "Valid Invoice with related documents",
@@ -213,9 +244,9 @@ func TestInvoiceServiceCreate(t *testing.T) {
 				invoiceData := fixtures.BuildAsInvoiceData(invoice)
 				invoiceData.RelatedDocs = []models.RelatedDocument{relatedDoc1, relatedDoc2}
 
+				docRefs := []string{"001BEDAD-93F3-4F49-85D9-1E3618425F6B", "001BEDAD-93F3-4F49-85D9-1E3618425F6C"}
 				for i := range invoiceData.Items {
-					docRef := "001BEDAD-93F3-4F49-85D9-1E3618425F6B"
-					invoiceData.Items[i].SetRelatedDoc(&docRef)
+					invoiceData.Items[i].SetRelatedDoc(&docRefs[i%len(docRefs)])
 				}
 
 				return invoiceData, nil
@@ -413,6 +444,85 @@ func TestInvoiceServiceCreate(t *testing.T) {
 			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
 			wantErr:   true,
 			errorCode: "ExceededRelatedDocsLimit",
+		},
+		{
+			name: "Error - Invoice with InvalidRelatedDocDTEType",
+			setupInvoiceData: func() (*invoice_models.InvoiceData, error) {
+				invoice, err := fixtures.BuildValidInvoice()
+				if err != nil {
+					return nil, err
+				}
+
+				relatedDoc := models.RelatedDocument{}
+				relatedDoc.SetGenerationType(constants.ElectronicDocument)
+				relatedDoc.SetDocumentNumber("001BEDAD-93F3-4F49-85D9-1E3618425F6B")
+				relatedDoc.SetDocumentType(constants.CCFElectronico)
+				relatedDoc.SetEmissionDate(utils.TimeNow())
+
+				invoiceData := fixtures.BuildAsInvoiceData(invoice)
+				invoiceData.RelatedDocs = []models.RelatedDocument{relatedDoc}
+
+				for i := range invoiceData.Items {
+					docRef := "001BEDAD-93F3-4F49-85D9-1E3618425F6B"
+					invoiceData.Items[i].SetRelatedDoc(&docRef)
+				}
+
+				return invoiceData, nil
+			},
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
+			wantErr:   true,
+			errorCode: "InvalidRelatedDocDTEType",
+		},
+		{
+			name: "Error - Invoice with item missing related doc",
+			setupInvoiceData: func() (*invoice_models.InvoiceData, error) {
+				invoice, err := fixtures.BuildValidInvoice()
+				if err != nil {
+					return nil, err
+				}
+
+				relatedDoc := models.RelatedDocument{}
+				relatedDoc.SetGenerationType(constants.ElectronicDocument)
+				relatedDoc.SetDocumentNumber("001BEDAD-93F3-4F49-85D9-1E3618425F6B")
+				relatedDoc.SetDocumentType(constants.NotaRemisionElectronica)
+				relatedDoc.SetEmissionDate(utils.TimeNow())
+
+				invoiceData := fixtures.BuildAsInvoiceData(invoice)
+				invoiceData.RelatedDocs = []models.RelatedDocument{relatedDoc}
+
+				return invoiceData, nil
+			},
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
+			wantErr:   true,
+			errorCode: "MissingItemRelatedDoc",
+		},
+		{
+			name: "Error - Invoice with item referencing unknown related doc",
+			setupInvoiceData: func() (*invoice_models.InvoiceData, error) {
+				invoice, err := fixtures.BuildValidInvoice()
+				if err != nil {
+					return nil, err
+				}
+
+				relatedDoc := models.RelatedDocument{}
+				relatedDoc.SetGenerationType(constants.ElectronicDocument)
+				relatedDoc.SetDocumentNumber("001BEDAD-93F3-4F49-85D9-1E3618425F6B")
+				relatedDoc.SetDocumentType(constants.NotaRemisionElectronica)
+				relatedDoc.SetEmissionDate(utils.TimeNow())
+
+				invoiceData := fixtures.BuildAsInvoiceData(invoice)
+				invoiceData.RelatedDocs = []models.RelatedDocument{relatedDoc}
+
+				for i := range invoiceData.Items {
+					docRef := "001BEDAD-93F3-4F49-85D9-1E3618425F6X"
+					invoiceData.Items[i].SetRelatedDoc(&docRef)
+				}
+
+				return invoiceData, nil
+			},
+			setupMock: func(mock *mocks.MockSequentialNumberManager) {},
+			wantErr:   true,
+			errorCode: "InvalidItemRelatedDoc",
 		},
 		{
 			name: "Error - Invoice with invalid total to pay",

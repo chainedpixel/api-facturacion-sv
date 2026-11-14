@@ -8,10 +8,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/helpers"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/response"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
-	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/helpers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/response"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
 // GenericCreatorDTEHandler handles requests to create any type of DTE document
@@ -53,12 +52,13 @@ func (h *GenericCreatorDTEHandler) HandleCreate(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	resp, options, err := config.UseCase.Create(r.Context(), request)
+	ctx := helpers.RequestContextWithForcedContingency(r)
+	resp, options, err := config.UseCase.Create(ctx, request)
 	if err != nil {
 		logs.Warn("Error processing document because", map[string]interface{}{"error": err.Error()})
 
 		if config.UsesContingency {
-			err = h.handleErrorForContingency(r.Context(), resp, config.DocumentType, options, err, w)
+			err = h.handleErrorForContingency(ctx, resp, config.DocumentType, options, err, w)
 			if err != nil {
 				h.respWriter.HandleError(w, err)
 				return
@@ -73,24 +73,20 @@ func (h *GenericCreatorDTEHandler) HandleCreate(w http.ResponseWriter, r *http.R
 	h.respWriter.Success(w, http.StatusCreated, resp, options)
 }
 
-// handleErrorForContingency handles the error in case a contingency is applied
+// handleErrorForContingency stores the document in contingency when the error calls for it and responds with the
+// signed deferred document, the same one that is later transmitted to Hacienda
 func (h *GenericCreatorDTEHandler) handleErrorForContingency(ctx context.Context, dte interface{}, dteType string, options *response.SuccessOptions, err error, w http.ResponseWriter) error {
 	logs.Warn("Error transmitting DTE because", map[string]interface{}{
 		"error": err.Error(),
 	})
 
-	contiType, reason := h.contingencyHandler.HandleContingency(ctx, dte, dteType, err)
-	if contiType == nil || reason == nil {
+	deferred := h.contingencyHandler.HandleContingency(ctx, dte, dteType, err)
+	if deferred == nil {
 		logs.Error("Error creating DTE contingency", map[string]interface{}{"error": err.Error()})
 		return err
 	}
 
-	updatedDTE, err := utils.UpdateContingencyIdentification(dte, contiType, reason)
-	if err != nil {
-		return err
-	}
-
-	h.respWriter.Success(w, http.StatusCreated, updatedDTE, options)
+	h.respWriter.Success(w, http.StatusCreated, deferred.Response(), options)
 	return nil
 }
 

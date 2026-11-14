@@ -4,6 +4,7 @@ package interfaces
 type AddressGetter interface {
 	GetDepartment() string
 	GetMunicipality() string
+	GetDistrict() string
 	GetComplement() string
 }
 
@@ -11,6 +12,7 @@ type AddressGetter interface {
 type AddressSetter interface {
 	SetDepartment(department string) error
 	SetMunicipality(municipality string) error
+	SetDistrict(district string) error
 	SetComplement(complement string) error
 }
 

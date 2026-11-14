@@ -1,8 +1,8 @@
 package fixtures
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
-	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
+	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
 // CreatePhysicalDocumentsRetentionRequest creates a default retention request with physical documents
@@ -16,14 +16,15 @@ func CreateElectronicDocumentsRetentionRequest() *structs.CreateRetentionRequest
 }
 
 func createRequest(genType int) *structs.CreateRetentionRequest {
+	// Un CRE admite un solo codigo de retencion; ambos items usan C4 (13%)
 	taxedAmount1 := 115.25
-	ivaAmount1 := 15.00
+	ivaAmount1 := 14.98
 	emissionDate1 := "2025-03-20"
 	dteType1 := "03"
 	docNumber1 := "FF54E9DB-79A3-42CE-B432-EC522C97EFB9"
 
 	taxedAmount2 := 226.50
-	ivaAmount2 := 29.43
+	ivaAmount2 := 29.45
 	emissionDate2 := "2025-03-22"
 	dteType2 := "03"
 	docNumber2 := "AD54E9BB-79A3-42AE-B432-EC522C97EFB7"
@@ -38,7 +39,7 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 			DocumentType:   genType,
 			DocumentNumber: docNumber1,
 			Description:    "Compra de equipos informáticos",
-			RetentionCode:  "22",
+			RetentionCode:  "C4",
 			TaxedAmount:    &taxedAmount1,
 			IvaAmount:      &ivaAmount1,
 			EmissionDate:   &emissionDate1,
@@ -89,19 +90,12 @@ func createRequest(genType int) *structs.CreateRetentionRequest {
 	}
 
 	observation := "Retención por servicios tecnológicos primer trimestre"
-	extension := &structs.ExtensionRequest{
-		Observation:      &observation,
-		DeliveryName:     "Juan Carlos Martínez",
-		DeliveryDocument: "04567890-1",
-		ReceiverName:     "Ana María López",
-		ReceiverDocument: "12345678-9",
-	}
+	summary.Observations = &observation
 
 	return &structs.CreateRetentionRequest{
-		Items:     items,
-		Receiver:  receiver,
-		Extension: extension,
-		Summary:   summary,
+		Items:    items,
+		Receiver: receiver,
+		Summary:  summary,
 	}
 }
 
@@ -122,7 +116,7 @@ func CreateMixedDocumentsRetentionRequest() *structs.CreateRetentionRequest {
 			DocumentType:   1,
 			DocumentNumber: "S221001347",
 			Description:    "Consultoría financiera",
-			RetentionCode:  "C9",
+			RetentionCode:  "C4",
 			TaxedAmount:    &taxedAmount1,
 			IvaAmount:      &ivaAmount1,
 			EmissionDate:   &emissionDate1,

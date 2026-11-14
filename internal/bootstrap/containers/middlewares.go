@@ -1,8 +1,8 @@
 package containers
 
 import (
-	"github.com/chainedpixel/ordo-factus/config/drivers"
-	"github.com/chainedpixel/ordo-factus/internal/infrastructure/api/middleware"
+	"github.com/chainedpixel/api-facturacion-sv/config/drivers"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/middleware"
 )
 
 type MiddlewareContainer struct {

@@ -6,8 +6,9 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
-	errPackage "github.com/chainedpixel/ordo-factus/config/error"
+	errPackage "github.com/chainedpixel/api-facturacion-sv/config/error"
 	"github.com/spf13/viper"
 )
 
@@ -90,6 +91,7 @@ func InitEnvConfig(rootPath string) error {
 	Log = &EnvConfig.Log
 	Signer = &EnvConfig.Signer
 	MHPaths = &EnvConfig.MHPaths
+	SanitizeMHPaths(MHPaths)
 	SMTP = &EnvConfig.SMTP
 
 	if Server.APIVersion == "" {
@@ -100,6 +102,20 @@ func InitEnvConfig(rootPath string) error {
 	}
 
 	return nil
+}
+
+// SanitizeMHPaths strips trailing slashes from all MH service endpoint URLs.
+func SanitizeMHPaths(paths *mhPaths) {
+	if paths == nil {
+		return
+	}
+	paths.AuthURL = strings.TrimRight(paths.AuthURL, "/")
+	paths.ReceptionURL = strings.TrimRight(paths.ReceptionURL, "/")
+	paths.LoteReceptionURL = strings.TrimRight(paths.LoteReceptionURL, "/")
+	paths.ReceptionConsultURL = strings.TrimRight(paths.ReceptionConsultURL, "/")
+	paths.LoteReceptionConsultURL = strings.TrimRight(paths.LoteReceptionConsultURL, "/")
+	paths.ContingencyURL = strings.TrimRight(paths.ContingencyURL, "/")
+	paths.NullifyURL = strings.TrimRight(paths.NullifyURL, "/")
 }
 
 // ValidateConfig validates every field of the .env file configuration
@@ -160,7 +176,7 @@ func validateServerFields() error {
 		"FORCECONTINGENCY": true,
 		"RUNMIGRATION":     true,
 	}
-	ex := []string{"ADMINEMAIL", "APIVERSION", "NOTIFYCOOLDOWNMINUTES"}
+	ex := []string{"ADMINEMAIL", "APIVERSION", "NOTIFYCOOLDOWNMINUTES", "EXTRAHOLIDAYS"}
 	v := reflect.ValueOf(EnvConfig.Server)
 
 	if err := validateEnvVariables(v, bt, ex); err != nil {
@@ -173,6 +189,16 @@ func validateServerFields() error {
 
 	if EnvConfig.Server.MaxBatchSize <= 0 || EnvConfig.Server.MaxBatchSize > 100 {
 		return fmt.Errorf("MH_MAX_BATCH_SIZE must be between 1 and 100")
+	}
+
+	for _, holiday := range strings.Split(EnvConfig.Server.ExtraHolidays, ",") {
+		holiday = strings.TrimSpace(holiday)
+		if holiday == "" {
+			continue
+		}
+		if _, err := time.Parse("2006-01-02", holiday); err != nil {
+			return fmt.Errorf("MH_EXTRA_HOLIDAYS must be a comma separated list of dates YYYY-MM-DD, got %q", holiday)
+		}
 	}
 
 	return nil

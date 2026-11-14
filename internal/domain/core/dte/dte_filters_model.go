@@ -4,6 +4,7 @@ import "time"
 
 type DTEFilters struct {
 	BranchID     uint       `query:"-"`
+	IssuerNIT    string     `query:"-"`
 	IncludeAll   bool       `query:"all,omitempty"`
 	StartDate    *time.Time `query:"startDate,omitempty"`
 	EndDate      *time.Time `query:"endDate,omitempty"`

@@ -18,40 +18,43 @@ func InitLogger(logLevel, logPath string) error
 ```
 InitLogger("debug", "/assets/logs/")
   │
-  ├── [1] Determinar nivel de log
+  ├── [1] Crear un nuevo Logger (logrus.New())
+  │
+  ├── [2] Configurar formatter personalizado
+  │     CustomFormatter{
+  │       TextFormatter{ DisableColors: false, FullTimestamp: true }
+  │     }
+  │
+  ├── [3] Determinar nivel de log
   │     determineLogLevel(logLevel)
   │     → "debug" → DebugLevel
   │     → "info"  → InfoLevel
   │     → "warn"  → WarnLevel
   │     → "error" → ErrorLevel
   │     → "fatal" → FatalLevel
-  │     → default → InfoLevel
+  │     → cualquier otro valor → InfoLevel
   │
-  ├── [2] Configurar formatter personalizado
-  │     CustomFormatter{
-  │       TextFormatter{ DisableColors: true }
-  │     }
-  │
-  ├── [3] Configurar salida a stdout
+  ├── [4] Configurar salida a stdout
   │     Logger.SetOutput(os.Stdout)
   │
-  ├── [4] Crear directorio de logs (si no existe)
-  │     os.MkdirAll(rootPath + logPath)
+  ├── [5] ¿logPath vacío? → terminar (solo stdout)
   │
-  ├── [5] Crear/abrir archivo de log
-  │     os.OpenFile("dte_microservice.log", O_CREATE|O_WRONLY|O_APPEND)
+  ├── [6] Crear directorio de logs (si no existe)
+  │     os.MkdirAll(FindProjectRoot() + logPath)
   │
-  └── [6] Agregar hook de escritura a archivo
-        Logger.AddHook(WriteHook{
-          Writer: logFile,
-          Formatter: CustomFormatter
-        })
+  ├── [7] Crear/abrir archivo de log
+  │     os.OpenFile("dte_microservice.log", O_APPEND|O_CREATE|O_WRONLY)
+  │
+  └── [8] Salida dual
+        Logger.SetOutput(io.MultiWriter(os.Stdout, logFile))
 ```
+
+Si no se puede crear el directorio o abrir el archivo, `InitLogger` retorna `nil` y el logger sigue escribiendo solo a stdout (el error no se propaga).
 
 ### Archivo de Log
 
 - **Nombre:** `dte_microservice.log`
-- **Ubicación:** `{projectRoot}{LOG_PATH}/dte_microservice.log`
+- **Ubicación:** `{projectRoot}{LOG_PATH}/dte_microservice.log` (`LOG_PATH` por defecto `/assets/logs/`)
 - **Modo:** Append (no sobreescribe al reiniciar)
 
 ---
@@ -64,7 +67,7 @@ InitLogger("debug", "/assets/logs/")
 | `Info(msg, fields...)` | INFO | Eventos normales del sistema |
 | `Warn(msg, fields...)` | WARN | Situaciones inesperadas pero recuperables |
 | `Error(msg, fields...)` | ERROR | Errores que requieren atención |
-| `Fatal(msg, fields...)` | FATAL | Errores irrecuperables (termina el proceso) |
+| `Fatal(msg, fields...)` | FATAL | Errores irrecuperables. Solo registra la entrada: no termina el proceso |
 
 ### Uso con Campos Contextuales
 
@@ -98,15 +101,15 @@ type CustomFormatter struct {
 }
 ```
 
-Se personaliza la salida de cada entrada de log con colores ANSI y formato estructurado.
+Se personaliza la salida de cada entrada de log con colores ANSI y formato estructurado. El código de color se antepone a la línea y se restablece (`[0m`) después del nivel; los campos (si existen) se imprimen en un bloque `Details:`, uno por línea, sin orden garantizado (iteración de mapa).
 
 ### Formato de Salida
 
 ```
-[LEVEL] 2024-01-15 14:30:05 | Mensaje del log
-         Field Details
-         ├── key1: value1
-         └── key2: value2
+ 2024-01-15 14:30:05 [LEVEL] Mensaje del log
+	Details:
+	key1      : value1
+	key2      : value2
 ```
 
 ### Colores por Nivel
@@ -122,7 +125,7 @@ Se personaliza la salida de cada entrada de log con colores ANSI y formato estru
 ### Timestamp
 
 - **Formato:** `2006-01-02 15:04:05`
-- Se usa la hora del sistema (ya configurada con zona `America/El_Salvador`)
+- Se usa `entry.Time` de logrus (hora local del proceso); no se convierte explícitamente con `utils.TimeNow()`
 
 ---
 
@@ -135,10 +138,26 @@ type WriteHook struct {
 }
 ```
 
-Se implementa la interfaz `logrus.Hook` para escribir logs a destinos adicionales (archivo).
+Se implementa la interfaz `logrus.Hook` para escribir logs a destinos adicionales.
 
 | Método | Descripción |
 |---|---|
+| `Fire(entry)` | Se formatea la entrada y se escribe al Writer |
+| `Levels()` | Se retornan todos los niveles de log |
+
+> **Nota:** `WriteHook` está definido pero `InitLogger` no lo registra; la escritura al archivo se hace con `io.MultiWriter(os.Stdout, logFile)`.
+
+### Flujo de Escritura Dual
+
+```
+logs.Info("mensaje")
+  │
+  └── Logger (CustomFormatter) → io.MultiWriter
+        ├── stdout
+        └── dte_microservice.log
+```
+
+---|---|
 | `Fire(entry)` | Se formatea la entrada y se escribe al Writer |
 | `Levels()` | Se retornan todos los niveles de log (se escribe todo al archivo) |
 
@@ -166,7 +185,7 @@ var logsLevel = map[string]logrus.Level{
 }
 ```
 
-Se configura el nivel con la variable de entorno `LOG_LEVEL`. Los mensajes con nivel inferior al configurado se ignoran.
+Se configura el nivel con la variable de entorno `LOG_LEVEL` (`config.Log.Level`). Los mensajes con nivel inferior al configurado se ignoran.
 
 ```
 fatal > error > warn > info > debug
@@ -184,6 +203,6 @@ fatal > error > warn > info > debug
 
 1. **InitLogger obligatorio**: Se debe llamar a `InitLogger()` durante el bootstrap antes de usar cualquier función de log.
 2. **Campos opcionales**: El segundo parámetro `fields` es variádico — si no se necesitan campos, se omite.
-3. **Fatal termina el proceso**: `logs.Fatal()` llama a `os.Exit(1)` internamente. Solo se usa para errores irrecuperables durante el arranque.
+3. **Fatal no termina el proceso**: `logs.Fatal()` usa `Logger.Log(FatalLevel, ...)`, que registra la entrada pero no invoca `os.Exit`. Quien lo llama debe terminar el proceso (por ejemplo, `cmd/main.go` ejecuta `os.Exit(1)` después de cada `logs.Fatal`).
 4. **Archivo append**: El archivo de log no se rota automáticamente. Se recomienda configurar rotación a nivel de sistema operativo o contenedor.
 5. **Dependencia logrus**: Se usa `github.com/sirupsen/logrus` como backend. El paquete `logs` actúa como wrapper para centralizar la configuración.

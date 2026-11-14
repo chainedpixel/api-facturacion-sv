@@ -1,11 +1,11 @@
 package models
 
 import (
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/base"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/document"
-	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/value_objects/identification"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/base"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/document"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/identification"
 )
 
 // Issuer is a struct that represents the issuer of a DTE
