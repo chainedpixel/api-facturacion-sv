@@ -115,12 +115,15 @@ func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, o
 			"status": status,
 		}
 
-		// Normativa v2.0 (Anexo I, regla 4.1): la estructura firmada no se altera; el sello se guarda aparte
-		// y se agrega como selloRecibido al armar el Archivo DTE
-		if result, exists := results[id]; exists && result.ReceptionStamp != "" {
-			dteUpdate["reception_stamp"] = result.ReceptionStamp
-			if result.ProcessingDate != "" {
-				dteUpdate["processing_date"] = result.ProcessingDate
+		if result, exists := results[id]; exists {
+			if result.ReceptionStamp != "" {
+				dteUpdate["reception_stamp"] = result.ReceptionStamp
+				if result.ProcessingDate != "" {
+					dteUpdate["processing_date"] = result.ProcessingDate
+				}
+			}
+			if result.HaciendaResponse != "" {
+				dteUpdate["hacienda_response"] = result.HaciendaResponse
 			}
 		}
 

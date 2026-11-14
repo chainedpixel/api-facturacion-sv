@@ -34,5 +34,6 @@ type DTEEvent struct {
 type EventArchiveResponse struct {
 	DTEEvent
 	HaciendaResponse json.RawMessage `json:"hacienda_response,omitempty"`
+	Observations     []string        `json:"observations"`
 	Archive          json.RawMessage `json:"archivo_dte,omitempty"`
 }

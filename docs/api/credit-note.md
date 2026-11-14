@@ -178,6 +178,7 @@ Al emitirse un CCF o CR se registra su saldo (gravado, exento y no sujeto). La N
   "success": true,
   "reception_stamp": "20260115AAFEEE1A566A44F19A622C0C35C8A1B6FAZM",
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?ambiente=00&codGen=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX&fechaEmi=2026-01-15",
+  "observations": [],
   "data": {
     "identificacion": {
       "version": 4,

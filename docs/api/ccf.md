@@ -314,6 +314,7 @@ La emisión normal devuelve en `data` el **Archivo DTE**: la estructura del docu
   "success": true,
   "reception_stamp": "20262E5B1C7D4A8E9F3A0B1C2D3E4F5A6B7C",
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=7C1E9A44-2B3D-4F5A-9E8B-1A2B3C4D5E6F&fechaEmi=2026-05-15",
+  "observations": [],
   "data": {
     "identificacion": {
       "version": 4,

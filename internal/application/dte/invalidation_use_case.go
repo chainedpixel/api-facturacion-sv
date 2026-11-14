@@ -3,6 +3,8 @@ package dte
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	structs2 "github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper/structs"
 
@@ -15,6 +17,7 @@ import (
 	dteInterfaces "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/dte_documents"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/invalidation"
 	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
 	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper"
 	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/response_mapper"
@@ -87,6 +90,7 @@ func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request st
 
 	result, err := u.transmitter.RetryTransmission(ctx, mhInvalidation, token, claims.NIT)
 	if err != nil {
+		u.registerRejectedInvalidation(ctx, mhInvalidation, request, claims.BranchID, err)
 		return nil, err
 	}
 	if result.Status != ReceivedStatus {
@@ -116,6 +120,55 @@ func (u *InvalidationUseCase) InvalidateDocument(ctx context.Context, request st
 
 	response := dteInterfaces.ToEventArchiveResponse(*event)
 	return &response, nil
+}
+
+// registerRejectedInvalidation keeps an invalidation event that Hacienda rejected, with the transmitted JWS and the
+// Hacienda response, so the attempt and its observations stay available. Other transmission failures are not stored,
+// and a failure to store the attempt does not change the error returned to the consumer.
+func (u *InvalidationUseCase) registerRejectedInvalidation(ctx context.Context, mhInvalidation *structs2.InvalidationResponse,
+	request structs.CreateInvalidationRequest, branchID uint, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			logs.Error("Recovered while registering rejected invalidation event", map[string]interface{}{"panic": fmt.Sprint(recovered)})
+		}
+	}()
+
+	var haciendaErr *hacienda_error.HaciendaResponseError
+	if !errors.As(err, &haciendaErr) || haciendaErr.Status != hacienda_error.StatusRejected {
+		return
+	}
+
+	signedDocument := ""
+	var transmissionErr *ports.TransmissionError
+	if errors.As(err, &transmissionErr) {
+		signedDocument = transmissionErr.SignedDocument
+	}
+
+	var response interface{} = haciendaErr
+	if haciendaErr.Response != nil {
+		response = haciendaErr.Response
+	}
+	rawResponse, marshalErr := json.Marshal(response)
+	if marshalErr != nil {
+		return
+	}
+
+	event, buildErr := buildInvalidationEvent(mhInvalidation, request, branchID, &transmitterModels.TransmitResult{
+		SignedDocument:   signedDocument,
+		ProcessingDate:   haciendaErr.ProcessedAt,
+		HaciendaResponse: string(rawResponse),
+	})
+	if buildErr != nil {
+		return
+	}
+	event.Status = constants.DocumentRejected
+
+	if registerErr := u.dteManager.RegisterEvent(ctx, event); registerErr != nil {
+		logs.Error("Failed to register rejected invalidation event", map[string]interface{}{
+			"error": registerErr.Error(),
+			"code":  event.GenerationCode,
+		})
+	}
 }
 
 // buildInvalidationEvent arma el registro del evento con la evidencia devuelta por Hacienda

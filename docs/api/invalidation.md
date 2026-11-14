@@ -201,10 +201,11 @@ La respuesta es un `EventArchiveResponse`: los datos del evento registrado, la r
 | `replacement_dte_id` | string o null | Código de generación del DTE de reemplazo |
 | `reception_stamp` | string o null | Sello de recepción del evento |
 | `processing_date` | string | Fecha de procesamiento del evento devuelta por Hacienda |
-| `status` | string | `RECEIVED` |
+| `status` | string | `RECEIVED` cuando Hacienda selló el evento. En `GET /dte/{id}/eventos` también aparecen los intentos rechazados por Hacienda con `REJECTED` (sin sello ni `archivo_dte`) |
 | `created_at` | string (ISO 8601) | Fecha de registro del evento |
 | `hacienda_response` | object | Respuesta completa de Hacienda al evento |
-| `archivo_dte` | object | Archivo DTE del evento (se omite si no hay firma guardada) |
+| `observations` | string[] | Observaciones de Hacienda sobre el evento. Siempre presente; arreglo vacío si no hay |
+| `archivo_dte` | object | Archivo DTE del evento (se omite si no hay firma guardada o si el evento no tiene sello) |
 
 ### Estructura del evento dentro de `archivo_dte`
 
@@ -247,6 +248,8 @@ La estructura firmada se devuelve sin alteraciones; `firmaElectronica` (JWS) y `
 ---
 
 ## Respuestas de error
+
+Cuando Hacienda rechaza el evento (`HACIENDA_<código>`), el intento queda guardado como evento `REJECTED` con el JWS transmitido y la respuesta de Hacienda, y se puede consultar en `GET /api/v1/dte/{id}/eventos`. Las observaciones de Hacienda llegan en `error.observations`.
 
 Los errores usan la estructura descrita en [Formato de respuestas](./README.md#respuesta-de-error); `error.code` se devuelve en mayúsculas.
 

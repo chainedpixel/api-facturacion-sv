@@ -310,6 +310,7 @@ La emisión normal devuelve en `data` el **Archivo DTE**: la estructura del docu
   "success": true,
   "reception_stamp": "20262E5B1C7D4A8E9F3A0B1C2D3E4F5A6B7C",
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C&fechaEmi=2026-05-15",
+  "observations": [],
   "data": {
     "identificacion": {
       "version": 2,
@@ -432,6 +433,7 @@ La FE soporta contingencia. Si la transmisión a Hacienda falla por causas no at
   "success": true,
   "reception_stamp": null,
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=3B8F1A2D-4E5C-6F7A-8B9C-0D1E2F3A4B5C&fechaEmi=2026-05-15",
+  "observations": [],
   "data": {
     "identificacion": {
       "version": 2,

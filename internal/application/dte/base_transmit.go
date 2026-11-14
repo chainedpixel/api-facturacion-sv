@@ -60,7 +60,7 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 		logs.Error("Failed to transmit document", map[string]interface{}{
 			"error": err.Error(),
 		})
-		return result, err
+		return result, withTransmittedDocument(err, signedDoc)
 	}
 
 	logs.Info("Check status of document")
@@ -85,7 +85,15 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	}
 
 	logs.Info("Document was not received")
-	return result, err
+	return result, withTransmittedDocument(err, signedDoc)
+}
+
+// withTransmittedDocument wraps a transmission error with the JWS that was sent; a nil error stays nil.
+func withTransmittedDocument(err error, signedDoc string) error {
+	if err == nil {
+		return nil
+	}
+	return &ports.TransmissionError{Err: err, SignedDocument: signedDoc}
 }
 
 // withSignedDocument adjunta el JWS transmitido al resultado para que se guarde como firmaElectronica

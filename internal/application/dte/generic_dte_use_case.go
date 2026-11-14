@@ -153,6 +153,7 @@ func (u *GenericDTEUseCase) Create(ctx context.Context, req interface{}) (interf
 		return mhModel, options, err
 	}
 	options.ReceptionStamp = transmitResult.ReceptionStamp
+	options.Observations = dte.ObservationsFromHaciendaResponse(transmitResult.HaciendaResponse)
 
 	confirmErr := retryOnce(ctx, "confirming reservation", func() error {
 		return u.sequentialManager.ConfirmReservation(ctx, controlNumber, generationCode, claims.BranchID)

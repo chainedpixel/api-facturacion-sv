@@ -26,6 +26,24 @@
 					"pm.environment.set('today', sv.toISOString().slice(0, 10));"
 				]
 			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Toda respuesta de emision de DTE (con reception_stamp) trae observations como arreglo, aunque este vacio",
+					"if (pm.response.code === 201) {",
+					"    let body = null;",
+					"    try { body = pm.response.json(); } catch (e) { body = null; }",
+					"    if (body && Object.prototype.hasOwnProperty.call(body, 'reception_stamp')) {",
+					"        pm.test('observations es un arreglo en la respuesta de emision', function () {",
+					"            pm.expect(body.observations).to.be.an('array');",
+					"        });",
+					"    }",
+					"}"
+				]
+			}
 		}
 	],
 	"item": [
@@ -3905,9 +3923,27 @@
 								}
 							]
 						},
-						"description": "Lista paginada con resumen de los DTE de la sucursal autenticada."
+						"description": "Lista paginada con resumen de los DTE de la sucursal autenticada. Cada documento trae status, transmission_type, observations (observaciones de Hacienda; arreglo vacio si no hay) y document."
 					},
-					"response": []
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Listado exitoso con observations en cada documento', function () {",
+									"    pm.expect(pm.response.code).to.eql(200);",
+									"    pm.expect(json.data.documents).to.be.an('array');",
+									"    json.data.documents.forEach(function (doc) {",
+									"        pm.expect(doc.observations).to.be.an('array');",
+									"    });",
+									"});"
+								]
+							}
+						}
+					]
 				},
 				{
 					"name": "Consultar DTE por codigo de generacion",
@@ -3926,7 +3962,7 @@
 								"{{generation_code}}"
 							]
 						},
-						"description": "Estado, sello, transmision, processing_date (fecha de procesamiento de Hacienda, si existe) y JSON del documento."
+						"description": "Estado, sello, transmision, processing_date (fecha de procesamiento de Hacienda, si existe), observations (observaciones de Hacienda; arreglo vacio si no hay) y JSON del documento."
 					},
 					"response": [],
 					"event": [
@@ -3944,6 +3980,9 @@
 									"    if (json.data.transmission === 'NORMAL' && json.data.reception_stamp) {",
 									"        pm.expect(json.data.processing_date).to.be.a('string').and.not.empty;",
 									"    }",
+									"});",
+									"pm.test('observations es un arreglo', function () {",
+									"    pm.expect(json.data.observations).to.be.an('array');",
 									"});"
 								]
 							}
@@ -3968,7 +4007,7 @@
 								"archivo"
 							]
 						},
-						"description": "Archivo DTE (Normativa v2.0, Anexo I regla 4.1): estructura firmada integra + firmaElectronica + selloRecibido. Es el JSON que se entrega al receptor (por ejemplo por correo)."
+						"description": "Archivo DTE (Normativa v2.0, Anexo I regla 4.1): estructura firmada integra + firmaElectronica + selloRecibido. Es el JSON que se entrega al receptor (por ejemplo por correo). Se devuelve el archivo tal cual, sin envoltorio ni observations; las observaciones se consultan en \"Consultar DTE por codigo de generacion\"."
 					},
 					"response": [],
 					"event": [
@@ -3982,6 +4021,9 @@
 									"    pm.expect(json.identificacion.codigoGeneracion).to.eql(pm.environment.get('generation_code'));",
 									"    pm.expect(json.firmaElectronica).to.be.a('string').and.not.empty;",
 									"    pm.expect(json.selloRecibido).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('El Archivo DTE no se altera con observations', function () {",
+									"    pm.expect(json).to.not.have.property('observations');",
 									"});"
 								]
 							}
@@ -4006,9 +4048,30 @@
 								"eventos"
 							]
 						},
-						"description": "Eventos registrados del documento con su sello, respuesta de Hacienda y Archivo DTE del evento."
+						"description": "Eventos registrados del documento con su sello, respuesta de Hacienda, observations y Archivo DTE del evento. Tambien aparecen los intentos rechazados por Hacienda (status REJECTED), sin sello ni archivo_dte."
 					},
-					"response": []
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Eventos con observations como arreglo', function () {",
+									"    pm.expect(pm.response.code).to.eql(200);",
+									"    pm.expect(json.data).to.be.an('array');",
+									"    json.data.forEach(function (event) {",
+									"        pm.expect(event.observations).to.be.an('array');",
+									"        if (event.status === 'REJECTED') {",
+									"            pm.expect(event).to.not.have.property('archivo_dte');",
+									"        }",
+									"    });",
+									"});"
+								]
+							}
+						}
+					]
 				}
 			]
 		},
@@ -4705,7 +4768,7 @@
 								"eventos"
 							]
 						},
-						"description": "Devuelve el evento de invalidacion con su sello, fecha de procesamiento, respuesta de Hacienda y Archivo DTE."
+						"description": "Devuelve el evento de invalidacion con su sello, fecha de procesamiento, respuesta de Hacienda y Archivo DTE. Cada evento trae observations (arreglo, vacio si no hay)."
 					},
 					"response": []
 				}
@@ -4813,6 +4876,144 @@
 						"description": "Solo se registra cuando DEBUG=true. Envia un correo de ejemplo a los administradores."
 					},
 					"response": []
+				}
+			]
+		},
+		{
+			"name": "11 Contingencia forzada (solo ambiente de pruebas)",
+			"description": "Ejemplos de emision en contingencia. Solo funcionan con la API arrancada con FORCE_CONTINGENCY=true en el ambiente 00; fuera de ese modo el documento se emite normalmente y las pruebas de esta carpeta fallan. El header X-Force-Contingency-Type elige el tipo simulado: 1 (servicio de Hacienda no disponible, valor por defecto) o 5 (otro motivo). Al reiniciar la API sin contingencia forzada, el job de retransmision envia el evento de contingencia y el lote; consultar luego el documento y su Archivo DTE.",
+			"item": [
+				{
+					"name": "FE en contingencia tipo 1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Force-Contingency-Type",
+								"value": "1",
+								"type": "text",
+								"description": "Solo se respeta con FORCE_CONTINGENCY=true en el ambiente 00; en produccion se ignora"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Zapato casual cafe talla 40\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 45,\n            \"discount\": 0,\n            \"code\": \"FE-001\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 45,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 5.17699115\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 45,\n        \"sub_total\": 45,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 45,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 45,\n        \"total_to_pay\": 45,\n        \"operation_condition\": 1,\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 45\n            }\n        ],\n        \"total_in_words\": \"45 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 5.18,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invoices"
+							]
+						},
+						"description": "Requiere la API con FORCE_CONTINGENCY=true en el ambiente 00. La respuesta es HTTP 201 con reception_stamp null, observations vacio y data con el documento diferido firmado: tipoModelo 2, tipoOperacion 2, tipoContingencia 1 y motivoContin null y firmaElectronica, sin selloRecibido. Ese mismo documento es el que se transmite despues a Hacienda. Cuando se sella, obtener el Archivo DTE con \"08 Consultas y Archivo DTE > Archivo DTE para el receptor\" y reenviarlo al receptor."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Documento en contingencia, firmado y sin sello', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.eql(null);",
+									"    pm.expect(json.observations).to.be.an('array');",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data).to.not.have.property('selloRecibido');",
+									"});",
+									"pm.test('Identificacion diferida', function () {",
+									"    const id = json.data.identificacion;",
+									"    pm.expect(id.tipoModelo).to.eql(2);",
+									"    pm.expect(id.tipoOperacion).to.eql(2);",
+									"    pm.expect(id.tipoContingencia).to.eql(1);",
+									"    pm.expect(id.motivoContin).to.eql(null);",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "FE en contingencia tipo 5",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Force-Contingency-Type",
+								"value": "5",
+								"type": "text",
+								"description": "Solo se respeta con FORCE_CONTINGENCY=true en el ambiente 00; en produccion se ignora"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Zapato casual cafe talla 40\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 45,\n            \"discount\": 0,\n            \"code\": \"FE-001\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 45,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 5.17699115\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 45,\n        \"sub_total\": 45,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 45,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 45,\n        \"total_to_pay\": 45,\n        \"operation_condition\": 1,\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 45\n            }\n        ],\n        \"total_in_words\": \"45 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 5.18,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invoices"
+							]
+						},
+						"description": "Requiere la API con FORCE_CONTINGENCY=true en el ambiente 00. La respuesta es HTTP 201 con reception_stamp null, observations vacio y data con el documento diferido firmado: tipoModelo 2, tipoOperacion 2, tipoContingencia 5 y motivoContin con texto y firmaElectronica, sin selloRecibido. Ese mismo documento es el que se transmite despues a Hacienda. Cuando se sella, obtener el Archivo DTE con \"08 Consultas y Archivo DTE > Archivo DTE para el receptor\" y reenviarlo al receptor."
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Documento en contingencia, firmado y sin sello', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.eql(null);",
+									"    pm.expect(json.observations).to.be.an('array');",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data).to.not.have.property('selloRecibido');",
+									"});",
+									"pm.test('Identificacion diferida', function () {",
+									"    const id = json.data.identificacion;",
+									"    pm.expect(id.tipoModelo).to.eql(2);",
+									"    pm.expect(id.tipoOperacion).to.eql(2);",
+									"    pm.expect(id.tipoContingencia).to.eql(5);",
+									"    pm.expect(id.motivoContin).to.be.a('string').and.not.empty;",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"});"
+								]
+							}
+						}
+					]
 				}
 			]
 		}

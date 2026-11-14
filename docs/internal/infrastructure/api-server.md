@@ -212,6 +212,7 @@ Con `options` (creación de DTE vía `HandleCreate`):
   "success": true,
   "reception_stamp": "2024ABC...",
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?ambiente=00&codGen=UUID&fechaEmi=2024-01-15",
+  "observations": [],
   "data": { ... }
 }
 ```
@@ -262,7 +263,8 @@ HandleError(rw, err)
   ├── Negocio: *HaciendaResponseError
   │   → 400
   │   → message = descripción de Hacienda, code = "HACIENDA_{codigo}",
-  │     details = ["State: {estado}", "Processed at: {fecha}", ...observaciones]
+  │     details = ["State: {estado}", "Processed at: {fecha}"]
+  │     observations = observaciones de Hacienda (arreglo vacío si no hay)
   │
   ├── Negocio: *ServiceError (shared_error)
   │   → 400

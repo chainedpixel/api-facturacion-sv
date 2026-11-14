@@ -39,6 +39,7 @@ type apiError struct {
 type apiResponse struct {
 	Success        bool            `json:"success"`
 	ReceptionStamp *string         `json:"reception_stamp"`
+	Observations   json.RawMessage `json:"observations"`
 	Data           json.RawMessage `json:"data"`
 	Error          *apiError       `json:"error"`
 }
@@ -128,19 +129,31 @@ func newAPIClient(t *testing.T) *apiClient {
 
 func (c *apiClient) post(t *testing.T, path string, body interface{}) (int, apiResponse, []byte) {
 	t.Helper()
+	return c.postWithHeaders(t, path, body, nil)
+}
+
+// postWithHeaders sends a POST request carrying the given extra headers.
+func (c *apiClient) postWithHeaders(t *testing.T, path string, body interface{}, headers map[string]string) (int, apiResponse, []byte) {
+	t.Helper()
 
 	payload, err := json.Marshal(body)
 	if err != nil {
 		t.Fatalf("no se pudo serializar el request: %v", err)
 	}
 
-	status, raw := c.do(t, http.MethodPost, path, payload)
+	status, raw := c.doWithHeaders(t, http.MethodPost, path, payload, headers)
 	var resp apiResponse
 	_ = json.Unmarshal(raw, &resp)
 	return status, resp, raw
 }
 
 func (c *apiClient) do(t *testing.T, method, path string, payload []byte) (int, []byte) {
+	t.Helper()
+	return c.doWithHeaders(t, method, path, payload, nil)
+}
+
+// doWithHeaders sends a request carrying the given extra headers and records its evidence.
+func (c *apiClient) doWithHeaders(t *testing.T, method, path string, payload []byte, headers map[string]string) (int, []byte) {
 	t.Helper()
 
 	var body io.Reader
@@ -154,6 +167,9 @@ func (c *apiClient) do(t *testing.T, method, path string, payload []byte) (int, 
 	req.Header.Set("Content-Type", "application/json")
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	for name, value := range headers {
+		req.Header.Set(name, value)
 	}
 
 	res, err := c.http.Do(req)
@@ -235,6 +251,8 @@ func (c *apiClient) emit(t *testing.T, path string, body interface{}) *emittedDT
 		t.Errorf("Hacienda no otorgo sello (HTTP %d): %s", status, describeError(resp, raw))
 		return nil
 	}
+
+	assertObservationsArray(t, resp.Observations, "response of "+path)
 
 	emitted := &emittedDTE{ReceptionStamp: *resp.ReceptionStamp}
 	var document struct {
@@ -471,8 +489,19 @@ func (c *apiClient) expectInvalidationRejected(t *testing.T, inv invalidation, w
 // que lo acepte (HTTP 2xx) sin sello y que quede pendiente para el evento de contingencia
 func (c *apiClient) emitInContingency(t *testing.T, path string, body interface{}) *emittedDTE {
 	t.Helper()
+	return c.emitInContingencyWithHeaders(t, path, body, nil)
+}
 
-	status, resp, raw := c.post(t, path, body)
+// forcedContingencyHeaders returns the headers that ask the API to simulate the given contingency type.
+func forcedContingencyHeaders(contingencyType int) map[string]string {
+	return map[string]string{"X-Force-Contingency-Type": fmt.Sprint(contingencyType)}
+}
+
+// emitInContingencyWithHeaders behaves like emitInContingency and sends the given extra headers.
+func (c *apiClient) emitInContingencyWithHeaders(t *testing.T, path string, body interface{}, headers map[string]string) *emittedDTE {
+	t.Helper()
+
+	status, resp, raw := c.postWithHeaders(t, path, body, headers)
 	if status >= 300 {
 		t.Errorf("la API no acepto el documento en contingencia (HTTP %d): %s", status, describeError(resp, raw))
 		return nil
@@ -531,15 +560,26 @@ func (c *apiClient) consultStatus(t *testing.T, generationCode string) (stamp, s
 
 	var resp struct {
 		Data struct {
-			ReceptionStamp *string `json:"reception_stamp"`
-			Status         string  `json:"status"`
+			ReceptionStamp *string         `json:"reception_stamp"`
+			Status         string          `json:"status"`
+			Observations   json.RawMessage `json:"observations"`
 		} `json:"data"`
 	}
 	_ = json.Unmarshal(raw, &resp)
+	assertObservationsArray(t, resp.Data.Observations, "GET /dte/"+generationCode)
 	if resp.Data.ReceptionStamp != nil {
 		stamp = *resp.Data.ReceptionStamp
 	}
 	return stamp, resp.Data.Status
+}
+
+// assertObservationsArray checks that the observations value is present as a JSON array, which may be empty.
+func assertObservationsArray(t *testing.T, observations json.RawMessage, where string) {
+	t.Helper()
+	var list []string
+	if len(observations) == 0 || string(observations) == "null" || json.Unmarshal(observations, &list) != nil {
+		t.Errorf("observations must be a JSON array in the %s, got %q", where, observations)
+	}
 }
 
 func describeError(resp apiResponse, raw []byte) string {

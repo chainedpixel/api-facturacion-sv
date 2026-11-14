@@ -42,6 +42,7 @@ Authorization: Bearer <token>
     "created_at": "2024-01-15T14:30:00Z",
     "updated_at": "2024-01-15T14:30:05Z",
     "processing_date": "15/01/2024 14:30:05",
+    "observations": [],
     "json_data": { /* Estructura completa del DTE según tipo */ }
   }
 }
@@ -59,6 +60,7 @@ Authorization: Bearer <token>
 | `created_at` | string (ISO 8601) | Fecha/hora de creación |
 | `updated_at` | string (ISO 8601) | Fecha/hora de última actualización |
 | `processing_date` | string | Fecha de procesamiento informada por Hacienda (`fhProcesamiento`), con el mismo valor y formato con que se guarda. Se omite si el documento no la tiene guardada. Es la fecha del sello desde la que se cuentan los plazos de invalidación (ver [Anulación](./invalidation.md#plazos-y-fecha-del-evento)) |
+| `observations` | string[] | Observaciones de Hacienda sobre el documento, leídas de la respuesta guardada; en documentos de contingencia aparecen cuando el lote se procesa. Siempre presente: arreglo vacío si Hacienda no informó observaciones o si el documento todavía no fue transmitido (contingencia). Un documento con observaciones es válido |
 | `json_data` | object | Estructura completa del DTE en formato MH (varía según tipo) |
 
 #### Estados posibles (`status`)
@@ -84,6 +86,8 @@ Authorization: Bearer <token>
 ---
 
 ### 2. Obtener el Archivo DTE
+
+> Este endpoint devuelve el archivo JSON tal cual, sin envoltorio, porque el Archivo DTE se entrega al receptor sin alteraciones. Por eso no incluye `observations`; las observaciones del documento se consultan con `GET /api/v1/dte/{codigoGeneracion}`.
 
 ```
 GET /api/v1/dte/{codigoGeneracion}/archivo
@@ -124,7 +128,7 @@ Authorization: Bearer <token>
 
 **Respuesta exitosa:** `HTTP 200 OK`
 
-Devuelve la lista de eventos transmitidos sobre el documento (hoy, su invalidación). Si el documento existe pero no tiene eventos, `data` es una lista vacía. Cada elemento tiene la misma estructura que la respuesta de la [anulación](./invalidation.md#respuesta-exitosa): datos del evento, `hacienda_response` y `archivo_dte`.
+Devuelve la lista de eventos transmitidos sobre el documento (hoy, su invalidación), incluidos los intentos que Hacienda rechazó (`status: "REJECTED"`). Si el documento existe pero no tiene eventos, `data` es una lista vacía. Cada elemento tiene la misma estructura que la respuesta de la [anulación](./invalidation.md#respuesta-exitosa): datos del evento, `hacienda_response`, `observations` y `archivo_dte`. Un evento rechazado no tiene sello ni `archivo_dte`, pero conserva `hacienda_response` y sus `observations`.
 
 ```json
 {
@@ -141,6 +145,7 @@ Devuelve la lista de eventos transmitidos sobre el documento (hoy, su invalidaci
       "status": "RECEIVED",
       "created_at": "2026-01-15T14:30:06-06:00",
       "hacienda_response": { },
+      "observations": [],
       "archivo_dte": { }
     }
   ]
@@ -232,6 +237,7 @@ Para múltiples tipos: `?type=01,03,06`
       {
         "status": "RECEIVED",
         "transmission_type": "NORMAL",
+        "observations": [],
         "document": { /* Estructura completa del DTE */ }
       }
     ],
@@ -261,6 +267,7 @@ Para múltiples tipos: `?type=01,03,06`
 |-------|------|-------------|
 | `status` | string | Estado del DTE (`RECEIVED`, `PENDING`, `REJECTED`, `INVALIDATED`, `EXPIRED`) |
 | `transmission_type` | string | Tipo de transmisión (`NORMAL`, `CONTINGENCY`) |
+| `observations` | string[] | Observaciones de Hacienda sobre el documento. Siempre presente: arreglo vacío si Hacienda no informó observaciones o si el documento todavía no fue transmitido (contingencia). Un documento con observaciones es válido |
 | `document` | object | Estructura completa del DTE en formato MH (sin firma ni sello; para el Archivo DTE usar `/archivo`) |
 
 Los documentos se ordenan por fecha de registro descendente.

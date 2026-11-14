@@ -150,9 +150,10 @@ func (s *ContingencyEventService) prepareContingencyReason(ctx context.Context, 
 	}, nil
 }
 
-// registerEvent guarda el evento de contingencia con su evidencia (JWS, sello, fecha y respuesta de Hacienda).
-// Un fallo al registrar no interrumpe la contingencia: el evento ya fue recibido por Hacienda.
-func (s *ContingencyEventService) registerEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, evidence *dte.TransmissionEvidence) {
+// registerEvent stores the contingency event with its evidence (JWS, stamp, date and Hacienda response) and the
+// given status: received when Hacienda stamped it, rejected when Hacienda answered without stamping it. A failure to
+// store it does not stop the contingency flow.
+func (s *ContingencyEventService) registerEvent(ctx context.Context, event *models.ContingencyEvent, branchID uint, evidence *dte.TransmissionEvidence, status string) {
 	if s.dteManager == nil || evidence == nil {
 		return
 	}
@@ -169,7 +170,7 @@ func (s *ContingencyEventService) registerEvent(ctx context.Context, event *mode
 		ReceptionStamp:   evidence.ReceptionStamp,
 		ProcessingDate:   evidence.ProcessingDate,
 		HaciendaResponse: evidence.HaciendaResponse,
-		Status:           constants.DocumentReceived,
+		Status:           status,
 		CreatedAt:        utils.TimeNow(),
 	}); err != nil {
 		logs.Warn("Failed to register contingency event", map[string]interface{}{"error": err.Error()})
@@ -207,11 +208,14 @@ func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, even
 
 	isDuplicate, evidence, err := s.httpSvc.SignAndSend(ctx, event, client.NIT, token)
 	if err != nil {
+		if evidence != nil && isDefinitiveEventRejection(evidence.HaciendaResponse) {
+			s.registerEvent(ctx, event, branchID, evidence, constants.DocumentRejected)
+		}
 		return shared_error.NewGeneralServiceError("ContingencyEventService", "sendContingencyEvent", "failed to sign and send contingency event", err)
 	}
 
 	if !isDuplicate {
-		s.registerEvent(ctx, event, branchID, evidence)
+		s.registerEvent(ctx, event, branchID, evidence, constants.DocumentReceived)
 		s.markDocumentsStamped(ctx, docs, evidence)
 	}
 
@@ -223,4 +227,26 @@ func (s *ContingencyEventService) sendContingencyEvent(ctx context.Context, even
 	}
 
 	return nil
+}
+
+// isDefinitiveEventRejection reports whether a stored Hacienda response is a definitive rejection of the event: status
+// RECHAZADO, whatever the type of the message, or a text message saying the validations were not passed. Transient
+// answers such as unexpected statuses or non-text messages without that status are not definitive.
+func isDefinitiveEventRejection(rawResponse string) bool {
+	if rawResponse == "" {
+		return false
+	}
+
+	var response struct {
+		Status  interface{} `json:"estado"`
+		Message interface{} `json:"mensaje"`
+	}
+	if err := json.Unmarshal([]byte(rawResponse), &response); err != nil {
+		return false
+	}
+
+	status, _ := response.Status.(string)
+	message, _ := response.Message.(string)
+
+	return status == "RECHAZADO" || strings.Contains(strings.ToLower(message), "no superadas")
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/chainedpixel/api-facturacion-sv/config"
+	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
 	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
@@ -46,11 +47,16 @@ func (w *ResponseWriter) Success(rw http.ResponseWriter, status int, data interf
 	}
 
 	qrLink := GenerateQRLink(options.Ambient, options.GenerationCode, options.EmissionDate)
+	observations := options.Observations
+	if observations == nil {
+		observations = []string{}
+	}
 
 	json.NewEncoder(rw).Encode(APIDTEResponse{
 		Success:        true,
 		ReceptionStamp: options.ReceptionStamp,
 		QRLink:         &qrLink,
+		Observations:   observations,
 		Data:           data,
 	})
 }
@@ -71,6 +77,7 @@ func (w *ResponseWriter) Error(rw http.ResponseWriter, status int, message strin
 // HandleError handles the different error types and sends an error response with the corresponding status code and message.
 func (w *ResponseWriter) HandleError(rw http.ResponseWriter, err error) {
 	rw.Header().Set("Content-Type", "application/json")
+	err = withoutTransmissionWrapper(err)
 
 	logs.Error("Error processing request", map[string]interface{}{
 		"error_type": getErrorType(err),
@@ -131,18 +138,19 @@ func (w *ResponseWriter) handleBusinessError(rw http.ResponseWriter, err error) 
 			fmt.Sprintf("State: %s", haciendaErr.Status),
 			fmt.Sprintf("Processed at: %s", haciendaErr.ProcessedAt),
 		}
-
-		if len(haciendaErr.Observations) > 0 {
-			details = append(details, haciendaErr.Observations...)
+		observations := haciendaErr.Observations
+		if observations == nil {
+			observations = []string{}
 		}
 
 		rw.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(rw).Encode(APIResponse{
 			Success: false,
 			Error: &APIError{
-				Message: haciendaErr.Description,
-				Code:    fmt.Sprintf("HACIENDA_%s", haciendaErr.Code),
-				Details: details,
+				Message:      haciendaErr.Description,
+				Code:         fmt.Sprintf("HACIENDA_%s", haciendaErr.Code),
+				Details:      details,
+				Observations: &observations,
 			},
 		})
 		return
@@ -225,6 +233,18 @@ func deriveErrorCode(status int) string {
 }
 
 // getErrorType retrieves the error type according to the provided error type.
+// withoutTransmissionWrapper returns the original error of a transmission failure, so the response keeps the status
+// and code of the Hacienda or transport error instead of being treated as an unclassified error.
+func withoutTransmissionWrapper(err error) error {
+	for {
+		transmissionErr, ok := err.(*ports.TransmissionError)
+		if !ok || transmissionErr.Err == nil {
+			return err
+		}
+		err = transmissionErr.Err
+	}
+}
+
 func getErrorType(err error) errorType {
 	switch err.(type) {
 	case *dte_errors.DTEError, *dte_errors.ValidationError:

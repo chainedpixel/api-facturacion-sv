@@ -141,7 +141,7 @@ Se extrae el código de error para clasificación:
 |---|---|---|---|---|
 | `DTEError` | 400 | `GetMessage()` | `GetValidationErrorsString()` | `GetCode()` |
 | `ValidationError` | 400 | `Error()` | `["No hay más detalles disponibles"]` | tipo en mayúsculas (`GetType()`) |
-| `HaciendaResponseError` | 400 | descripción de Hacienda | `State: <estado>`, `Processed at: <fecha>` y las observaciones | `HACIENDA_<código>` |
+| `HaciendaResponseError` | 400 | descripción de Hacienda | `State: <estado>` y `Processed at: <fecha>`; las observaciones de Hacienda van en `error.observations` |
 | `ServiceError` | 400 | `ServiceError.Message` | `GetErrError()` | `GetCode()` en mayúsculas |
 | `HTTPResponseError` | código HTTP del error | `Error()` | traducción de `service_errors.ContingencyActiveTransmission` | `HACIENDA_<código HTTP>` |
 | Otro error de negocio no clasificado | 400 | `err.Error()` | (sin detalles) | `BUSINESS_ERROR` |

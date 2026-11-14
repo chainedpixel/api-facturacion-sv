@@ -58,6 +58,7 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
   "success": true,
   "reception_stamp": "2024ABC123...",
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?ambiente=01&codGen=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX&fechaEmi=2024-01-15",
+  "observations": [],
   "data": { }
 }
 ```
@@ -67,6 +68,7 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
 | `success` | boolean | Siempre `true` en respuestas exitosas |
 | `reception_stamp` | string \| null | Sello de recepción emitido por Hacienda. `null` si el documento fue a contingencia |
 | `qr_link` | string \| null | URL pública para consultar el DTE en el portal de Hacienda |
+| `observations` | string[] | Observaciones de Hacienda sobre el documento. Siempre presente: arreglo vacío si Hacienda no informó observaciones o si el documento todavía no fue transmitido (contingencia). Un documento con observaciones es válido |
 | `data` | object | **Archivo DTE**: la estructura firmada del documento, íntegra y sin alteraciones, más `firmaElectronica` (JWS) y `selloRecibido`. En contingencia (sin sello) es el documento diferido firmado: la estructura más `firmaElectronica`, sin `selloRecibido` |
 
 ### Respuesta exitosa — otras operaciones
@@ -208,6 +210,7 @@ La respuesta es `HTTP 201` con el documento diferido firmado (estructura del DTE
   "success": true,
   "reception_stamp": null,
   "qr_link": "https://admin.factura.gob.sv/consultaPublica?...",
+  "observations": [],
   "data": {
     "identificacion": {
       "tipoModelo": 2,
@@ -277,7 +280,7 @@ El Ministerio de Hacienda exige numeración única, consecutiva y sin saltos por
 - [Anulación de DTE](./invalidation.md)
 - [Consulta de DTEs](./dte-query.md)
 - [Reglas de cálculo](./calculations.md)
-- [Guía de actualización para sistemas consumidores](./consumer-upgrade-guide.md) — Cambios desde la versión 25fbd59 y pasos para actualizar las integraciones
+- [Guía de actualización para sistemas consumidores](../../private/consumer-upgrade-guide.md) — Cambios desde la versión 25fbd59 y pasos para actualizar las integraciones
 
 ### Plazo de 72 horas y estado `EXPIRED`
 

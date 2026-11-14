@@ -431,6 +431,9 @@ La prueba requiere reiniciar la API entre fases:
 
 ---
 
+En la fase 1, los documentos de tipo 5 se emiten con el header `X-Force-Contingency-Type: 5`, que la API solo respeta con `FORCE_CONTINGENCY=true` en el ambiente `00`. El job envía un evento por tipo de contingencia, y la fase 2 verifica que cada documento conserve en el Archivo DTE sellado el tipo con que se entregó.
+
+
 ## Patrones de Testing
 
 ### Table-Driven Tests

@@ -13,6 +13,7 @@ import (
 	"github.com/chainedpixel/api-facturacion-sv/config"
 	"github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth/models"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 	models2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
 	ports2 "github.com/chainedpixel/api-facturacion-sv/internal/domain/ports"
 	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
@@ -56,6 +57,15 @@ func (t *MHTransmitter) GetTimeout() time.Duration {
 
 func (t *MHTransmitter) Transmit(ctx context.Context, document interface{}, signedDoc string, systemToken string) (*models2.TransmitResult, error) {
 	if config.Server.ForceContingency && config.Server.AmbientCode == "00" {
+		if utils.ForcedContingencyType(ctx) == constants.OtroMotivo {
+			logs.Info("Forcing contingency mode - simulating an unclassified failure")
+			return nil, &hacienda_error.HTTPResponseError{
+				StatusCode: http.StatusInternalServerError,
+				Body:       []byte("Forced contingency - unclassified failure"),
+				URL:        config.MHPaths.ReceptionURL,
+				Method:     "POST",
+			}
+		}
 		logs.Info("Forcing contingency mode - simulating service unavailable")
 		return nil, &hacienda_error.HTTPResponseError{
 			StatusCode: http.StatusServiceUnavailable,

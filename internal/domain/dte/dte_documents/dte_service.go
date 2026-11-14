@@ -77,13 +77,28 @@ func (m *DTEService) GetEvents(ctx context.Context, branchID uint, generationCod
 	return result, nil
 }
 
-// ToEventArchiveResponse arma la respuesta de un evento con su Archivo DTE (si se guardo el JWS)
-func ToEventArchiveResponse(event dte.DTEEvent) dte.EventArchiveResponse {
-	response := dte.EventArchiveResponse{DTEEvent: event}
-	if event.HaciendaResponse != "" {
-		response.HaciendaResponse = json.RawMessage(event.HaciendaResponse)
+// storedResponseAsJSON returns a stored Hacienda response ready to be embedded in a JSON response: valid JSON as is,
+// and any other text as a JSON string, so a damaged record never breaks the serialization of the event.
+func storedResponseAsJSON(raw string) json.RawMessage {
+	if raw == "" {
+		return nil
 	}
-	if event.SignedDocument != "" {
+	if json.Valid([]byte(raw)) {
+		return json.RawMessage(raw)
+	}
+	quoted, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	return json.RawMessage(quoted)
+}
+
+// ToEventArchiveResponse builds the response of an event with its Hacienda observations and, when the event was
+// stamped and its JWS was kept, its Archivo DTE.
+func ToEventArchiveResponse(event dte.DTEEvent) dte.EventArchiveResponse {
+	response := dte.EventArchiveResponse{DTEEvent: event, Observations: dte.ObservationsFromHaciendaResponse(event.HaciendaResponse)}
+	response.HaciendaResponse = storedResponseAsJSON(event.HaciendaResponse)
+	if event.SignedDocument != "" && event.ReceptionStamp != nil && *event.ReceptionStamp != "" {
 		if archive, err := BuildArchive(event.SignedDocument, event.ReceptionStamp); err == nil {
 			response.Archive = archive
 		}
@@ -238,6 +253,7 @@ func (m *DTEService) GetByGenerationCodeConsult(ctx context.Context, branchID ui
 		ReceptionStamp: dteDocument.Details.ReceptionStamp,
 		JSONData:       jsonData,
 		ProcessingDate: dteDocument.Details.ProcessingDate,
+		Observations:   dte.ObservationsFromHaciendaResponse(dteDocument.Details.HaciendaResponse),
 		CreatedAt:      dteDocument.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:      dteDocument.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil

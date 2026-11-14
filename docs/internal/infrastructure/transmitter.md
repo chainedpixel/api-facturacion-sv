@@ -51,6 +51,10 @@ type TransmitResult struct {
 
 `Transmit` y `CheckDocumentStatus` llenan `HaciendaResponse` serializando la respuesta completa de Hacienda (`marshalHaciendaResponse`). `SignedDocument` no lo asigna el transmisor: lo completa `base_transmit.go` (capa de aplicación) con el JWS enviado. Ambos campos se persisten luego como evidencia (ver [database.md](database.md)): `signed_document`, `processing_date`, `hacienda_response` y `reception_stamp`.
 
+`BaseTransmitter.RetryTransmission` envuelve cualquier error posterior a la firma en `ports.TransmissionError`, que conserva el JWS transmitido y se desenvuelve al error original (`errors.As` sigue funcionando). `HaciendaResponseError.Response` conserva la respuesta completa de Hacienda. Con eso el caso de uso de invalidación guarda los eventos rechazados (`REJECTED`) con su JWS y su respuesta. En los lotes de contingencia, `VerifyContingencyBatchStatus` guarda la respuesta de cada documento (procesado o rechazado) en `dte_details.hacienda_response`.
+
+Con `FORCE_CONTINGENCY=true` en el ambiente `00`, `Transmit` simula la indisponibilidad de Hacienda (HTTP 503, contingencia tipo 1). Si el request trae el header `X-Force-Contingency-Type: 5`, simula un error no clasificado (HTTP 500, contingencia tipo 5). El header se ignora fuera de ese modo.
+
 ### Procesadores de Documento
 
 Se registran dos procesadores que determinan cómo construir el request según el tipo de documento:

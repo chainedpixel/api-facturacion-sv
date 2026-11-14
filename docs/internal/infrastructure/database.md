@@ -94,7 +94,7 @@ Contenido y evidencia de transmisión del documento.
 | `json_data` | json | estructura del DTE (MySQL puede reordenar las llaves del tipo JSON) |
 | `signed_document` | longtext, nulo | JWS transmitido a Hacienda; es la fuente del Archivo DTE (estructura firmada exacta + `firmaElectronica` + `selloRecibido`) |
 | `processing_date` | varchar(30), nulo | fecha y hora de procesamiento informada por Hacienda (`fhProcesamiento`) |
-| `hacienda_response` | text, nulo | respuesta completa de Hacienda en JSON |
+| `hacienda_response` | text, nulo | respuesta completa de Hacienda en JSON, incluidas sus observaciones. En documentos de contingencia se guarda la respuesta de ese documento dentro del lote, tanto si fue procesado como rechazado |
 
 Las columnas `signed_document`, `processing_date` y `hacienda_response` son nulas para documentos creados antes de su incorporación. Se llenan desde `TransmissionEvidence` (ver [transmitter.md](transmitter.md) y [repositories.md](repositories.md)).
 
@@ -113,7 +113,7 @@ Eventos transmitidos a Hacienda (invalidación y contingencia) con su evidencia.
 | `signed_document` | longtext, nulo | JWS transmitido |
 | `reception_stamp` | varchar(40), nulo | sello de recepción del evento |
 | `processing_date` | varchar(30), nulo | |
-| `hacienda_response` | text, nulo | respuesta completa de Hacienda |
+| `hacienda_response` | text, nulo | respuesta completa de Hacienda. Los eventos de invalidación y de contingencia rechazados se guardan con `status = REJECTED`, sin sello |
 | `status` | varchar(15) | |
 | `created_at` | timestamp | |
 

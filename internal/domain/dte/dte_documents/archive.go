@@ -27,7 +27,7 @@ func BuildArchive(signedDocument string, receptionStamp *string) (json.RawMessag
 	}
 
 	structure := bytes.TrimSpace(payload)
-	if len(structure) < 2 || structure[0] != '{' || structure[len(structure)-1] != '}' {
+	if len(structure) < 2 || structure[0] != '{' || structure[len(structure)-1] != '}' || !json.Valid(structure) {
 		return nil, dte_errors.NewValidationError("ArchiveNotAvailable", "firmaElectronica")
 	}
 

@@ -313,6 +313,9 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 				processedResults := make(map[string]dte.ReceptionResult)
 				for _, processed := range status.Processed {
 					if doc, exists := docsMap[processed.GenerationCode]; exists {
+						if _, seen := processedResults[doc.ID]; seen {
+							continue
+						}
 						logs.Info("Document processed", map[string]interface{}{
 							"code":            processed.MessageCode,
 							"message":         processed.DescriptionMessage,
@@ -323,8 +326,9 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 							"documentID":      doc.DocumentID,
 						})
 						processedResults[doc.ID] = dte.ReceptionResult{
-							ReceptionStamp: processed.ReceptionStamp,
-							ProcessingDate: processed.ProcessingDate,
+							ReceptionStamp:   processed.ReceptionStamp,
+							ProcessingDate:   processed.ProcessingDate,
+							HaciendaResponse: marshalBatchItemResponse(processed),
 						}
 						proccesedObservations = append(proccesedObservations, processed.DescriptionMessage)
 						processedContingencyIDs = append(processedContingencyIDs, doc.ID)
@@ -366,11 +370,17 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 					code          string
 					description   string
 					observations  []string
+					response      string
 				}
 				var entries []rejectedEntry
+				seenRejected := make(map[string]bool)
 
 				for _, rejected := range status.Rejected {
 					if doc, exists := docsMap[rejected.GenerationCode]; exists {
+						if seenRejected[doc.ID] {
+							continue
+						}
+						seenRejected[doc.ID] = true
 						code := rejected.ClassifyMessage
 						if code == "" && rejected.MessageCode != "" {
 							code = rejected.MessageCode
@@ -396,18 +406,21 @@ func (s *BatchTransmitterService) VerifyContingencyBatchStatus(
 							code:          code,
 							description:   rejected.DescriptionMessage,
 							observations:  rejected.Observations,
+							response:      marshalBatchItemResponse(rejected),
 						})
 					}
 				}
 
 				contingencyIDs := make([]string, len(entries))
 				descriptions := make([]string, len(entries))
+				rejectedResults := make(map[string]dte.ReceptionResult, len(entries))
 				for i, e := range entries {
 					contingencyIDs[i] = e.contingencyID
 					descriptions[i] = e.description
+					rejectedResults[e.contingencyID] = dte.ReceptionResult{HaciendaResponse: e.response}
 				}
 
-				if err := s.contingencyRepo.UpdateBatch(ctx, contingencyIDs, descriptions, nil, batchID, mhBatchID, constants.DocumentRejected); err != nil {
+				if err := s.contingencyRepo.UpdateBatch(ctx, contingencyIDs, descriptions, rejectedResults, batchID, mhBatchID, constants.DocumentRejected); err != nil {
 					logs.Error("Failed to update rejected documents", map[string]interface{}{
 						"error":   err.Error(),
 						"batchID": batchID,
@@ -623,4 +636,14 @@ func (s *BatchTransmitterService) sleep(attempt int) {
 		backoff = retryPolicy.MaxInterval
 	}
 	s.timeProvider.Sleep(backoff)
+}
+
+// marshalBatchItemResponse serializes the Hacienda response of one document of a batch, with its observations, to
+// store it with the document.
+func marshalBatchItemResponse(response models.HaciendaResponse) string {
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
 }

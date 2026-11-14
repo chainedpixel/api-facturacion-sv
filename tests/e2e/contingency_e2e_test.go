@@ -62,6 +62,18 @@ func contingencyPhaseOne(t *testing.T) {
 		record(t, client.emitInContingency(t, "/dte/ccf", buildCCF(ccfSpec{receiver: ccfReceiver(),
 			items: []itemSpec{bread("Pedido de pan", 30, 1.10, 0)}})))
 	})
+	t.Run("FE en contingencia tipo 5", func(t *testing.T) {
+		doc := client.emitInContingencyWithHeaders(t, "/dte/invoices", buildInvoice(invoiceSpec{receiver: companyReceiver(),
+			items: []itemSpec{shoe("Venta con falla no clasificada", 1, 40.00, 0)}}), forcedContingencyHeaders(5))
+		assertForcedContingencyType(t, doc, 5)
+		record(t, doc)
+	})
+	t.Run("CCF en contingencia tipo 5", func(t *testing.T) {
+		doc := client.emitInContingencyWithHeaders(t, "/dte/ccf", buildCCF(ccfSpec{receiver: ccfReceiver(),
+			items: []itemSpec{bread("Pedido con falla no clasificada", 20, 1.10, 0)}}), forcedContingencyHeaders(5))
+		assertForcedContingencyType(t, doc, 5)
+		record(t, doc)
+	})
 	t.Run("NR en contingencia", func(t *testing.T) {
 		record(t, client.emitInContingency(t, "/dte/remissionnote", remissionFor(remissionReceiver())))
 	})
@@ -77,6 +89,21 @@ func contingencyPhaseOne(t *testing.T) {
 		t.Fatalf("no se pudieron guardar los codigos: %v", err)
 	}
 	t.Logf("%d documentos en contingencia guardados en %s", len(codes), contingencyFile())
+}
+
+// assertForcedContingencyType checks that the delivered document carries the contingency type asked in the header and,
+// for type 5, a non-empty reason.
+func assertForcedContingencyType(t *testing.T, doc *emittedDTE, want int) {
+	t.Helper()
+	if doc == nil {
+		return
+	}
+	if doc.ContingencyType != want {
+		t.Errorf("document %s was delivered with contingency type %d and %d was requested", doc.GenerationCode, doc.ContingencyType, want)
+	}
+	if want == 5 && strings.TrimSpace(doc.ContingencyNotes) == "" {
+		t.Errorf("document %s with contingency type 5 has an empty motivoContin", doc.GenerationCode)
+	}
 }
 
 func contingencyPhaseTwo(t *testing.T) {

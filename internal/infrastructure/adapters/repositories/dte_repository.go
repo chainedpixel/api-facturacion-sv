@@ -285,11 +285,12 @@ func (D *DTERepository) GetPagedDocuments(ctx context.Context, filters *dte.DTEF
 	loadFilters(query, filters)
 
 	type DocumentResult struct {
-		ID           string    `gorm:"column:id"`
-		JSONData     string    `gorm:"column:json_data"`
-		Status       string    `gorm:"column:status"`
-		Transmission string    `gorm:"column:transmission"`
-		CreatedAt    time.Time `gorm:"column:created_at"`
+		ID               string    `gorm:"column:id"`
+		JSONData         string    `gorm:"column:json_data"`
+		Status           string    `gorm:"column:status"`
+		Transmission     string    `gorm:"column:transmission"`
+		HaciendaResponse *string   `gorm:"column:hacienda_response"`
+		CreatedAt        time.Time `gorm:"column:created_at"`
 	}
 
 	var documents []DocumentResult
@@ -301,7 +302,7 @@ func (D *DTERepository) GetPagedDocuments(ctx context.Context, filters *dte.DTEF
 		query = query.Offset(offset).Limit(filters.PageSize)
 	}
 
-	if err := query.Select("dte_details.id, dte_details.json_data, dte_details.status, dte_details.transmission, dte_documents.created_at").
+	if err := query.Select("dte_details.id, dte_details.json_data, dte_details.status, dte_details.transmission, dte_details.hacienda_response, dte_documents.created_at").
 		Find(&documents).Error; err != nil {
 		return nil, err
 	}
@@ -311,6 +312,7 @@ func (D *DTERepository) GetPagedDocuments(ctx context.Context, filters *dte.DTEF
 		result = append(result, dte.DTEModelResponse{
 			Status:           doc.Status,
 			TransmissionType: doc.Transmission,
+			Observations:     dte.ObservationsFromHaciendaResponse(valueOrEmpty(doc.HaciendaResponse)),
 			Document:         json.RawMessage(doc.JSONData),
 		})
 	}

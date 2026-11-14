@@ -67,6 +67,8 @@ Al guardar un documento en contingencia (`StoreDocumentInContingency`):
 3. Se guardan la estructura en `dte_details.json_data` y el JWS en `dte_details.signed_document`.
 4. Se devuelve un `DeferredDocument`; el handler responde `Response()`, que es la misma estructura más `firmaElectronica`.
 
+Si Hacienda responde el evento de contingencia sin sellarlo (rechazo o validación no superada), el evento se guarda igual en `dte_events` con `status = REJECTED`, su JWS y la respuesta de Hacienda; los duplicados no se guardan. El resultado de cada documento del lote (procesado o rechazado) se guarda en `dte_details.hacienda_response`, con sus observaciones, que la API entrega en la key `observations`.
+
 Al retransmitir, `signDocuments` envía en el lote el JWS guardado sin volver a firmarlo, de modo que el documento entregado al consumidor y el transmitido son idénticos (contenido y firma). Solo los documentos guardados antes de conservar el JWS se firman al retransmitir. Si el firmador falla, el error es `ports.ErrSigning`: no se activa contingencia, la reserva del número de control se libera y no se guarda nada sin firma. Tras el sello, `GET /dte/{id}/archivo` arma el Archivo DTE desde ese mismo JWS más `selloRecibido`.
 
 Las constantes de la ventana están en `contingency_window.go`: `TransmissionWindow = 72h` (desde el sello del evento), `TechnicalReportThreshold = 72h` y `ContingencyExpiredCode = "CONTINGENCY_72H_EXPIRED"`.

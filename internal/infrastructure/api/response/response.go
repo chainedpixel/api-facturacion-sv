@@ -21,6 +21,7 @@ type APIDTEResponse struct {
 	Success        bool        `json:"success"`
 	ReceptionStamp *string     `json:"reception_stamp"`
 	QRLink         *string     `json:"qr_link"`
+	Observations   []string    `json:"observations"`
 	Data           interface{} `json:"data"`
 }
 
@@ -29,10 +30,12 @@ type SuccessOptions struct {
 	GenerationCode string
 	EmissionDate   time.Time
 	ReceptionStamp *string
+	Observations   []string
 }
 
 type APIError struct {
-	Message string   `json:"message"`
-	Details []string `json:"details"`
-	Code    string   `json:"code"`
+	Message      string    `json:"message"`
+	Details      []string  `json:"details"`
+	Code         string    `json:"code"`
+	Observations *[]string `json:"observations,omitempty"`
 }

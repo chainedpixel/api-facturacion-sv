@@ -52,12 +52,13 @@ func (h *GenericCreatorDTEHandler) HandleCreate(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	resp, options, err := config.UseCase.Create(r.Context(), request)
+	ctx := helpers.RequestContextWithForcedContingency(r)
+	resp, options, err := config.UseCase.Create(ctx, request)
 	if err != nil {
 		logs.Warn("Error processing document because", map[string]interface{}{"error": err.Error()})
 
 		if config.UsesContingency {
-			err = h.handleErrorForContingency(r.Context(), resp, config.DocumentType, options, err, w)
+			err = h.handleErrorForContingency(ctx, resp, config.DocumentType, options, err, w)
 			if err != nil {
 				h.respWriter.HandleError(w, err)
 				return
