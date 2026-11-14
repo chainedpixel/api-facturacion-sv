@@ -80,10 +80,6 @@ func (i *InvalidationMapper) ValidateInvalidationReRequest(req *structs.CreateIn
 		return dte_errors.NewValidationError("RequiredField", "Request->Reason")
 	}
 
-	if (req.Reason.Type == 1 || req.Reason.Type == 3) && req.ReplacementGenerationCode == nil {
-		return shared_error.NewFormattedGeneralServiceError("InvalidationMapper", "validateInvoiceRequest", "InvalidReplacementCode1And3")
-	}
-
 	if req.Reason.Type == 2 && req.ReplacementGenerationCode != nil {
 		return shared_error.NewFormattedGeneralServiceError("InvalidationMapper", "validateInvoiceRequest", "InvalidInvalidationType2")
 	}

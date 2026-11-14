@@ -25,6 +25,7 @@ Luego se aplican las [estrategias comunes](./README.md) (incluida `PaymentTotalS
 | Validación | Regla | Error |
 |---|---|---|
 | Lista de ítems | Al menos un ítem requerido | `FSEItemInvalidEmpty` |
+| Tipo de ítem | No puede ser `4` (impuesto) (`constants.Impuesto`); se evalúa antes que el resto de reglas del ítem | `InvalidFSEItemType` |
 | Purchase | Debe ser `> 0` | `FSEItemInvalidPurchase` |
 | Description | No puede ser vacía | `FSEItemInvalidDescription` |
 | Quantity | Debe ser `> 0` | `FSEItemInvalidQuantity` |

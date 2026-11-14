@@ -61,6 +61,8 @@ type documentOptions struct {
 	otherDocs    []structs.OtherDocRequest
 	appendixes   []structs.AppendixRequest
 	observation  string
+	// zeroCreditPayment envia la condicion credito con un unico pago de 0.00 (el total queda por cobrar)
+	zeroCreditPayment bool
 }
 
 var (
@@ -154,6 +156,9 @@ func discountSummary(totals saleTotals, global globalDiscounts) (subTotal, total
 func payments(total float64, opts documentOptions) []structs.PaymentRequest {
 	if opts.credit != nil {
 		period, term := opts.credit.period, opts.credit.term
+		if opts.zeroCreditPayment {
+			total = 0
+		}
 		return []structs.PaymentRequest{{Code: "03", Amount: total, Period: &period, Term: &term}}
 	}
 	codes := opts.paymentCodes

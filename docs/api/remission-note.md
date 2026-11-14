@@ -92,7 +92,7 @@ A diferencia de FE, CCF y FSE, en la NRE el número de ítem **sí se envía** y
 | `quantity` | float | Sí | Cantidad (> 0) |
 | `unit_measure` | integer | Sí | Unidad de medida (1–99) |
 | `unit_price` | float | Sí | Precio unitario (≥ 0) |
-| `discount` | float | No | **Monto** de descuento (≥ 0). El servicio acepta valores de `0` a `100` |
+| `discount` | float | No | **Monto** de descuento (≥ 0). El servicio acepta cualquier monto de `0` a `99999999999.99`; un valor negativo se rechaza con `InvalidAmount` |
 | `non_subject_sale` | float | Condicional | Monto no sujeto (≥ 0) |
 | `exempt_sale` | float | Condicional | Monto exento (≥ 0) |
 | `taxed_sale` | float | Condicional | Monto gravado (≥ 0) |
@@ -127,7 +127,7 @@ Los montos de `tributes` se envían con **2 decimales**. Los demás montos son �
 | `total_amount` | float | Sí | Monto total de la operación (`subtotal` + tributos) |
 | `amount_in_words` | string | No | Total en letras. Si se omite, el servicio lo genera a partir de `total_amount` |
 | `observations` | string | No | Observaciones (máx. 3000 caracteres) |
-| `payments` | `Payment[]` | No | Formas de pago (`code` y `amount`, distintos de vacío/`0`). Se validan en formato pero **no se emiten** en el documento |
+| `payments` | `Payment[]` | No | Formas de pago (`code` requerido; `amount` puede ser `0`). Se validan en formato pero **no se emiten** en el documento |
 
 El servicio no exige explícitamente `subtotal_sales`, `subtotal` ni `total_amount`: si se omiten se toman como `0` (y la validación de `subtotal`/`total_amount` no se ejecuta). Para un documento válido ante Hacienda deben enviarse con su valor.
 
@@ -137,7 +137,7 @@ El servicio no exige explícitamente `subtotal_sales`, `subtotal` ni `total_amou
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `code` | string | Código de tributo (CAT-015): `"20"`, `"C3"`, `"59"`, `"71"`, `"D1"`, `"C8"`, `"D5"` |
+| `code` | string | Código de tributo (CAT-015): `"20"`, `"C3"`, `"59"`, `"71"`, `"D5"`. `"D1"` y `"C8"` se rechazan con `UnsupportedTaxCode` |
 | `description` | string | Descripción del tributo (requerida) |
 | `value` | float | Valor con 2 decimales. Debe ser distinto de `0` (salvo `C3`) |
 

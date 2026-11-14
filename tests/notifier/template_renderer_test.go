@@ -517,6 +517,7 @@ func TestAllTemplatesRenderWithMinimalEvent(t *testing.T) {
 		event.ContingencyActivatedEvent{OccurredAtTime: time.Now()},
 		event.EmissionFailureEvent{OccurredAtTime: time.Now()},
 		event.RetransmissionJobFailedEvent{OccurredAtTime: time.Now()},
+		event.StampedDocumentNotPersistedEvent{OccurredAtTime: time.Now()},
 	}
 	for _, evt := range evts {
 		_, html, plain, err := r.Render(evt)
@@ -598,4 +599,40 @@ func extractSnippet(s, keyword string) string {
 		end = len(s)
 	}
 	return s[start:end]
+}
+
+func TestRenderStampedDocumentNotPersistedExcludesSignedDocument(t *testing.T) {
+	setupRendererConfig(t)
+	r, err := email.NewTemplateRenderer()
+	if err != nil {
+		t.Fatalf("renderer: %v", err)
+	}
+
+	evt := event.StampedDocumentNotPersistedEvent{
+		BranchID:       2,
+		NIT:            "06140101001111",
+		ControlNumber:  "DTE-01-M001P001-000000000000009",
+		GenerationCode: "GEN-CODE-9",
+		DTEType:        "01",
+		ReceptionStamp: "2026STAMP0009",
+		ProcessingDate: "2026-11-13T10:00:00",
+		LastError:      "db down",
+		OccurredAtTime: time.Now(),
+	}
+	subject, html, plain, err := r.Render(evt)
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+
+	if !strings.Contains(subject, evt.ControlNumber) {
+		t.Errorf("subject must contain control number, got %q", subject)
+	}
+	for _, want := range []string{evt.GenerationCode, evt.ReceptionStamp, evt.ProcessingDate, evt.LastError, "Factura Electrónica"} {
+		if !strings.Contains(html, want) || !strings.Contains(plain, want) {
+			t.Errorf("html and plain must contain %q", want)
+		}
+	}
+	if _, ok := evt.Payload()["signed_document"]; ok {
+		t.Error("payload must not carry the signed document")
+	}
 }

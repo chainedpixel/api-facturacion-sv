@@ -95,7 +95,7 @@ ValidateToken(tokenString)
 
 > **Nota:** La validación exige las dos condiciones: que el token exista en cache (lo que permite la revocación inmediata) y que su firma y expiración sean válidas.
 
-> **Observación del código:** `GenerateToken` imprime el token firmado en la salida estándar con `fmt.Printf`, y `ValidateToken` y `RevokeToken` registran el token completo en los logs.
+> **Logs:** `GenerateToken`, `ValidateToken` y `RevokeToken` no registran el token (ni lo imprimen en la salida estándar); los logs de error de estas operaciones incluyen solo el mensaje de error. Tampoco se registran el token de Hacienda, las credenciales ni el encabezado `Authorization` en `HaciendaAuthService`, `RedisTokenCache`, `StandardAuthStrategy` ni `AuthMiddleware`.
 
 ---
 

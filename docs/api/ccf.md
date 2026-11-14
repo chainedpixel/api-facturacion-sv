@@ -55,7 +55,7 @@ El número de ítem lo asigna el servicio según la posición en el arreglo (`nu
 | `quantity` | float | Sí | Cantidad (> 0, hasta `99999999999.99`) |
 | `unit_measure` | integer | Sí | Unidad de medida (1–99; `99` obligatorio para tipo `4`) |
 | `unit_price` | float | Sí | Precio unitario (≥ 0, hasta 8 decimales). **Debe ser `0` cuando `non_taxed > 0`** y **no puede ser `0` cuando `taxed_sale > 0`** |
-| `discount` | float | No | **Monto** de descuento del ítem (no porcentaje). El servicio acepta valores de `0` a `100` |
+| `discount` | float | No | **Monto** de descuento del ítem (no porcentaje). El servicio acepta cualquier monto de `0` a `99999999999.99`; un valor negativo se rechaza con `InvalidAmount` |
 | `non_subject_sale` | float | No | Venta no sujeta (≥ 0) |
 | `exempt_sale` | float | No | Venta exenta (≥ 0) |
 | `taxed_sale` | float | No | Venta gravada (≥ 0) |
@@ -151,7 +151,7 @@ Los montos del resumen se envían con **máximo 2 decimales** (`InvalidDecimals`
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `code` | string | Código de tributo: `"20"` IVA, `"C3"` IVA exportación, `"59"` Turismo, `"71"` Turismo aeropuerto, `"D1"` FOVIAL, `"C8"` COTRANS, `"D5"` Otro especial |
+| `code` | string | Código de tributo: `"20"` IVA, `"C3"` IVA exportación, `"59"` Turismo, `"71"` Turismo aeropuerto, `"D5"` Otro especial. `"D1"` (FOVIAL) y `"C8"` (COTRANS) se rechazan con `UnsupportedTaxCode` |
 | `description` | string | Descripción del tributo (requerida) |
 | `value` | float | Valor del tributo con 2 decimales. Debe ser distinto de `0` (salvo `C3`) |
 
@@ -164,13 +164,17 @@ La fórmula de cada tributo está en [calculations.md](./calculations.md#36-trib
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `code` | string | Sí | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017) |
-| `amount` | float | Sí | Monto (distinto de `0`, 2 decimales) |
+| `amount` | float | Sí | Monto (2 decimales). En ventas a crédito (condición `2`) debe enviarse `0.00` (ver reglas) |
 | `period` | integer | Condicional | Período. Ver reglas |
 | `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`). Ver reglas |
 | `reference` | string | No | Referencia del pago |
 
 **Reglas:**
 - La suma de `amount` debe coincidir con `total_to_pay` (tolerancia ±0.01, `InvalidPaymentTotal`).
+- En ventas a crédito (condición `2`) el valor normativo de `amount` es `0.00` (Anexo IV: el monto por forma de pago "deberá completarse con $0.00") y es el que deben enviar los consumidores. Con al menos un pago y todos los `amount` en `0.00` no se compara la suma con `total_to_pay`.
+- Por compatibilidad, la API acepta de forma transitoria que con condición `2` el `amount` sea igual al total a pagar (la suma se compara con `total_to_pay` como siempre). Esta tolerancia se eliminará en una versión futura, después de la cual con condición `2` solo se aceptará `0.00`.
+- Una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
+- `code` es requerido por la API en todos los pagos (`InvalidPaymentTypeInfo`), aunque el Anexo IV solo lo exige con condición `1` o `3`. `reference` puede omitirse (con condición `2` puede ser `null`).
 - Condición `2` (Crédito): si ningún pago usa el código `"01"`, todos los pagos deben informar `period` y `term` (`InvalidPaymentTerms`).
 - Condición `1` (Contado): si ningún pago usa el código `"01"`, los pagos no deben informar `period` ni `term` (`InvalidPaymentTermsOF`).
 
@@ -202,7 +206,7 @@ Máximo 10 (`InvalidOtherDocsCount`).
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `document_code` | integer | Sí | Código: `1` Emisor, `2` Receptor, `3` Médico, `4` Transporte |
+| `document_code` | integer | Sí | Código: `1` Emisor, `2` Receptor, `3` Médico, `4` Transporte. El código `4` solo se permite en la Factura de Exportación (`11`); en los demás tipos se rechaza con `InvalidAssociatedDocumentCodeForType`. Como la FEXE no está disponible como endpoint, en la práctica el código `4` se rechaza |
 | `description` | string | Condicional | Requerido para códigos 1, 2 y 4 (máx. 100 caracteres). No debe enviarse con código `3` |
 | `detail` | string | Condicional | Requerido para códigos 1, 2 y 4 (máx. 300 caracteres). No debe enviarse con código `3` |
 | `doctor` | `Doctor` | Condicional | Requerido para código `3`; no debe enviarse con los demás códigos |
@@ -474,7 +478,7 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `InvalidRelatedDocNumberNormal`, `InvalidRelatedDocNumberContingency` | Número físico (>20 caracteres) o UUID inválido |
 | `RelatedDocOutOfPeriod` | Documento fuera del periodo permitido respecto a la NR o el DCL |
 | `RequiredField` | Falta el nombre del tercero (`ThirdPartyName`) o campos de `other_docs` |
-| `InvalidOtherDocsCount`, `InvalidAssociatedDocumentCode`, `InvalidMedicalDocFields`, `MutuallyExclusiveFields`, `InvalidServiceType` | Reglas de `other_docs` y `doctor` |
+| `InvalidOtherDocsCount`, `InvalidAssociatedDocumentCode`, `InvalidAssociatedDocumentCodeForType`, `InvalidMedicalDocFields`, `MutuallyExclusiveFields`, `InvalidServiceType` | Reglas de `other_docs` y `doctor` |
 
 ---
 

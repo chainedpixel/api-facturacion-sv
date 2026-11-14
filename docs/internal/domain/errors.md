@@ -199,10 +199,11 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `InvalidTransmissionType` | 1 | El tipo de transmisión %s no es válido, debe ser: 1 -> (Normal) y 2 -> (Contingencia) |
 | `InvalidAmount` | 1 | El monto %s no es válido, debe ser un número entre 0 y 99999999999.99 |
 | `InvalidQuantity` | 1 | La cantidad %s no es válida, debe ser un número entre 1 y 99999999999.99 |
-| `InvalidDiscount` | 1 | El descuento %s no es válido, debe ser un número entre 0 y 100 |
+| `InvalidDiscount` | 1 | El descuento %s no es válido, debe ser un número entre 0 y 100 (se usa para `discount_percentage` del resumen; el descuento por ítem se valida como monto, `InvalidAmount`) |
 | `InvalidTax` | 1 | El impuesto %s no es válido, debe ser un número entre 0 y 99999999999.99 |
 | `InvalidCurrency` | 1 | La moneda %s no es válida, debe ser USD |
 | `InvalidItemType` | 1 | El tipo de ítem %d no es válido, debe ser: 1 -> (Producto), 2 -> (Servicio), 3 -> (Ambos) y 4 -> (Impuesto) |
+| `InvalidFSEItemType` | 1 | El tipo de ítem %d no está permitido en la Factura de Sujeto Excluido, los ítems de tipo impuesto (4) no son soportados |
 | `InvalidTaxType` | 1 | El tipo de impuesto %s no es válido, debe estar dentro del catálogo de impuestos permitidos |
 | `InvalidMunicipality` | 3 | Código de municipio %s inválido para el departamento %s. El código de municipio debe ser un número de dos dígitos que siga el patrón del catálogo oficial. Por ejemplo, códigos válidos para este departamento incluyen: %s. Consulte el catálogo oficial de municipios. |
 | `InvalidEstablishmentType` | 1 | El tipo de establecimiento %s no es válido, debe ser: 01 -> (Casa Matriz), 02 -> (Sucursal), 04 -> (Bodega), 07 -> (Propiedad o Terreno) y 20 -> (Otro) |
@@ -294,6 +295,7 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `InvalidDTETypeForRetention` | 1 | El tipo de DTE no es válido para retención, debe ser un factura electronica (01), comprobante de credito fiscal (03) o factura sujeto excluido electronica (14), recibido %s |
 | `InvalidInvalidationReason` | 1 | La razón de invalidación no es válida, debe ser un valor entre 5 y 250 caracteres, cantidad actual: %d |
 | `InvalidAssociatedDocumentCode` | 1 | El código de documento asociado %d no es válido, debe ser un numero entre 1 y 4 |
+| `InvalidAssociatedDocumentCodeForType` | 2 | El código de documento asociado %d no está permitido para el tipo de documento %s |
 | `InvalidInvalidationType` | 1 | El tipo de invalidación no es válido, debe ser un valor válido del catálogo CAT-024, obtenido %d |
 | `InvalidServiceType` | 1 | El tipo de servicio %d no es válido, debe ser un número entre 1 y 6 |
 | `InvalidCreditNoteTransaction` | 4 | El total %s es mayor que el saldo restante del documento %s. Total obtenido: %f. Saldo restante para este total: %f. |
@@ -323,6 +325,9 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `MissingIVAForTaxedAmount` | 0 | Existen ventas gravadas pero no se informó el IVA correspondiente |
 | `InvalidEnum` | 1 | El valor del campo %s no es válido |
 | `NullDocument` | 1 | Documento nulo en %s |
+| `InvalidInvalidationType2` | 0 | El código de reemplazo debe ser nulo para el tipo 2 |
+| `InvalidReplacementCode1And3` | 0 | El código de reemplazo es requerido para los tipos de invalidación 1 y 3, salvo cuando el documento invalidado es una Nota de Crédito o un Comprobante de Liquidación |
+| `ReplacementCodeNotAllowedForType` | 1 | El código de reemplazo debe ser nulo cuando el documento invalidado es de tipo %s |
 
 ### service_errors
 
@@ -346,16 +351,17 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `AddressWithReceiver` | 0 | Cuando esté presente la dirección, los campos departamento, municipio y complemento son requeridos |
 | `InvalidDoctorInfo` | 0 | El nombre del doctor y el tipo de servicio son requeridos, pero uno o ambos están vacíos (el tipo de servicio 0 se considera vacío) |
 | `InvalidDoctorDocuments` | 0 | Se requiere la identificación o el NIT del doctor, pero ambos están vacíos |
-| `InvalidPaymentTypeInfo` | 0 | El código y el monto son requeridos y no pueden estar vacíos en payment_types |
+| `InvalidPaymentTypeInfo` | 0 | El código es requerido y no puede estar vacío en payment_types |
 | `InvalidTaxCodeAndDescription` | 0 | El código y la descripción del impuesto son requeridos, pero uno o ambos están vacíos |
 | `InvalidThirdParty` | 0 | El nombre y el NIT son requeridos y no pueden estar vacíos en third_party_sale |
 | `InvalidBaseDTE` | 0 | DTE base inválido |
 | `InvalidInvalidationType3` | 0 | Si el tipo de motivo es 3, el campo 'reason_field' en el objeto reason debe ser proporcionado |
 | `InvalidInvalidationType2` | 0 | El código de reemplazo debe ser nulo para el tipo 2 |
-| `InvalidReplacementCode1And3` | 0 | El código de reemplazo es requerido para los tipos 1 y 3 |
 | `InvalidDocumentTypeAndNumber` | 0 | DocumentType y DocumentNumber. Si DocumentType está presente, DocumentNumber también debe estarlo y viceversa, estos campos |
 | `FailedToExtractSummaryTotals` | 0 | No se pudo extraer los totales del resumen |
 | `FailedToCreateDTE` | 0 | No se pudo crear el DTE, revise los detalles a continuación |
+| `StampedDocumentNotPersisted` | 2 | El documento con código de generación %s fue sellado por Hacienda (sello de recepción %s) pero no pudo guardarse localmente. NO debe emitirse nuevamente. Contacte al administrador para recuperarlo |
+| `AdditionalOperationsFailed` | 1 | El documento con código de generación %s fue sellado por Hacienda y guardado, pero fallaron las operaciones posteriores. NO debe emitirse nuevamente. Contacte al administrador |
 | `FailedToGetDTE` | 1 | No se pudo obtener el DTE con el código: %s, revise los detalles a continuación |
 | `FailedToUpdateDTE` | 0 | Hubo un error al actualizar el DTE, revise los detalles a continuación |
 | `FailedToVerifyDTE` | 0 | Hubo un error al verificar el DTE, revise los detalles a continuación |

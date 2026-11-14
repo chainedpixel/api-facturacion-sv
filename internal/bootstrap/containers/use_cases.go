@@ -39,7 +39,8 @@ func (c *UseCaseContainer) Initialize() {
 		c.services.AuthManager(),
 		c.services.DTEManager(),
 		c.baseTransmitter,
-		c.services.SequentialManager())
+		c.services.SequentialManager(),
+		c.services.EventBus())
 
 	c.invoiceUseCase = c.dteUseCaseFactory.CreateInvoiceUseCase(c.services.InvoiceService())
 	c.ccfUseCase = c.dteUseCaseFactory.CreateCCFUseCase(c.services.CCFService())

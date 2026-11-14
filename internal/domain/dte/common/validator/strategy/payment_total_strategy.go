@@ -47,6 +47,11 @@ func (s *PaymentTotalStrategy) Validate() *dte_errors.DTEError {
 		paymentsTotal = paymentsTotal.Add(amount)
 	}
 
+	if s.Document.GetSummary().GetOperationCondition() == constants.Credit &&
+		len(s.Document.GetSummary().GetPaymentTypes()) > 0 && paymentsTotal.IsZero() {
+		return nil
+	}
+
 	operationTotal := decimal.NewFromFloat(s.Document.GetSummary().GetTotalToPay())
 
 	diff := operationTotal.Sub(paymentsTotal)

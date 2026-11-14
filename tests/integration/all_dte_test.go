@@ -495,6 +495,7 @@ func TestAllDTETypes(t *testing.T) {
 						dteConfig.MapperConfig.RequestMapperAdapter,
 						dteConfig.MapperConfig.ResponseMapper,
 						additionalOps,
+						nil,
 					)
 
 					contingencyHandler := helpers.NewContingencyHandler(mockContingency)

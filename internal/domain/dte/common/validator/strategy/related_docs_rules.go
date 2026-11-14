@@ -3,6 +3,7 @@ package strategy
 import (
 	"time"
 
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/calendar"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 )
@@ -42,7 +43,7 @@ func ValidateRelatedDocPeriod(dteType, relatedType string, relatedDate, generati
 		deadline = endOfMonth(relatedDate)
 	case constants.ValidAdjustmentDTETypes[relatedType] &&
 		(dteType == constants.NotaCreditoElectronica || dteType == constants.NotaDebitoElectronica):
-		deadline = relatedDate.AddDate(0, adjustmentWindowMonths, 0)
+		deadline = calendar.AddMonthsClamped(relatedDate, adjustmentWindowMonths)
 	default:
 		return nil
 	}

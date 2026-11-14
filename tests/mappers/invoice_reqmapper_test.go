@@ -180,19 +180,7 @@ func TestMapToInvoiceData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "Invoice with invalid discount (>100%)",
-			req: func() *structs.CreateInvoiceRequest {
-				req := fixtures.CreateDefaultInvoiceRequest()
-				item := fixtures.CreateDefaultInvoiceItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.InvoiceItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 
 		{

@@ -64,7 +64,7 @@ func (bt *BaseTransmitter) RetryTransmission(ctx context.Context, document inter
 	}
 
 	logs.Info("Check status of document")
-	statusResult, err := bt.CheckStatus(ctx, document, nit)
+	statusResult, err := bt.CheckStatus(ctx, document, nit, token)
 	if err == nil && statusResult.Status == ReceivedStatus {
 		logs.Info("Document already received")
 		return withSignedDocument(statusResult, signedDoc), nil
@@ -94,6 +94,6 @@ func withSignedDocument(result *models.TransmitResult, signedDoc string) *models
 	return result
 }
 
-func (bt *BaseTransmitter) CheckStatus(ctx context.Context, document interface{}, nit string) (*models.TransmitResult, error) {
-	return bt.transmitter.CheckDocumentStatus(ctx, document, nit)
+func (bt *BaseTransmitter) CheckStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*models.TransmitResult, error) {
+	return bt.transmitter.CheckDocumentStatus(ctx, document, nit, systemToken)
 }

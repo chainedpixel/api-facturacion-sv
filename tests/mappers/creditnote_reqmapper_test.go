@@ -386,19 +386,7 @@ func TestMapToCreditNoteData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "CreditNote with invalid discount (>100%)",
-			req: func() *structs.CreateCreditNoteRequest {
-				req := fixtures.CreateDefaultCreditNoteRequest()
-				item := fixtures.CreateDefaultCreditNoteItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.CreditNoteItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 		{
 			name: "CreditNote with invalid payment condition",

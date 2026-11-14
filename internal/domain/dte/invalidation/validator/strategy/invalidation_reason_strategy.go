@@ -4,6 +4,7 @@ import (
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/invalidation_models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation/policy"
 )
 
 type InvalidationReasonStrategy struct {
@@ -40,11 +41,16 @@ func (s *InvalidationReasonStrategy) Validate() *dte_errors.DTEError {
 
 	if reason.Type.GetValue() == 2 {
 		if s.Document.Document.ReplacementCode != nil {
-			return dte_errors.NewDTEErrorSimple("InvalidField", "ReplacementCode must be null for type 2")
+			return dte_errors.NewDTEErrorSimple("InvalidInvalidationType2")
 		}
 	} else {
-		if s.Document.Document.ReplacementCode == nil {
-			return dte_errors.NewDTEErrorSimple("RequiredField", "ReplacementCode for types 1 and 3")
+		requiresReplacement := policy.RequiresReplacement(s.Document.Document.Type.GetValue())
+		replacement := s.Document.Document.ReplacementCode
+		if requiresReplacement && replacement == nil {
+			return dte_errors.NewDTEErrorSimple("InvalidReplacementCode1And3")
+		}
+		if !requiresReplacement && replacement != nil {
+			return dte_errors.NewDTEErrorSimple("ReplacementCodeNotAllowedForType", s.Document.Document.Type.GetValue())
 		}
 	}
 

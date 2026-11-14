@@ -66,7 +66,7 @@ Por cada relatedDoc donde GetGenerationType() == ElectronicDocument:
   )
 ```
 
-**Efecto:** Se inserta una transacción de balance (`dte_balance_transactions`) sobre el control de saldo del documento original (`dte_balance_control`). El hook `AfterCreate` de `DTEBalanceTransaction` resta los montos gravado, exento y no sujeto de los saldos restantes cuando el tipo de transacción es `05`.
+**Efecto:** Se inserta una transacción de balance (`dte_balance_transactions`) sobre el control de saldo del documento original (`dte_balance_control`). El hook `AfterCreate` de `DTEBalanceTransaction` resta los montos gravado, exento y no sujeto de los saldos restantes cuando el tipo de transacción es `05` (o `DEBIT_NOTE_INVALID`, registrado al invalidar una nota de débito).
 
 Los montos se extraen del resumen del modelo Hacienda (`utils.ExtractSummaryTotalAmounts`).
 
@@ -84,7 +84,7 @@ Idéntico a la operación de crédito pero:
 - Se type-asserts a `*DebitNoteModel`
 - Se usa `constants.NotaDebitoElectronica` (`"06"`) como tipo de transacción
 
-**Efecto:** Se inserta una transacción de balance con tipo `06`. El hook `AfterCreate` de `DTEBalanceTransaction` suma los montos a los saldos restantes para cualquier tipo distinto de `05`.
+**Efecto:** Se inserta una transacción de balance con tipo `06`. El hook `AfterCreate` de `DTEBalanceTransaction` suma los montos a los saldos restantes para cualquier tipo distinto de `05` y `DEBIT_NOTE_INVALID`.
 
 ---
 

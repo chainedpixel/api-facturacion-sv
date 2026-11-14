@@ -302,19 +302,7 @@ func TestMapToCCFData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "CCF with invalid discount (>100%)",
-			req: func() *structs.CreateCreditFiscalRequest {
-				req := fixtures.CreateDefaultCreditFiscalRequest()
-				item := fixtures.CreateDefaultCreditItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.CreditItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 		{
 			name: "CCF with invalid payment condition",

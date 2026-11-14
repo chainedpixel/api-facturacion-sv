@@ -87,3 +87,26 @@ func TestReservedSequenceRepository_GetOldestReleasedNumber_FiltersHaciendaRejec
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }
+
+// TestReservedSequenceRepository_GetExpiredNonContingencyReservations_SkipsPersistedDocuments guards against
+// releasing the control number of a document already stamped and saved whose reservation was never confirmed.
+func TestReservedSequenceRepository_GetExpiredNonContingencyReservations_SkipsPersistedDocuments(t *testing.T) {
+	test.TestMain(t)
+
+	gormDB, mock := newReservedSequenceMockDB(t)
+	repo := repositories.NewReservedSequenceRepository(gormDB)
+
+	mock.ExpectQuery(`(?s)NOT EXISTS.*SELECT 1 FROM dte_details d.*RIGHT\(d.control_number, 15\)`).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "branch_id", "dte_type", "sequence_number", "year",
+			"status", "document_id", "reserved_at", "confirmed_at",
+			"released_at", "expires_at", "rejection_reason", "hacienda_code",
+			"is_contingency", "contingency_document_id",
+		}))
+
+	result, err := repo.GetExpiredNonContingencyReservations(context.Background())
+
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

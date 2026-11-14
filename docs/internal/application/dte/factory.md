@@ -17,6 +17,7 @@ type DTEUseCaseFactory struct {
     dteService        dte_documents.DTEManager
     transmitter       ports.BaseTransmitter
     sequentialManager dte_documents.SequentialNumberManager
+    bus               event.Bus
     mapperFactory     *mapper.MapperFactory
     operationsFactory *DTEOperations
 }
@@ -30,12 +31,13 @@ func NewDTEUseCaseFactory(
     dteService dte_documents.DTEManager,
     transmitter ports.BaseTransmitter,
     sequentialManager dte_documents.SequentialNumberManager,
+    bus event.Bus,
 ) *DTEUseCaseFactory
 ```
 
 El `MapperFactory` (`mapper.NewMapperFactory()`) y `DTEOperations` (`NewDTEOperations()`) se instancian internamente.
 
-`UseCaseContainer.Initialize` construye la factory una sola vez con `AuthManager`, `DTEManager`, el `BaseTransmitter` (`dte.NewBaseTransmitter`) y `SequentialManager`, y luego obtiene cada caso de uso pasando el servicio de dominio del tipo (`InvoiceService`, `CCFService`, `RetentionManager`, `CreditNoteManager`, `RemissionNoteManager`, `FSEManager`, `DebitNoteManager`).
+`UseCaseContainer.Initialize` construye la factory una sola vez con `AuthManager`, `DTEManager`, el `BaseTransmitter` (`dte.NewBaseTransmitter`), `SequentialManager` y el bus de eventos (`EventBus`), y luego obtiene cada caso de uso pasando el servicio de dominio del tipo (`InvoiceService`, `CCFService`, `RetentionManager`, `CreditNoteManager`, `RemissionNoteManager`, `FSEManager`, `DebitNoteManager`).
 
 ---
 

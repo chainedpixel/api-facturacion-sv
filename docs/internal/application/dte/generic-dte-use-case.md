@@ -21,6 +21,7 @@ type GenericDTEUseCase struct {
     mapper            mapper.DTEMapper
     responseMapper    mapper.ResponseMapperFunc
     additionalOps     AdditionalOperationsFunc
+    bus               event.Bus
 }
 ```
 
@@ -36,6 +37,7 @@ type GenericDTEUseCase struct {
 | `mapper` | `DTEMapper` | Se mapea request HTTP → modelo de dominio |
 | `responseMapper` | `ResponseMapperFunc` | Se mapea modelo de dominio → formato Hacienda |
 | `additionalOps` | `AdditionalOperationsFunc` | Se ejecutan operaciones post-transmisión (balance) |
+| `bus` | `event.Bus` | Se publica `StampedDocumentNotPersistedEvent` cuando un documento sellado no puede guardarse (puede ser `nil`) |
 
 ---
 
@@ -89,8 +91,11 @@ Request HTTP
   │     ▼
   │   [8a] Confirmar reserva + Persistir DTE con evidencia
   │     │   sequentialManager.ConfirmReservation(controlNumber, generationCode, branchID)
+  │     │   (si falla solo se registra; se continúa con la persistencia)
   │     │   dteService.Create(mhModel, "NORMAL", "RECEIVED", &TransmissionEvidence{
   │     │       sello, JWS firmado, fhProcesamiento, respuesta de Hacienda})
+  │     │   (un único reintento si falla; si vuelve a fallar:
+  │     │    log de recuperación + evento + StampedDocumentNotPersisted)
   │     │
   │     ▼
   │   [8b] Operaciones adicionales
@@ -237,7 +242,7 @@ options.ReceptionStamp = transmitResult.ReceptionStamp
 sequentialManager.ConfirmReservation(ctx, controlNumber, generationCode, claims.BranchID)
 ```
 
-Si falla, se devuelve el error y el documento no se persiste.
+Si falla, se reintenta una única vez (misma espera de 200 ms y respeto al contexto, mediante el helper privado `retryOnce`, compartido con la persistencia). Si vuelve a fallar, solo se registra un error en el log indicando que se requiere conciliación manual y el flujo continúa: el documento ya fue sellado por Hacienda y debe guardarse. No se publica evento al administrador porque `StampedDocumentNotPersistedEvent` describe un documento no guardado, lo cual aquí no ocurre. La reserva queda en estado `RESERVED`; `GetExpiredNonContingencyReservations` excluye las reservas cuyo número de control ya existe en `dte_details`, por lo que `ReservationCleanerJob` no libera ese número aunque expire.
 
 **Persistir DTE con su evidencia:**
 ```go
@@ -260,6 +265,12 @@ dteService.Create(ctx, mhModel, constants.TransmissionNormal, constants.Document
 
 Para transmisiones normales, `DTEService.Create` exige un sello no vacío (`MissingReceptionStamp`).
 
+**Reintento y fallo de persistencia:** si `dteService.Create` falla, se reintenta una única vez con los mismos argumentos tras una espera fija de 200 ms (se respeta la cancelación del contexto). Si el segundo intento también falla, el documento está sellado por Hacienda pero no guardado, y se ejecuta `reportStampedNotPersisted`:
+
+1. Se registra una única entrada `logs.Error` con código de generación, número de control, tipo de DTE, sucursal, sello de recepción, fecha de procesamiento, el documento firmado completo (`SignedDocument`) y el error. No incluye tokens ni credenciales.
+2. Se publica `event.StampedDocumentNotPersistedEvent` en el bus (sin el documento firmado), que `AdminEmailHandler` envía por correo al administrador.
+3. Se devuelve un `ServiceError` con código `StampedDocumentNotPersisted` (parámetros: código de generación y sello de recepción) que indica que el documento fue sellado, no debe emitirse nuevamente y se debe contactar al administrador. Al ser `ServiceError`, `shouldHandleAsContingency` retorna `false`, por lo que el handler no lo convierte en contingencia. El escritor de respuestas lo mapea como cualquier `ServiceError` (HTTP 400, código `STAMPEDDOCUMENTNOTPERSISTED`).
+
 ---
 
 ## Paso 8b: Operaciones Adicionales
@@ -270,7 +281,7 @@ if u.additionalOps != nil {
 }
 ```
 
-Solo tiene efecto para Nota de Crédito y Nota de Débito — genera transacciones de balance contra los documentos relacionados (ver [additional-operations.md](./additional-operations.md)). Los demás tipos reciben una función vacía. Un error aquí se devuelve junto con `mhModel` y `options`, aunque el documento ya fue transmitido y guardado.
+Solo tiene efecto para Nota de Crédito y Nota de Débito — genera transacciones de balance contra los documentos relacionados (ver [additional-operations.md](./additional-operations.md)). Los demás tipos reciben una función vacía. Un error aquí se devuelve junto con `mhModel` y `options`, aunque el documento ya fue transmitido y guardado. Si el error no es tipado (`shouldHandleAsContingency` retorna `true`, por ejemplo `invalid result type`), se envuelve en un `ServiceError` con código `AdditionalOperationsFailed` (parámetro: código de generación) para que el handler no lo trate como contingencia y vuelva a registrar un documento ya sellado y guardado. Un error ya tipado se devuelve sin cambios.
 
 ---
 
@@ -340,5 +351,6 @@ Si el error no es de Hacienda, el motivo es el texto del error y el código qued
 | `internal/application/dte/additional_operations.go` | Operaciones post-transmisión |
 | `internal/application/dte/base_transmit.go` | `BaseTransmitter`: firma, reintentos y adjunto del JWS |
 | `internal/domain/core/dte/transmission_evidence.go` | `TransmissionEvidence` |
+| `internal/domain/core/event/events.go` | `StampedDocumentNotPersistedEvent` |
 | `internal/domain/dte/dte_documents/archive.go` | `BuildArchive` (Archivo DTE) |
 | `pkg/mapper/` | Mappers de request y response |

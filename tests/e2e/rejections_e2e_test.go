@@ -168,6 +168,22 @@ func TestE2E_RechazosEsperados(t *testing.T) {
 		})
 	}
 
+	t.Run("FE con tributo D1 (FOVIAL) no soportado", func(t *testing.T) {
+		req := validInvoice()
+		req.Items[0].Taxes = []string{"D1"}
+		client.expectRejectedAny(t, "/dte/invoices", req, "UnsupportedTaxCode", "D1")
+	})
+	t.Run("FE con documento asociado de transporte (codigo 4)", func(t *testing.T) {
+		req := validInvoice()
+		req.OtherDocs = []structs.OtherDocRequest{{DocumentCode: 4, Description: str("Transporte"), Detail: str("Detalle de transporte")}}
+		client.expectRejectedAny(t, "/dte/invoices", req, "InvalidAssociatedDocumentCodeForType", "document type", "tipo de documento")
+	})
+	t.Run("FSE con item de tipo impuesto (4)", func(t *testing.T) {
+		req := validFSE()
+		req.Items[0].Type = 4
+		client.expectRejectedAny(t, "/dte/fse", req, "InvalidFSEItemType", "type 4", "(4)")
+	})
+
 	t.Run("NC sobre un CCF", func(t *testing.T) {
 		base := emitBase(t, client, ccfSpec{receiver: ccfReceiver(), items: []itemSpec{shoe("Venta base", 5, 40.00, 0)}})
 		validNote := func() *structs.CreateCreditNoteRequest {

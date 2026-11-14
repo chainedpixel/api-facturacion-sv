@@ -152,7 +152,7 @@ type Item struct {
     Quantity    item.Quantity
     UnitMeasure item.UnitMeasure
     UnitPrice   financial.Amount
-    Discount    financial.Discount
+    Discount    financial.Amount
     Taxes       []string
     Code        *item.ItemCode
     TaxCode     *financial.TaxType
@@ -444,6 +444,7 @@ type DTEResponse struct {
     Status         string
     CreatedAt      string
     UpdatedAt      string
+    ProcessingDate string // json "processing_date", omitempty
     JSONData       map[string]interface{}
 }
 ```
@@ -580,6 +581,7 @@ El control de balance registra el saldo restante de un documento original frente
 ```go
 type DTEFilters struct {
     BranchID     uint        // no proviene de la query
+    IssuerNIT    string      // no proviene de la query; NIT del claim con all=true
     IncludeAll   bool        // query "all"
     StartDate    *time.Time  // "startDate"
     EndDate      *time.Time  // "endDate"

@@ -15,7 +15,7 @@ type Item struct {
 	Quantity    item.Quantity      `json:"quantity"`
 	UnitMeasure item.UnitMeasure   `json:"unitMeasure"`
 	UnitPrice   financial.Amount   `json:"unitPrice"`
-	Discount    financial.Discount `json:"discount"`
+	Discount    financial.Amount   `json:"discount"`
 	Taxes       []string           `json:"taxes"`
 	Code        *item.ItemCode     `json:"code,omitempty"`
 	TaxCode     *financial.TaxType `json:"taxCode,omitempty"`
@@ -120,7 +120,7 @@ func (i *Item) SetForceUnitPrice(unitPrice float64) {
 }
 
 func (i *Item) SetDiscount(discount float64) error {
-	discountObj, err := financial.NewDiscount(discount)
+	discountObj, err := financial.NewAmount(discount)
 	if err != nil {
 		return err
 	}

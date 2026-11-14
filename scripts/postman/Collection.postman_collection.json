@@ -948,7 +948,65 @@
 								"invoices"
 							]
 						},
-						"description": "operation_condition 2 con plazo (period) y periodo (term, CAT-018)."
+						"description": "operation_condition 2 con plazo (period) y periodo (term, CAT-018). El pago envia el total (forma aceptada de manera transitoria por compatibilidad, se eliminara en una version futura); la forma normativa es amount 0.00 (ver ejemplo con pago en 0.00)."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Condicion credito con pago en 0.00 (sin abono inicial)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Lote de zapatos para tienda\",\n            \"quantity\": 10,\n            \"unit_measure\": 59,\n            \"unit_price\": 28.75,\n            \"discount\": 12.5,\n            \"code\": \"FE-001\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 275,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 31.63716814\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 275,\n        \"sub_total\": 275,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 12.5,\n        \"total_operation\": 275,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 275,\n        \"total_to_pay\": 275,\n        \"operation_condition\": 2,\n        \"payment_types\": [\n            {\n                \"code\": \"03\",\n                \"amount\": 0,\n                \"period\": 30,\n                \"term\": \"01\"\n            }\n        ],\n        \"total_in_words\": \"275 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 31.64,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invoices"
+							]
+						},
+						"description": "Operacion a credito (operation_condition 2): se permite un unico pago con amount 0.00 siempre que lleve term y period y su codigo sea distinto de 01. amount 0.00 es la forma normativa (Anexo IV de la Normativa DTE v2.0) y la que deben enviar los consumidores. total_to_pay se mantiene con el valor real de la venta."
 					},
 					"response": [],
 					"event": [
@@ -2238,7 +2296,65 @@
 								"ccf"
 							]
 						},
-						"description": "Credito a 15 dias."
+						"description": "Credito a 15 dias. El pago envia el total (forma aceptada de manera transitoria por compatibilidad, se eliminara en una version futura); la forma normativa es amount 0.00 (ver ejemplo con pago en 0.00)."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Condicion credito con pago en 0.00 (sin abono inicial)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Pedido semanal de pan\",\n            \"quantity\": 50,\n            \"unit_measure\": 59,\n            \"unit_price\": 1.1,\n            \"discount\": 2.5,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 52.5,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 52.5,\n        \"sub_total\": 52.5,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 2.5,\n        \"total_operation\": 59.33,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 52.5,\n        \"total_to_pay\": 59.33,\n        \"operation_condition\": 2,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.83\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"03\",\n                \"amount\": 0,\n                \"period\": 15,\n                \"term\": \"01\"\n            }\n        ],\n        \"total_in_words\": \"59 DOLARES CON 33 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/ccf",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"ccf"
+							]
+						},
+						"description": "Operacion a credito (operation_condition 2): se permite un unico pago con amount 0.00 siempre que lleve term y period y su codigo sea distinto de 01. amount 0.00 es la forma normativa (Anexo IV de la Normativa DTE v2.0) y la que deben enviar los consumidores. total_to_pay se mantiene con el valor real de la venta."
 					},
 					"response": [],
 					"event": [
@@ -3819,6 +3935,56 @@
 								"api",
 								"{{api_version}}",
 								"dte"
+							],
+							"query": [
+								{
+									"key": "all",
+									"value": "true",
+									"description": "Incluye todas las sucursales del NIT del emisor",
+									"disabled": true
+								},
+								{
+									"key": "startDate",
+									"value": "2026-01-01T00:00:00Z",
+									"description": "RFC3339",
+									"disabled": true
+								},
+								{
+									"key": "endDate",
+									"value": "2026-12-31T23:59:59Z",
+									"description": "RFC3339",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "received",
+									"description": "received | invalidated | rejected",
+									"disabled": true
+								},
+								{
+									"key": "transmission",
+									"value": "normal",
+									"description": "normal | contingency",
+									"disabled": true
+								},
+								{
+									"key": "type",
+									"value": "01,03",
+									"description": "Un tipo o lista separada por comas",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "",
+									"disabled": true
+								},
+								{
+									"key": "page_size",
+									"value": "5",
+									"description": "",
+									"disabled": true
+								}
 							]
 						},
 						"description": "Lista paginada con resumen de los DTE de la sucursal autenticada."
@@ -3842,9 +4008,29 @@
 								"{{generation_code}}"
 							]
 						},
-						"description": "Estado, sello, transmision y JSON del documento."
+						"description": "Estado, sello, transmision, processing_date (fecha de procesamiento de Hacienda, si existe) y JSON del documento."
 					},
-					"response": []
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Consulta exitosa', function () {",
+									"    pm.expect(pm.response.code).to.eql(200);",
+									"    pm.expect(json.data.generation_code).to.eql(pm.environment.get('generation_code'));",
+									"});",
+									"pm.test('processing_date presente en documentos transmitidos a Hacienda', function () {",
+									"    if (json.data.transmission === 'NORMAL' && json.data.reception_stamp) {",
+									"        pm.expect(json.data.processing_date).to.be.a('string').and.not.empty;",
+									"    }",
+									"});"
+								]
+							}
+						}
+					]
 				},
 				{
 					"name": "Archivo DTE para el receptor",
@@ -4003,7 +4189,7 @@
 								"invalidation"
 							]
 						},
-						"description": "Tipo 2 (rescision): no lleva documento de reemplazo."
+						"description": "Tipo 2 (rescision): replacement_generation_code debe omitirse."
 					},
 					"response": [],
 					"event": [
@@ -4175,7 +4361,7 @@
 								"invalidation"
 							]
 						},
-						"description": "Tipo 1 (error en la informacion): exige el documento de reemplazo ya sellado."
+						"description": "Tipo 1 sobre una FE: replacement_generation_code es obligatorio (FE de reemplazo del paso 4)."
 					},
 					"response": [],
 					"event": [
@@ -4368,6 +4554,66 @@
 					]
 				},
 				{
+					"name": "7.2 Emitir segunda NC sobre el CCF a anular",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Devolucion parcial (segunda nota)\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 50,\n            \"discount\": 0,\n            \"code\": \"NC-001\",\n            \"related_doc\": \"{{inv_ccf_generation_code}}\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 50\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 50,\n        \"sub_total\": 50,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 56.5,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 50,\n        \"total_to_pay\": 56.5,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.5\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 56.5\n            }\n        ],\n        \"total_in_words\": \"56 DOLARES CON 50 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0\n    },\n    \"related_docs\": [\n        {\n            \"document_type\": \"03\",\n            \"generation_type\": 2,\n            \"document_number\": \"{{inv_ccf_generation_code}}\",\n            \"emission_date\": \"{{inv_ccf_emission_date}}\"\n        }\n    ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/creditnote",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"creditnote"
+							]
+						},
+						"description": "Guarda inv_nc_generation_code. La NC debe invalidarse antes que su CCF."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"    pm.environment.set('inv_nc2_generation_code', id.codigoGeneracion);",
+									"    pm.environment.set('inv_nc2_emission_date', id.fecEmi);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
 					"name": "8. Invalidar la NC (tipo 2)",
 					"request": {
 						"method": "POST",
@@ -4399,6 +4645,58 @@
 							]
 						},
 						"description": "Un CCF con notas aplicadas exige invalidar primero las notas."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda acepto la invalidacion', function () {",
+									"    pm.expect(pm.response.code).to.eql(200);",
+									"    pm.expect(json.data.reception_stamp).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.archivo_dte).to.be.an('object');",
+									"});",
+									"pm.environment.set('event_generation_code', json.data.generation_code);"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "8.1 Invalidar la segunda NC por error (tipo 1, sin codigo de reemplazo)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"generation_code\": \"{{inv_nc2_generation_code}}\",\n    \"reason\": {\n        \"type\": 1,\n        \"reason_field\": \"Nota de credito emitida con error\",\n        \"responsible_name\": \"Responsable de Facturacion\",\n        \"responsible_doc_type\": \"36\",\n        \"responsible_num_doc\": \"{{mh_username}}\",\n        \"requestor_name\": \"{{receptor_name}}\",\n        \"requestor_doc_type\": \"36\",\n        \"requestor_num_doc\": \"{{receptor_nit}}\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invalidation",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invalidation"
+							]
+						},
+						"description": "Invalidacion tipo 1 de una nota de credito (05): replacement_generation_code debe omitirse (se rechaza si se envia). Para FE/CCF los tipos 1 y 3 si lo exigen; el tipo 2 siempre lo omite."
 					},
 					"response": [],
 					"event": [
@@ -4567,6 +4865,34 @@
 							]
 						},
 						"description": "Ejecuta diagnósticos completos del sistema y retorna el resultado."
+					},
+					"response": []
+				},
+				{
+					"name": "Debug: correo de alerta de prueba (solo con DEBUG=true)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/debug/notify-test?event=contingency",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"debug",
+								"notify-test"
+							],
+							"query": [
+								{
+									"key": "event",
+									"value": "contingency",
+									"description": "contingency | emission | job"
+								}
+							]
+						},
+						"description": "Solo se registra cuando DEBUG=true. Envia un correo de ejemplo a los administradores."
 					},
 					"response": []
 				}

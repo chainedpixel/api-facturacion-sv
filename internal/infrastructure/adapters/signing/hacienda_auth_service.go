@@ -70,14 +70,12 @@ func (s *HaciendaAuthService) GetOrCreateHaciendaToken(ctx context.Context, syst
 		logs.Error("Claims not found in context")
 		return "", shared_error.NewGeneralServiceError("AuthHacienda", "GetOrCreateHaciendaToken", "claims not found in context", nil)
 	}
-	logs.Info("Claims found in context", map[string]interface{}{"claims": claims})
 
 	haciendaCreds, err := s.authService.GetHaciendaCredentials(ctx, claims.NIT, systemToken)
 	if err != nil {
 		logs.Error("Error getting hacienda credentials", map[string]interface{}{"error": err.Error()})
 		return "", err
 	}
-	logs.Info("Hacienda credentials retrieved", map[string]interface{}{"haciendaCreds": haciendaCreds})
 
 	return s.createAndCacheToken(ctx, systemToken, *haciendaCreds)
 }
@@ -96,8 +94,7 @@ func (s *HaciendaAuthService) getFromCache(systemToken string) (string, error) {
 	haciendaToken, err := s.cache.Get(key)
 	if err != nil {
 		logs.Warn("Token not found in cache or expired", map[string]interface{}{
-			"systemToken": systemToken,
-			"error":       err.Error(),
+			"error": err.Error(),
 		})
 		return "", shared_error.NewGeneralServiceError("AuthHacienda", "GetOrCreateHaciendaToken", "token not found in cache", errPackage.ErrExpiredToken)
 	}
@@ -117,17 +114,13 @@ func (s *HaciendaAuthService) createAndCacheToken(ctx context.Context, systemTok
 		return "", s.cacheError(err, systemToken)
 	}
 
-	logs.Info("Token authenticated and stored in cache", map[string]interface{}{
-		"key":   key,
-		"token": token,
-	})
+	logs.Info("Token authenticated and stored in cache")
 	return token, nil
 }
 
 func (s *HaciendaAuthService) cacheError(err error, systemToken string) error {
 	logs.Error("Error storing token in cache", map[string]interface{}{
-		"systemToken": systemToken,
-		"error":       err.Error(),
+		"error": err.Error(),
 	})
 	return shared_error.NewGeneralServiceError("AuthHacienda", "GetOrCreateHaciendaToken", "error caching Hacienda token", err)
 }
@@ -140,7 +133,6 @@ func (s *HaciendaAuthService) authenticateWithHacienda(ctx context.Context, cred
 
 	logs.Info("Authenticating with Hacienda", map[string]interface{}{
 		"username": creds.Username,
-		"password": creds.Password,
 	})
 
 	req, err := s.createHTTPRequest(ctx, reqBody)
@@ -198,7 +190,6 @@ func (s *HaciendaAuthService) verifyAuthResponse(resp *http.Response) error {
 	if resp.StatusCode != http.StatusOK {
 		logs.Error("Error authenticating with Hacienda", map[string]interface{}{
 			"status": resp.StatusCode,
-			"body":   resp.Body,
 		})
 		return shared_error.NewGeneralServiceError("AuthHacienda", "authenticateWithHacienda", fmt.Sprintf("Hacienda signing failed with status: %d", resp.StatusCode), nil)
 	}

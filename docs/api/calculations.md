@@ -68,7 +68,7 @@ La venta de cada ítem se compara con `(unit_price x quantity) - discount` con l
 Reglas de la fórmula:
 
 - Solo se evalúa cuando `unit_price` es distinto de `0`. Los ítems de cargos/abonos que no afectan la base imponible usan `unit_price = 0` y no aplican esta fórmula.
-- `discount` es un **monto** (no un porcentaje), mayor o igual a `0` (campo 89 de la Normativa: "no podrá ser mayor al monto del ítem"). En la API el campo `discount` por ítem acepta valores de `0` a `100`; fuera de ese rango se rechaza con `InvalidDiscount` (aplica a FE, CCF, NC, ND, NR y FSE).
+- `discount` es un **monto** (no un porcentaje), mayor o igual a `0` (campo 89 de la Normativa: "no podrá ser mayor al monto del ítem"). En la API el campo `discount` por ítem se valida como monto monetario (`financial.Amount`): acepta de `0` a `99999999999.99` y un valor negativo se rechaza con `InvalidAmount`; no tiene tope de `100` (aplica a FE, CCF, NC, ND, NR y FSE). El porcentaje `discount_percentage` del resumen sí se mantiene entre `0` y `100` (`InvalidDiscount`).
 - Un ítem va en **una sola** categoría de venta (no sujeta, exenta o gravada); las otras van en `0`.
 - `suggested_price` (precio sugerido de venta) es informativo y no interviene en ningún cálculo.
 - `quantity` debe ser mayor que 0 (se evalúa redondeada a 2 decimales) y no mayor a `99999999999.99`.
@@ -110,7 +110,7 @@ Los documentos CCF, NR, NC, ND y FSE no envían `iva_item`. En CCF, NC y ND el I
 | NC, ND | Con venta gravada, `taxes` es obligatorio. Los ítems que no son tipo 4 solo admiten códigos del catálogo permitido. Los ítems tipo 4 requieren `unit_measure = 99` y `taxes = ["20"]` | `MissingItemTaxes`, `InvalidTaxType`, `InvalidUnitMeasure`, `InvalidTaxRulesCCF` |
 | NR, FSE | No se aplican reglas propias de tributos por ítem | |
 
-Todos los documentos validan que cada código del ítem pertenezca al conjunto soportado: `20`, `C3`, `59`, `71`, `D1`, `C8`, `D5` (`UnsupportedTaxCode`).
+Todos los documentos validan que cada código del ítem pertenezca al conjunto soportado: `20`, `C3`, `59`, `71`, `D5` (`UnsupportedTaxCode`). Los códigos `D1` (FOVIAL) y `C8` (COTRANS) no se aceptan: se rechazan con `UnsupportedTaxCode`. Según el catálogo CAT-015 se calculan por galón (`0.20` y `0.10`) y la API no recibe cantidad de galones.
 
 ### 2.5 Cargos y abonos que no afectan la base imponible (`non_taxed`, campo 98)
 
@@ -213,9 +213,9 @@ Fórmula del valor de cada tributo (holgura ±0.01; error `InvalidTaxCalculation
 | `C3` | IVA exportación | `total_taxed x 0` (valor `0`) |
 | `59` | Turismo | `total_taxed x 0.05` |
 | `71` | Turismo aeropuerto | Valor fijo `7.00` |
-| `D1` | FOVIAL | `total_taxed x 0.20` |
-| `C8` | COTRANS | Valor fijo `0.10` |
 | `D5` | Especial u otro | Sin validación del valor |
+
+Los códigos `D1` (FOVIAL) y `C8` (COTRANS) no se aceptan: se rechazan con `UnsupportedTaxCode`. Según el catálogo CAT-015 se calculan por galón (`0.20` y `0.10`) y la API no recibe cantidad de galones. Por eso no tienen fórmula.
 
 Notas:
 
@@ -283,19 +283,19 @@ Aplica a FE, CCF y FSE (no a NC, ND ni NR).
 
 | Regla | Error |
 |---|---|
-| `Σ payment_types[].amount` coincide con `total_to_pay`, holgura ±0.01 | `InvalidPaymentTotal` |
+| `Σ payment_types[].amount` coincide con `total_to_pay`, holgura ±0.01. Excepción: con condición de operación `2` (crédito), al menos un pago y suma igual a `0`, no se compara; `0.00` es el valor normativo (Anexo IV) y el que deben enviar los consumidores. Por compatibilidad se acepta de forma transitoria que el pago sea igual al total (la comparación se cumple como siempre); esta tolerancia se eliminará en una versión futura y después solo se aceptará `0.00` con condición `2`. Una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 se rechaza. `code` es requerido por la API en todos los pagos (`InvalidPaymentTypeInfo`) y `reference` es opcional | `InvalidPaymentTotal` |
 | Condición de operación `2` (crédito) sin pago en efectivo (`01`): cada pago debe llevar `term` y `period`, y el código de pago no puede ser `01` | `InvalidPaymentTerms`, `InvalidPaymentTypeOP2` |
 | Condición de operación `1` (contado) sin pago en efectivo: los pagos no deben llevar `term` ni `period` | `InvalidPaymentTermsOF` |
 | `payment_types[].amount` debe ser múltiplo de `0.01` (FE, CCF, NC) | `InvalidMonetaryAmount` |
-| Cada pago requiere `code` y `amount` distinto de `0` | `InvalidPaymentTypeInfo` |
+| Cada pago requiere `code`; `amount` puede ser `0` | `InvalidPaymentTypeInfo` |
 
 ### 3.12 Saldo del documento relacionado en NC y ND
 
 La Normativa (Anexo IV, campos 90 a 92) indica que la suma de las ventas de los ítems de las notas relacionadas con un mismo CCF no puede ser mayor que el total de operaciones menos el descuento global de ese documento. La API lo controla con un saldo por documento:
 
 - El saldo inicial de un CCF o CR emitido es su `total_taxed`, `total_exempt` y `total_non_subject`.
-- Al emitir una **NC** cuyo documento relacionado es electrónico (`generation_type = 2`), cada total de la NC (`total_taxed`, `total_exempt`, `total_non_subject`) no puede superar el saldo restante correspondiente; si lo supera se rechaza con `InvalidCreditNoteTransaction`. La NC descuenta del saldo; si la NC se invalida, el saldo se restituye.
-- Para la **ND** solo se verifica que el documento relacionado tenga control de saldo; la ND suma al saldo del documento.
+- Al emitir una **NC** cuyo documento relacionado es electrónico (`generation_type = 2`), cada total de la NC (`total_taxed`, `total_exempt`, `total_non_subject`) no puede superar el saldo restante correspondiente; si lo supera se rechaza con `InvalidCreditNoteTransaction`. La NC descuenta del saldo; si la NC se invalida, el saldo se restituye (transacción `INVALIDATED`).
+- Para la **ND** solo se verifica que el documento relacionado tenga control de saldo; la ND suma al saldo del documento; si la ND se invalida, se registra una transacción `DEBIT_NOTE_INVALID` que resta del saldo los montos que había sumado.
 - El saldo no resta el descuento global del documento original (`taxed_discount`, `exempt_discount`, `non_subject_discount`).
 
 ---
@@ -385,8 +385,8 @@ Todos los mensajes están en `assets/i18n/es.yaml`. Los parámetros se listan en
 |---|---|
 | `InvalidDecimals` | Un campo del resumen no es múltiplo de `0.01` |
 | `InvalidMonetaryAmount` | Un monto validado (`total_operation`, `total_to_pay`, `iva_retention`, `iva_perception`, pagos) no es múltiplo de `0.01` |
-| `InvalidAmount` | Monto fuera del rango `0` a `99999999999.99` |
-| `InvalidDiscount` | `discount` por ítem o `discount_percentage` fuera del rango `0` a `100` |
+| `InvalidAmount` | Monto fuera del rango `0` a `99999999999.99` (incluye el `discount` por ítem negativo) |
+| `InvalidDiscount` | `discount_percentage` fuera del rango `0` a `100` (el `discount` por ítem se valida como monto: `InvalidAmount`) |
 | `InvalidItemSaleAmount` | La venta del ítem no coincide con `(unit_price x quantity) - discount` |
 | `InvalidIVAItemCalculation` | `iva_item` de FE incorrecto |
 | `InvalidTotalTaxed`, `InvalidTotalExempt`, `InvalidTotalNonSubject` | El total del resumen no coincide con la suma de los ítems |

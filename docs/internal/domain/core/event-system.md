@@ -155,6 +155,7 @@ const (
     EventContingencyActivated    = "contingency.activated"
     EventEmissionFailure         = "emission.failure"
     EventRetransmissionJobFailed = "retransmission_job.failed"
+    EventStampedDocumentNotSaved = "stamped_document.not_persisted"
 )
 ```
 
@@ -255,6 +256,28 @@ type RetransmissionJobFailedEvent struct {
 **`AggregateID()`** → `"job:{JobName}"`
 
 **Payload:** `job_name`, `failed_documents` (lista de `RejectedDocSummary`) y `last_error`.
+
+### `StampedDocumentNotPersistedEvent`
+
+Se publica desde `GenericDTEUseCase` cuando Hacienda selló un documento pero la persistencia local falló tras un reintento. Nunca transporta el documento firmado: ese contenido solo se escribe en el log del servicio para recuperación manual.
+
+```go
+type StampedDocumentNotPersistedEvent struct {
+    BranchID       uint
+    NIT            string
+    ControlNumber  string
+    GenerationCode string
+    DTEType        string
+    ReceptionStamp string
+    ProcessingDate string
+    LastError      string
+    OccurredAtTime time.Time
+}
+```
+
+**`AggregateID()`** → `"dte:{GenerationCode}"`
+
+**Payload:** `branch_id`, `nit`, `control_number`, `generation_code`, `dte_type`, `reception_stamp`, `processing_date` y `last_error`.
 
 ### `RejectedDocSummary`
 

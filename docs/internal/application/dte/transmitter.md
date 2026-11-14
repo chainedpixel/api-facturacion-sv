@@ -19,7 +19,7 @@ El sistema de transmisión gestiona la firma y el envío de documentos tributari
 ```go
 type BaseTransmitter interface {
     RetryTransmission(ctx context.Context, document interface{}, token string, nit string) (*TransmitResult, error)
-    CheckStatus(ctx context.Context, document interface{}, nit string) (*TransmitResult, error)
+    CheckStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*TransmitResult, error)
 }
 ```
 
@@ -70,7 +70,7 @@ Documento DTE (formato Hacienda)
   │
   ▼
 [4] Verificar si ya fue procesado
-  │   CheckStatus(ctx, document, nit)
+  │   CheckStatus(ctx, document, nit, token)   ← token del sistema
   │   │
   │   ├── Status == "PROCESADO" → return (resultado de la consulta + signedDoc)
   │   └── Error o no procesado → continuar con reintentos
@@ -126,7 +126,7 @@ Se firma digitalmente el documento DTE antes de transmitirlo a Hacienda. La impl
 ```go
 type DTETransmitter interface {
     Transmit(ctx context.Context, document interface{}, signedDoc string, token string) (*TransmitResult, error)
-    CheckDocumentStatus(ctx context.Context, document interface{}, nit string) (*TransmitResult, error)
+    CheckDocumentStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*TransmitResult, error)
     SendToHacienda(ctx context.Context, request *HaciendaRequest, token string) (*HaciendaResponse, error)
 }
 ```
@@ -218,7 +218,7 @@ Se procesan invalidaciones:
 
 ### `CheckDocumentStatus`
 
-Consulta `ReceptionConsultURL` con `{nitEmisor, tdte, codigoGeneracion}`. Acepta HTTP 200 o 202. Devuelve un `TransmitResult` con `Status`, `ReceptionStamp`, `ProcessingDate`, mensajes y la respuesta completa serializada. Usa el token de Hacienda que el `MHTransmitter` guardó en su último `SendToHacienda`.
+Consulta `ReceptionConsultURL` con `{nitEmisor, tdte, codigoGeneracion}`. Acepta HTTP 200 o 202. Devuelve un `TransmitResult` con `Status`, `ReceptionStamp`, `ProcessingDate`, mensajes y la respuesta completa serializada. Recibe el token del sistema (`systemToken`) y obtiene el token de Hacienda en cada llamada con `getHaciendaToken`; el transmisor no conserva ningún token entre llamadas.
 
 ---
 
@@ -331,5 +331,5 @@ BaseTransmitter.RetryTransmission()
 2. **Hasta 3 transmisiones**: 1 intento inicial + 2 reintentos con 8 segundos de espera tras cada intento fallido del loop, pero los reintentos solo se activan si el primer intento no devuelve error (ver "Comportamiento real de los reintentos").
 3. **Verificación pre-reintento**: Antes de reintentar se consulta si el documento ya fue procesado (evita duplicados).
 4. **Circuit breaker**: Solo protege las llamadas del transmisor por lotes.
-5. **Token de Hacienda**: `HaciendaAuthService` lo cachea en Redis por 24 horas (clave `hacienda:token:<JWT del sistema>`). `MHTransmitter` lo guarda además en su campo `HaciendaToken`, que se sobrescribe en cada transmisión.
+5. **Token de Hacienda**: `HaciendaAuthService` lo cachea en Redis por 24 horas (clave `hacienda:token:<JWT del sistema>`). `MHTransmitter` ya no lo guarda en un campo compartido (el campo `HaciendaToken` fue eliminado): `getHaciendaToken` lo devuelve y cada llamada (`SendToHacienda`, `CheckDocumentStatus`) lo usa de forma local, de modo que solicitudes concurrentes de distintos emisores no comparten el token.
 6. **Contingencia forzada**: Con `FORCE_CONTINGENCY=true` y ambiente de pruebas (`00`) se simula un 503 de Hacienda para probar el flujo de contingencia.

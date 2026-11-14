@@ -358,7 +358,16 @@ func (D *DTERepository) GetActiveAdjustmentNotes(ctx context.Context, branchID u
 }
 
 func loadFilters(query *gorm.DB, filters *dte.DTEFilters) {
-	if filters.BranchID != 0 {
+	if filters.IssuerNIT != "" {
+		query = query.Where(
+			"dte_documents.branch_id IN (?)",
+			query.Session(&gorm.Session{NewDB: true}).
+				Table("branch_offices").
+				Select("branch_offices.id").
+				Joins("JOIN users ON users.id = branch_offices.user_id").
+				Where("users.nit = ?", filters.IssuerNIT),
+		)
+	} else if filters.BranchID != 0 {
 		query = query.Where("dte_documents.branch_id = ?", filters.BranchID)
 	}
 

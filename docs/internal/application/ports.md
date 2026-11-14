@@ -23,7 +23,7 @@ Los tres archivos de puertos en este paquete representan diferentes capacidades 
 ```go
 type BaseTransmitter interface {
     RetryTransmission(ctx context.Context, document interface{}, token string, nit string) (*models.TransmitResult, error)
-    CheckStatus(ctx context.Context, document interface{}, nit string) (*models.TransmitResult, error)
+    CheckStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*models.TransmitResult, error)
 }
 ```
 
@@ -41,7 +41,7 @@ Firma el documento (`SignerManager.SignDTE`), lo transmite y devuelve `*models.T
 
 **`CheckStatus`**
 
-Consulta a Hacienda si un documento ya fue procesado. Dentro de `BaseTransmitter` solo se invoca desde `RetryTransmission`; el servicio de contingencia usa su propio método interno `checkDocumentStatus` y no pasa por este puerto.
+Consulta a Hacienda si un documento ya fue procesado; recibe el token del sistema (`systemToken`) para obtener el token de Hacienda. Dentro de `BaseTransmitter` solo se invoca desde `RetryTransmission`; el servicio de contingencia usa su propio método interno `checkDocumentStatus` y no pasa por este puerto.
 
 **Implementación:** `dte.BaseTransmitter` en `internal/application/dte/base_transmit.go`, construido con `dte.NewBaseTransmitter(transmitter, signer)`. Envuelve a `DTETransmitter` (`MHTransmitter`) y a `SignerManager`.
 
@@ -70,7 +70,7 @@ Usado por `BaseTransmitter.RetryTransmission` para firmar el JSON del documento 
 ```go
 type DTETransmitter interface {
     Transmit(context.Context, interface{}, string, string) (*models.TransmitResult, error)
-    CheckDocumentStatus(context.Context, interface{}, string) (*models.TransmitResult, error)
+    CheckDocumentStatus(context.Context, interface{}, string, string) (*models.TransmitResult, error)
     SendToHacienda(context.Context, *models.HaciendaRequest, string) (*models.HaciendaResponse, error)
 }
 ```
@@ -78,7 +78,7 @@ type DTETransmitter interface {
 Esta es la interfaz de transmisor de nivel más bajo. A diferencia de `BaseTransmitter`, no incluye lógica de reintento — eso es responsabilidad de `BaseTransmitter` que envuelve a este.
 
 - `Transmit(ctx, document, signedDoc, token)` — recibe el documento y su JWS (ya firmado por `BaseTransmitter`), elige el procesador (DTE o invalidación), construye la petición a Hacienda y llama a `SendToHacienda`. Adjunta la respuesta completa en `TransmitResult.HaciendaResponse`
-- `CheckDocumentStatus` — consulta el endpoint de consulta de Hacienda para el estado actual de un documento
+- `CheckDocumentStatus(ctx, document, nit, systemToken)` — consulta el endpoint de consulta de Hacienda para el estado actual de un documento; obtiene el token de Hacienda a partir del token del sistema en cada llamada
 - `SendToHacienda` — el HTTP POST crudo con gestión de token; separado para que los tests puedan sustituirlo
 
 **Implementación de infraestructura:** `MHTransmitter` en `internal/infrastructure/adapters/transmitter/mh_transmitter.go`

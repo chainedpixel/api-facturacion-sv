@@ -8,6 +8,10 @@ const (
 	DocumentExpired  = "EXPIRED"
 )
 
+// DebitNoteInvalid is the balance transaction type recorded when a debit note is invalidated; it subtracts
+// from the balance the debit note had added.
+const DebitNoteInvalid = "DEBIT_NOTE_INVALID"
+
 const (
 	TransmissionContingency = "CONTINGENCY"
 	TransmissionNormal      = "NORMAL"

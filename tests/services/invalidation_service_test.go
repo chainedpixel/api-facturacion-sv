@@ -59,7 +59,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 				return fixtures.BuildInvalidInvalidation()
 			},
 			wantErr:   true,
-			errorCode: "InvalidField",
+			errorCode: "InvalidInvalidationType2",
 		},
 		{
 			name: "Error - Invalidation Type 1 with Reason",
@@ -67,7 +67,7 @@ func TestInvalidationServiceValidate(t *testing.T) {
 				return fixtures.BuildInvalidationWithInvalidReason()
 			},
 			wantErr:   true,
-			errorCode: "RequiredField",
+			errorCode: "InvalidReplacementCode1And3",
 		},
 		{
 			name: "Error - Invalidation Type 3 without Reason",

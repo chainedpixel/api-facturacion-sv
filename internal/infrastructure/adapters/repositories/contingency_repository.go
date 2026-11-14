@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/chainedpixel/ordo-factus/internal/domain/core/user"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/contingency"
+	"github.com/chainedpixel/ordo-factus/pkg/shared/logs"
 	"github.com/chainedpixel/ordo-factus/pkg/shared/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -82,7 +82,7 @@ func (r *ContingencyRepository) UpdateBatch(ctx context.Context, ids []string, o
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Println("recovered from panic", rec)
+			logs.Error("Recovered from panic during contingency batch update", map[string]interface{}{"panic": fmt.Sprint(rec)})
 			tx.Rollback()
 			returnErr = fmt.Errorf("panic during batch update: %v", rec)
 		}

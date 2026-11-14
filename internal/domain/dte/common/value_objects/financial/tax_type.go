@@ -12,6 +12,9 @@ type TaxType struct {
 
 func NewTaxType(value string) (*TaxType, error) {
 	taxType := &TaxType{Value: value}
+	if constants.UnsupportedTaxTypes[value] {
+		return &TaxType{}, dte_errors.NewValidationError("UnsupportedTaxCode", value)
+	}
 	if taxType.IsValid() {
 		return taxType, nil
 	}

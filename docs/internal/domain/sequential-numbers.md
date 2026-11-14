@@ -251,8 +251,8 @@ type ReservedSequence struct {
 ## Notas
 
 1. **Reutilización**: Los números liberados sin código de Hacienda del año actual se reutilizan (del más antiguo al más reciente). Esto evita "huecos" en la secuencia.
-2. **Contingencia sin expiración**: Las reservas en contingencia no expiran — se mantienen hasta que se confirmen o liberen explícitamente. Las reservas vencidas que no son de contingencia las procesa el job `reservation_cleaner_job` mediante `GetExpiredNonContingencyReservations`.
+2. **Contingencia sin expiración**: Las reservas en contingencia no expiran — se mantienen hasta que se confirmen o liberen explícitamente. Las reservas vencidas que no son de contingencia las procesa el job `reservation_cleaner_job` mediante `GetExpiredNonContingencyReservations`, que omite las reservas cuyo número de control ya pertenece a un DTE guardado en `dte_details`. La comparación usa tipo y correlativo, sin sucursal (la tabla no la guarda), por lo que una reserva vencida de otra sucursal con el mismo correlativo también se omite y requiere conciliación manual.
 3. **Año configurable**: La inclusión del año en el número de control depende de la configuración del usuario (`YearInDTE`).
-4. **Concurrencia**: `GetNext` incrementa el contador dentro de una transacción con bloqueo `FOR UPDATE` y `MarkAsReserved` falla si otra solicitud tomó el número liberado.
+4. **Concurrencia**: `GetNext` incrementa el contador dentro de una transacción que lee la fila con bloqueo `SELECT ... FOR UPDATE` (`clause.Locking`) y, si el primer intento falla (por ejemplo, por colisión en la inserción de la primera fila del año contra el índice `idx_branch_dte_year`), repite la transacción una vez. `MarkAsReserved` falla si otra solicitud tomó el número liberado.
 5. **Contador por año**: El contador se identifica por sucursal, tipo de DTE y año calendario (`year`), de modo que la secuencia reinicia cada año.
 6. **Auditoría**: Cada reserva registra quién la creó, cuándo se confirmó/liberó, y por qué motivo fue rechazada.

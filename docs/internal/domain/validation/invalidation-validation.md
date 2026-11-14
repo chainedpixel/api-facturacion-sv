@@ -11,7 +11,7 @@ El caso de uso `InvalidationUseCase.InvalidateDocument` ejecuta, deteniéndose e
 
 | Paso | Qué se valida | Error |
 |---|---|---|
-| 1. Solicitud (`ValidateInvalidationReRequest`) | Motivo, tipo de invalidación, código de generación, datos del responsable y del solicitante, y coherencia del código de reemplazo | `RequiredField`, `InvalidReplacementCode1And3`, `InvalidInvalidationType2`, `InvalidInvalidationType3` |
+| 1. Solicitud (`ValidateInvalidationReRequest`) | Motivo, tipo de invalidación, código de generación, datos del responsable y del solicitante, y que el tipo 2 no traiga código de reemplazo | `RequiredField`, `InvalidInvalidationType2`, `InvalidInvalidationType3` |
 | 2. Estado (`ValidateStatus`) | El documento a invalidar (y el de reemplazo, en tipos 1 y 3) no pueden estar invalidados, rechazados ni pendientes de retransmitir | `DocumentAlreadyInvalid`, `DocumentReject`, `DocumentPending` |
 | 3. Dependencias (`ValidateDependencies`) | Un CCF o CR no puede tener NC o ND vigentes | `PendingAdjustmentNotes` |
 | 4. Mapeo del documento a invalidar | El documento debe tener sello de recepción | `DocumentWithoutStamp` |
@@ -23,7 +23,7 @@ El caso de uso `InvalidationUseCase.InvalidateDocument` ejecuta, deteniéndose e
 El documento a invalidar no puede tener documentos que dependan de él:
 
 - **CCF (`03`) o CR (`07`)**: si tiene notas de crédito o débito **recibidas o pendientes** registradas en su control de saldo, la invalidación se rechaza y el error lista los códigos de generación de las notas. El cliente debe invalidar primero cada nota y luego solicitar la invalidación del CCF o CR. La API no invalida notas de forma automática (Normativa, Anexo V, campo "Código de generación" del evento de invalidación, regla 3).
-- Al invalidar una **NC o ND**, el servicio registra una transacción en el control de saldo del documento relacionado electrónico para restituir los montos (`FailedToRecoverInvalidatedAmounts` si falla).
+- Al invalidar una **NC**, el servicio registra una transacción `INVALIDATED` en el control de saldo del documento relacionado electrónico que suma sus montos de vuelta; al invalidar una **ND** registra una transacción `DEBIT_NOTE_INVALID` que los resta (`FailedToRecoverInvalidatedAmounts` si falla).
 
 ## Estrategias Compuestas
 
@@ -107,9 +107,11 @@ Exactamente 40 caracteres alfanuméricos en mayúsculas. Este sello se recibe de
 
 | Tipo | Nombre | Reason | ReplacementCode |
 |---|---|---|---|
-| 1 | Reemplazo | No requerido | **Requerido** |
+| 1 | Reemplazo | No requerido | **Requerido** (nulo si el documento invalidado es `05` u `08`) |
 | 2 | Anulación | No requerido | **Debe ser null** |
-| 3 | Otro motivo | **Requerido** | **Requerido** |
+| 3 | Otro motivo | **Requerido** | **Requerido** (nulo si el documento invalidado es `05` u `08`) |
+
+Para los tipos 1 y 3 la regla se evalúa con `policy.RequiresReplacement(dteType)`, que devuelve `false` para Nota de Crédito (`05`) y Comprobante de Liquidación (`08`) (Anexo V, campo `codigoGeneracionR`). Si se requiere y el código falta se devuelve `InvalidReplacementCode1And3`; si no se requiere y se envía, `ReplacementCodeNotAllowedForType` (con el tipo de DTE como parámetro).
 
 ### Validación de Tipos de Documento
 
@@ -165,12 +167,12 @@ La fecha de generación se toma del documento original (`fecEmi`); si no se cono
 
 | Error | Causa |
 |---|---|
-| `RequiredField` | Campo obligatorio faltante |
+| `RequiredField` | Campo obligatorio faltante (sin el caso del código de reemplazo) |
 | `InvalidPattern` | Sello de recepción no cumple patrón |
 | `InvalidDTETypeForInvalidation` | Tipo de DTE no pertenece al catálogo de tipos |
 | `InvalidEnum` | Tipo de invalidación fuera de rango (1-3) o tipo de documento del responsable o solicitante no válido |
-| `InvalidField` | ReplacementCode presente cuando no debe (tipo 2) |
-| `InvalidReplacementCode1And3` | Tipos 1 y 3 sin código de reemplazo (solicitud) |
+| `InvalidReplacementCode1And3` | Código de reemplazo requerido en tipos 1 y 3, salvo NC `05` y CLE `08` |
+| `ReplacementCodeNotAllowedForType` | Código de reemplazo enviado para una NC `05` o CLE `08` con tipos 1 y 3 (1 parámetro: tipo de DTE) |
 | `InvalidInvalidationType2`, `InvalidInvalidationType3` | Tipo 2 con código de reemplazo; tipo 3 sin campo `reason_field` (solicitud) |
 | `DocumentAlreadyInvalid`, `DocumentReject`, `DocumentPending` | Estado del documento a invalidar o del de reemplazo |
 | `PendingAdjustmentNotes` | CCF o CR con NC o ND vigentes |

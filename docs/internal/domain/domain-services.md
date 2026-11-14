@@ -264,9 +264,9 @@ La fórmula de `IVAItem` y su tolerancia se documentan en [calculations.md](../.
 **Propósito:** Valida y registra la invalidación de un DTE previamente transmitido. Detalle en [dte/invalidation.md](dte/invalidation.md).
 
 **Tipos de invalidación:**
-- Tipo 1 — Reemplazo (requiere código del documento de reemplazo)
+- Tipo 1 — Reemplazo (requiere código del documento de reemplazo, salvo NC (`05`) y CLE (`08`), que deben dejarlo nulo)
 - Tipo 2 — Anulación (sin código de reemplazo)
-- Tipo 3 — Otro motivo (requiere motivo y código de reemplazo)
+- Tipo 3 — Otro motivo (requiere motivo y código de reemplazo, con la misma excepción para NC (`05`) y CLE (`08`))
 
 **Restricción temporal:** El plazo de transmisión y la fecha del evento dependen del tipo de DTE y se calculan en `invalidation/policy` con el calendario `common/calendar` (3 meses desde el sello para FE, FEXE y FSE; décimo día hábil del mes siguiente para el resto).
 

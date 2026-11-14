@@ -221,7 +221,7 @@ if err := u.mapper.ValidateInvalidationReRequest(&request); err != nil {
 }
 ```
 
-El mapper valida: `reason` presente; `replacement_generation_code` obligatorio para los tipos 1 y 3 y prohibido para el tipo 2; `generation_code`, `type`, nombre/tipo/número de documento del responsable y del solicitante no vacíos; y `reason_field` obligatorio para el tipo 3.
+El mapper valida: `reason` presente; `replacement_generation_code` prohibido para el tipo 2 (la obligatoriedad en los tipos 1 y 3 se evalúa después, en las reglas del evento del dominio, según el tipo del documento invalidado: no aplica a NC `05` ni CLE `08`); `generation_code`, `type`, nombre/tipo/número de documento del responsable y del solicitante no vacíos; y `reason_field` obligatorio para el tipo 3.
 
 **Paso 3 — Validar el estado del documento original**
 
@@ -293,7 +293,7 @@ if err := u.invalidationManager.InvalidateDocument(ctx, claims.BranchID, request
 }
 ```
 
-El manager de dominio actualiza el estado del DTE original a `INVALIDATED`. Si el documento invalidado es una nota de crédito o débito, además revierte su efecto en el balance de los documentos electrónicos relacionados (`GenerateBalanceTransactionWithAmounts`). El caso de uso de aplicación no necesita saber sobre esto.
+El manager de dominio actualiza el estado del DTE original a `INVALIDATED`. Si el documento invalidado es una nota de crédito o débito, además revierte su efecto en el balance de los documentos electrónicos relacionados (`GenerateBalanceTransactionWithAmounts`): la nota de crédito suma sus montos (`INVALIDATED`) y la de débito los resta (`DEBIT_NOTE_INVALID`). El caso de uso de aplicación no necesita saber sobre esto.
 
 **Paso 11 — Registrar el evento y responder**
 
@@ -321,7 +321,7 @@ func (u *DTEConsultUseCase) GetByGenerationCode(ctx context.Context, id string) 
 }
 ```
 
-El método limita la consulta al `claims.BranchID` para que una sucursal solo pueda acceder a sus propios documentos. `GetByGenerationCodeConsult` devuelve un `dte.DTEResponse` con código de generación, número de control, estado, tipo de transmisión, sello de recepción, el JSON del documento y fechas de creación y actualización.
+El método limita la consulta al `claims.BranchID` para que una sucursal solo pueda acceder a sus propios documentos. `GetByGenerationCodeConsult` devuelve un `dte.DTEResponse` con código de generación, número de control, estado, tipo de transmisión, sello de recepción, el JSON del documento, fechas de creación y actualización y, si existe, `processing_date` (fecha de procesamiento de Hacienda).
 
 ### `GetArchive()`
 
@@ -355,7 +355,7 @@ func (u *DTEConsultUseCase) GetAllDTEs(ctx context.Context, r *http.Request) (*d
 
 | Parámetro de Query | Campo | Validación |
 |---|---|---|
-| `all=true` | `IncludeAll` | Si es true, `BranchID` no se establece (consulta entre todas las sucursales); en caso contrario se toma del claim |
+| `all=true` | `IncludeAll` | Solo es true si el parámetro es `true` y los claims traen NIT; en ese caso se establece `IssuerNIT` (sucursales del emisor) y no `BranchID`. En caso contrario `BranchID` se toma del claim |
 | `status` | `Status` | Se convierte a mayúsculas y debe estar en `constants.ValidReceiverDocumentStates`: `RECEIVED`, `PENDING`, `REJECTED`, `INVALIDATED`, `EXPIRED` |
 | `transmission` | `Transmission` | Se convierte a mayúsculas y debe estar en `constants.ValidTransmissionTypes`: `NORMAL`, `CONTINGENCY` |
 | `type` | `DTEType` / `DTETypes` | Se permite lista separada por comas; cada valor se valida contra `constants.ValidDTETypes`: 01, 03, 04, 05, 06, 07, 08, 09, 11, 14, 15 |

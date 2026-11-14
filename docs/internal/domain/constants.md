@@ -38,6 +38,8 @@ Las constantes del dominio definen los valores permitidos para campos regulados 
 | `DocumentPending` | `"PENDING"` | Pendiente de transmisión (contingencia) |
 | `DocumentExpired` | `"EXPIRED"` | Contingencia no transmitida dentro de 72 horas desde el sello del evento |
 
+Además, `DebitNoteInvalid` (`"DEBIT_NOTE_INVALID"`, en `constants/dte_states.go`) no es un estado de documento sino el tipo de transacción de balance que se registra al invalidar una nota de débito; resta del saldo los montos que la nota había sumado.
+
 `ValidReceiverDocumentStates` agrupa los cinco estados y se usa para validar el filtro de estado en las consultas.
 
 ### Transiciones de Estado
@@ -162,11 +164,9 @@ Lista permitida: `AllowedPaymentTypes`.
 | `TaxIVAExport` | `"C3"` | IVA Exportación | `TaxIVAExportAmount` | `0.0` |
 | `TaxTourism` | `"59"` | Turismo | `TaxTourismAmount` | `0.05` |
 | `TaxTourismAirport` | `"71"` | Turismo Aeropuerto | `TaxTourismAirportAmount` | `7.0` (monto fijo) |
-| `TaxFOVIAL` | `"D1"` | FOVIAL | `TaxFOVIALAmount` | `0.20` |
-| `TaxCOTRANS` | `"C8"` | COTRANS | `TaxCOTRANSAmount` | `0.10` (monto fijo) |
 | `TaxSpecialOther` | `"D5"` | Especial/Otro | - | Sin validación |
 
-Listas permitidas: `AllowedTaxTypes` y `MapAllowedTaxTypes`. Las fórmulas con que se usan estos valores se describen en [calculations.md](../../api/calculations.md).
+Listas permitidas: `AllowedTaxTypes` y `MapAllowedTaxTypes`. `TaxFOVIAL` (`"D1"`) y `TaxCOTRANS` (`"C8"`) existen como constantes pero se listan en `UnsupportedTaxTypes`: `financial.NewTaxType` los rechaza con `UnsupportedTaxCode`, porque el catálogo CAT-015 los define por galón (`0.20` y `0.10`) y la API no recibe cantidad de galones. Las fórmulas con que se usan estos valores se describen en [calculations.md](../../api/calculations.md).
 
 ---
 

@@ -96,13 +96,14 @@ Devuelve, sin repetidos y ordenados por código, los `adjustment_document_id` de
 
 ```
 DTEFilters
+  ├── IssuerNIT       → Filtra por las sucursales del emisor (branch_offices.user_id → users.nit); tiene prioridad sobre BranchID
   ├── BranchID        → Filtra por sucursal
   ├── DTEType/DTETypes → Filtra por tipo(s) de DTE
   ├── Status           → Filtra por estado (RECEIVED, INVALIDATED, REJECTED, PENDING, EXPIRED)
   ├── Transmission     → Filtra por tipo de transmisión (NORMAL, CONTINGENCY)
   ├── StartDate/EndDate → Rango de fechas
   ├── Page/PageSize    → Paginación
-  └── IncludeAll       → Incluir todas las sucursales (admin)
+  └── IncludeAll       → Se activa con all=true y NIT en los claims; el caso de uso lo traduce a IssuerNIT
 ```
 
 `GetSummaryStats` cuenta por estado `RECEIVED`, `INVALIDATED`, `REJECTED` y `PENDING`, y por transmisión `NORMAL` y `CONTINGENCY`; los documentos `EXPIRED` suman al `Total` pero no tienen contador propio. `GetPagedDocuments` ordena por `dte_documents.created_at` descendente.
@@ -158,7 +159,7 @@ type ReservedSequenceRepository struct {
 | `UpdateAsContingency(ctx, reservationID, documentID, contingencyDocID)` | Se marca como contingencia (`is_contingency = true`) |
 | `UpdateAsContingencyByControlNumber(...)` | Se actualiza contingencia por número de control |
 | `GetByDocumentID(ctx, documentID)` | Se obtiene la reservación por documento |
-| `GetExpiredNonContingencyReservations(ctx)` | Se obtienen reservaciones expiradas no contingentes |
+| `GetExpiredNonContingencyReservations(ctx)` | Se obtienen reservaciones `RESERVED` expiradas no contingentes, excluyendo (subconsulta `NOT EXISTS`) las que tienen un DTE en `dte_details` con el mismo tipo y correlativo (los últimos 15 caracteres del número de control, con o sin año como prefijo) |
 
 ### Ciclo de Vida de Estados
 
@@ -200,7 +201,7 @@ Se genera el siguiente número de control secuencial para un tipo de DTE, sucurs
 
 ### Mecanismo de Bloqueo
 
-Dentro de una transacción se lee la fila con `tx.Set("gorm:query_option", "FOR UPDATE")` para prevenir condiciones de carrera cuando múltiples solicitudes concurrentes intentan obtener el siguiente número:
+Dentro de una transacción se lee la fila con `tx.Clauses(clause.Locking{Strength: "UPDATE"})` (`SELECT ... FOR UPDATE`) para prevenir condiciones de carrera cuando múltiples solicitudes concurrentes intentan obtener el siguiente número. La transacción está en `nextInTransaction`; si la fila del año no existe se crea con `last_number = 1`, y si existe se incrementa y se guarda:
 
 ```
 BEGIN TRANSACTION
@@ -209,6 +210,8 @@ BEGIN TRANSACTION
   → UPDATE sequence
 COMMIT
 ```
+
+Si el primer intento falla (por ejemplo, cuando dos solicitudes concurrentes intentan insertar la primera fila del año y una colisiona con el índice único `idx_branch_dte_year`), `GetNext` repite la transacción una vez; en el segundo intento la fila ya existe y se lee bajo bloqueo. Si el segundo intento también falla, se registra el error y se devuelve.
 
 ---
 
@@ -329,6 +332,6 @@ type EventRepository struct {
 
 1. **GORM como ORM**: Todos los repositorios dependen de `*gorm.DB`. Las operaciones complejas usan transacciones explícitas con `db.Transaction()`.
 2. **Preload**: Se usa `Preload()` para cargar relaciones asociadas (ej. sucursales de usuario, detalles de contingencia).
-3. **Row-level locking**: El `ControlNumberRepository` (opción `gorm:query_option`) y `GenerateBalanceTransaction` (`clause.Locking`) usan `FOR UPDATE` para garantizar consistencia.
+3. **Row-level locking**: El `ControlNumberRepository` (`clause.Locking`) y `GenerateBalanceTransaction` (`clause.Locking`) usan `FOR UPDATE` para garantizar consistencia.
 4. **Serialización JSON**: Los repositorios de fallos serializan datos complejos (requests, responses) como JSON para auditoría.
 5. **Filtros dinámicos**: El `DTERepository` construye queries GORM dinámicamente según los filtros proporcionados.

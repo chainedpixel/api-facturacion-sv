@@ -131,19 +131,22 @@ ShouldNotify(ctx, eventName, aggregateID)
 
 El TTL evita que un mismo evento (identificado por su nombre y el ID del agregado) genere múltiples correos en el mismo período. Configurado al inicializar `RedisCooldown` con `NewRedisCooldown(client, ttl)` (un TTL menor o igual a 0 usa 15 minutos).
 
-El `AggregateID` depende del evento: `branch:<id>` para contingencia activada, `dte:<numeroControl>` (o `dte:<codigoGeneracion>`) para fallo de emisión y `job:<nombre>` para fallo del job de retransmisión.
+El `AggregateID` depende del evento: `branch:<id>` para contingencia activada, `dte:<numeroControl>` (o `dte:<codigoGeneracion>`) para fallo de emisión, `dte:<codigoGeneracion>` para documento sellado sin persistir y `job:<nombre>` para fallo del job de retransmisión.
 
 ---
 
 ## Registro en el Bus de Eventos
 
-`AdminEmailHandler` se registra como subscriber en `ServicesContainer.initNotificationStack` (`internal/bootstrap/containers/services.go`), durante la construcción de los servicios. Se suscribe a tres eventos:
+`AdminEmailHandler` se registra como subscriber en `ServicesContainer.initNotificationStack` (`internal/bootstrap/containers/services.go`), durante la construcción de los servicios. Se suscribe a cuatro eventos:
 
 | Evento | Constante |
 |---|---|
 | `contingency.activated` | `event.EventContingencyActivated` |
 | `emission.failure` | `event.EventEmissionFailure` |
 | `retransmission_job.failed` | `event.EventRetransmissionJobFailed` |
+| `stamped_document.not_persisted` | `event.EventStampedDocumentNotSaved` |
+
+El evento `stamped_document.not_persisted` se renderiza con las plantillas `stamped_document_not_persisted.html` y `plain/stamped_document_not_persisted.txt`, con asunto `[Ordo-Factus] DTE <número de control> sellado por Hacienda pero no guardado`. El correo incluye NIT, sucursal, tipo de DTE, número de control, código de generación, sello de recepción, fecha de procesamiento y el texto del error, y no incluye el documento firmado.
 
 Cuando el bus (`InMemoryBus`) publica un evento, persiste los eventos persistibles y lanza cada handler suscrito en su propia goroutine (`go b.dispatch(...)`) con un contexto sin cancelación: la llamada a `Handle` es **asíncrona** y no bloquea al publicador. Un pánico del handler se captura y se registra; un error devuelto se registra en el log.
 

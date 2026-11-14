@@ -129,7 +129,7 @@ Los errores de los ítems se agrupan en un error compuesto. Los cálculos por í
 
 ### TaxCalculationStrategy
 
-**Regla:** Todos los códigos de impuesto de los ítems deben estar en `MapAllowedTaxTypes` (`20`, `C3`, `59`, `71`, `D1`, `C8`, `D5`). Error: `UnsupportedTaxCode`.
+**Regla:** Todos los códigos de impuesto de los ítems deben estar en `MapAllowedTaxTypes` (`20`, `C3`, `59`, `71`, `D5`). Error: `UnsupportedTaxCode` (incluye `D1` y `C8`, que no se soportan).
 
 Las bases y tasas con que se recalcula el valor de cada tributo del resumen se documentan en [Cálculos que valida la API, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138).
 
@@ -144,7 +144,7 @@ Las bases y tasas con que se recalcula el valor de cada tributo del resumen se d
 | Operación a crédito (2) sin pago en efectivo | El código de pago no puede ser `01` (billetes y monedas) | `InvalidPaymentTypeOP2` |
 | Operación a crédito (2) sin pago en efectivo | Cada pago debe tener plazo (`period`) y período (`term`) | `InvalidPaymentTerms` |
 | Operación al contado (1) sin pago en efectivo | Los pagos no deben tener plazo ni período | `InvalidPaymentTermsOF` |
-| Total de pagos | `Sum(payment.Amount) == TotalToPay` (holgura ±0.01) | `InvalidPaymentTotal` |
+| Total de pagos | `Sum(payment.Amount) == TotalToPay` (holgura ±0.01). Se omite cuando la condición de operación es crédito (2), hay al menos un pago y la suma es `0` (valor normativo del Anexo IV, que deben enviar los consumidores). Con crédito también se acepta de forma transitoria que el pago sea igual al total, tolerancia que se eliminará en una versión futura; una lista de pagos vacía con crédito y total mayor que 0 se rechaza | `InvalidPaymentTotal` |
 
 Ver también [Cálculos, sección 3.11](../../../api/calculations.md#311-pagos).
 
@@ -183,6 +183,7 @@ Ver también [Cálculos, sección 3.11](../../../api/calculations.md#311-pagos).
 |---|---|---|
 | Total documentos | Máximo 10 | `InvalidOtherDocsCount` |
 | Código asociado | 1-4 | `InvalidAssociatedDocumentCode` |
+| Código 4 (transporte) | Solo para FEXE (`11`); otros tipos lo rechazan. La FEXE no tiene endpoint, por lo que en la práctica se rechaza | `InvalidAssociatedDocumentCodeForType` |
 
 **Por código asociado:**
 
@@ -215,7 +216,7 @@ Ver también [Cálculos, sección 3.11](../../../api/calculations.md#311-pagos).
 |---|---|---|
 | Nota de remisión (`04`) | Fin del mes de la NR más 3 días | Anexo IV, "Fecha de emisión" del documento relacionado, regla 2.a (FE, CCFE o FEXE que relacionan una NR) |
 | Documento contable de liquidación (`09`) | Fin del mes del documento relacionado | Mismo campo, regla 2.b (FE o CCFE que relacionan un DCL) |
-| CCF (`03`) o CR (`07`) ajustado por una NC o ND | 3 meses desde la fecha de generación del relacionado (suma de calendario) | Mismo campo, regla 2.c (NCE o NDE que relacionan un CCF o CR) |
+| CCF (`03`) o CR (`07`) ajustado por una NC o ND | 3 meses desde la fecha de generación del relacionado (`calendar.AddMonthsClamped`: suma de calendario con tope en el último día del mes, p. ej. 30 de noviembre + 3 meses = 28 de febrero) | Mismo campo, regla 2.c (NCE o NDE que relacionan un CCF o CR) |
 
 Para los demás casos no se evalúa plazo. Cada documento aplica además reglas propias sobre los relacionados en su estrategia específica (tipos permitidos y referencia obligatoria en los ítems); ver la sección "Documentos relacionados" de cada guía.
 

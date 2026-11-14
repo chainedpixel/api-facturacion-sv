@@ -63,12 +63,15 @@ func (u *DTEConsultUseCase) GetAllDTEs(ctx context.Context, r *http.Request) (*d
 }
 
 func parseDTEFilters(r *http.Request) (*dte.DTEFilters, error) {
+	claims := r.Context().Value("claims").(*models.AuthClaims)
 	filters := &dte.DTEFilters{
-		IncludeAll: r.URL.Query().Get("all") == "true",
+		IncludeAll: r.URL.Query().Get("all") == "true" && claims.NIT != "",
 	}
 
-	if !filters.IncludeAll {
-		filters.BranchID = r.Context().Value("claims").(*models.AuthClaims).BranchID
+	if filters.IncludeAll {
+		filters.IssuerNIT = claims.NIT
+	} else {
+		filters.BranchID = claims.BranchID
 	}
 
 	startDateStr := r.URL.Query().Get("startDate")

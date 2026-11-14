@@ -95,7 +95,6 @@ func (c *RedisTokenCache) SetCredentials(token string, creds *models.HaciendaCre
 	encryptStruct, err := c.cryptService.EncryptStruct(token, *creds)
 	if err != nil {
 		logs.Error("Failed to encrypt credentials", map[string]interface{}{
-			"token": token,
 			"error": err.Error(),
 		})
 		return shared_error.NewFormattedGeneralServiceError(
@@ -184,7 +183,6 @@ func (c *RedisTokenCache) GetCredentials(token string) (*models.HaciendaCredenti
 	creds, err := c.cryptService.DecryptStruct(token, cipherStruct)
 	if err != nil {
 		logs.Error("Failed to decrypt credentials", map[string]interface{}{
-			"token": token,
 			"error": err.Error(),
 		})
 		return nil, shared_error.NewGeneralServiceError(

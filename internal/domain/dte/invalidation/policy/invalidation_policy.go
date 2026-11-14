@@ -18,6 +18,12 @@ var pharmaceuticalActivities = map[string]bool{
 	"47721": true,
 }
 
+// RequiresReplacement reports whether an invalidation of type 1 or 3 must carry a replacement generation
+// code; credit notes and settlement vouchers must leave it null.
+func RequiresReplacement(dteType string) bool {
+	return dteType != constants.NotaCreditoElectronica && dteType != constants.ComprobanteLiquidacionElectronico
+}
+
 // IsInvoiceType reports whether the DTE is an FE, FEXE or FSEE, whose invalidation deadline is counted in
 // months from the reception stamp and whose event date may be later than the generation date.
 func IsInvoiceType(dteType string) bool {
@@ -56,9 +62,9 @@ func (d *Deadlines) TransmissionDeadline(dteType string, stampDate time.Time, is
 // keeping the last day of the target month when the day does not exist in it.
 func AddValidityPeriod(dteType string, from time.Time, issuerActivity string) time.Time {
 	if dteType != constants.FacturaSujetoExcluidoElectronica && pharmaceuticalActivities[issuerActivity] {
-		return addMonthsClamped(from, 24)
+		return calendar.AddMonthsClamped(from, 24)
 	}
-	return addMonthsClamped(from, 3)
+	return calendar.AddMonthsClamped(from, 3)
 }
 
 // EventDateTime returns the invalidation event date and time: the current instant for FE, FEXE and FSEE;
@@ -74,16 +80,6 @@ func EventDateTime(dteType string, generation, now time.Time) time.Time {
 // SameDay reports whether both instants fall on the same calendar day in the location of the first one.
 func SameDay(a, b time.Time) bool {
 	return a.Format("2006-01-02") == b.In(a.Location()).Format("2006-01-02")
-}
-
-func addMonthsClamped(from time.Time, months int) time.Time {
-	firstOfTarget := time.Date(from.Year(), from.Month(), 1, from.Hour(), from.Minute(), from.Second(), from.Nanosecond(), from.Location()).AddDate(0, months, 0)
-	lastDay := firstOfTarget.AddDate(0, 1, -1).Day()
-	day := from.Day()
-	if day > lastDay {
-		day = lastDay
-	}
-	return time.Date(firstOfTarget.Year(), firstOfTarget.Month(), day, from.Hour(), from.Minute(), from.Second(), from.Nanosecond(), from.Location())
 }
 
 func endOfDay(day time.Time) time.Time {

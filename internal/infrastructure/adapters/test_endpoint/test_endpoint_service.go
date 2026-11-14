@@ -369,7 +369,7 @@ func getTestDTE() *invoice_models.ElectronicInvoice {
 				Quantity:    *item.NewValidatedQuantity(1),
 				UnitMeasure: *item.NewValidatedUnitMeasure(59),
 				UnitPrice:   *financial.NewValidatedAmount(7.50),
-				Discount:    *financial.NewValidatedDiscount(0.525),
+				Discount:    *financial.NewValidatedAmount(0.525),
 				Code:        item.NewValidatedItemCode("6609"),
 				Taxes:       []string{constants.TaxIVA},
 			},

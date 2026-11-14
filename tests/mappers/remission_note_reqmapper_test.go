@@ -577,20 +577,7 @@ func TestMapToRemissionNoteData(t *testing.T) {
 			errorCode: "InvalidAmount",
 		},
 		{
-			name: "Item with discount greater than 100% returns InvalidDiscount error",
-			req: func() *structs.CreateRemissionNoteRequest {
-				req := fixtures.CreateDefaultRemissionNoteRequest()
-				item := fixtures.CreateDefaultRemissionNoteItem(0)
-				over := 200.0
-				item.DiscountAmount = &over
-				req.Items = []*structs.RemissionNoteItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "Item with negative discount returns InvalidDiscount error",
+			name: "Item with negative discount returns InvalidAmount error",
 			req: func() *structs.CreateRemissionNoteRequest {
 				req := fixtures.CreateDefaultRemissionNoteRequest()
 				item := fixtures.CreateDefaultRemissionNoteItem(0)
@@ -600,7 +587,7 @@ func TestMapToRemissionNoteData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 		{
 			name: "Item with exactly 100% discount is valid",

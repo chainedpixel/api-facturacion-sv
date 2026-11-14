@@ -212,10 +212,6 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxTourismAmount))
 		case constants.TaxTourismAirport:
 			expectedTax = decimal.NewFromFloat(constants.TaxTourismAirportAmount)
-		case constants.TaxFOVIAL:
-			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxFOVIALAmount))
-		case constants.TaxCOTRANS:
-			expectedTax = decimal.NewFromFloat(constants.TaxCOTRANSAmount)
 		case constants.TaxSpecialOther:
 			continue
 		}

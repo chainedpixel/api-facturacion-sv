@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/interfaces"
 )
@@ -32,8 +33,13 @@ func (s *OtherDocumentsStrategy) Validate() *dte_errors.DTEError {
 // validateDocument validates a document
 func (s *OtherDocumentsStrategy) validateDocument(doc interfaces.OtherDocuments) *dte_errors.DTEError {
 	code := doc.GetAssociatedDocument()
-	if code < 1 || code > 4 {
+	if code < constants.DocumentoEmisor || code > constants.DocumentoTransporte {
 		return dte_errors.NewDTEErrorSimple("InvalidAssociatedDocumentCode", code)
+	}
+
+	dteType := s.Document.GetIdentification().GetDTEType()
+	if code == constants.DocumentoTransporte && dteType != constants.FacturaExportacionElectronica {
+		return dte_errors.NewDTEErrorSimple("InvalidAssociatedDocumentCodeForType", code, dteType)
 	}
 
 	if code == 3 {

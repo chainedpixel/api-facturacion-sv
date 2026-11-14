@@ -1,0 +1,23 @@
+[ORDO-FACTUS] DTE sellado por Hacienda pero no guardado
+======================================================
+
+NIT del emisor: {{.NIT}}
+Sucursal: #{{.BranchID}}
+Tipo de DTE: {{if .DTETypeLabel}}{{.DTETypeLabel}} ({{.DTEType}}){{else}}{{.DTEType}}{{end}}
+Número de control: {{.ControlNumber}}
+Código de generación: {{.GenerationCode}}
+Sello de recepción: {{.ReceptionStamp}}
+Fecha de procesamiento: {{.ProcessingDate}}
+Hora del fallo: {{.Timestamp}}
+
+Error de persistencia:
+{{.LastError}}
+
+El documento fue aceptado por Hacienda pero no pudo guardarse en la base de datos.
+No debe emitirse nuevamente. El documento firmado completo se encuentra en el log
+del servicio, buscar la entrada con el código de generación indicado.
+
+------------------------------------------------------
+Ordo Factus | Ambiente: {{.Environment}} | API v{{.APIVersion}}
+{{.AggregateID}}
+Correo automático del sistema. No responder.

@@ -257,6 +257,17 @@ func (c *apiClient) emit(t *testing.T, path string, body interface{}) *emittedDT
 // contenga el codigo de error esperado; wantCode vacio acepta cualquier rechazo
 func (c *apiClient) expectRejected(t *testing.T, path string, body interface{}, wantCode string) {
 	t.Helper()
+	if wantCode == "" {
+		c.expectRejectedAny(t, path, body)
+		return
+	}
+	c.expectRejectedAny(t, path, body, wantCode)
+}
+
+// expectRejectedAny exige el rechazo de la API (HTTP 4xx, sin sello) y que la respuesta contenga, sin distinguir
+// mayusculas, al menos uno de los fragmentos indicados (codigo o texto del mensaje); sin fragmentos acepta cualquier rechazo
+func (c *apiClient) expectRejectedAny(t *testing.T, path string, body interface{}, wantAny ...string) {
+	t.Helper()
 
 	status, resp, raw := c.post(t, path, body)
 	if resp.ReceptionStamp != nil && *resp.ReceptionStamp != "" {
@@ -267,11 +278,21 @@ func (c *apiClient) expectRejected(t *testing.T, path string, body interface{}, 
 		t.Errorf("se esperaba HTTP 4xx y se obtuvo %d: %s", status, raw)
 		return
 	}
-	if wantCode != "" && !strings.Contains(string(raw), wantCode) {
-		t.Errorf("rechazo sin el codigo esperado %q: %s", wantCode, describeError(resp, raw))
+	if len(wantAny) > 0 && !containsAny(string(raw), wantAny) {
+		t.Errorf("rechazo sin ninguno de los fragmentos esperados %q: %s", wantAny, describeError(resp, raw))
 		return
 	}
 	t.Logf("RECHAZO esperado (HTTP %d): %s", status, describeError(resp, raw))
+}
+
+func containsAny(text string, fragments []string) bool {
+	lowered := strings.ToLower(text)
+	for _, fragment := range fragments {
+		if strings.Contains(lowered, strings.ToLower(fragment)) {
+			return true
+		}
+	}
+	return false
 }
 
 // invalidation describe un evento de invalidacion (CAT-024: 1 error, 2 rescision, 3 otro)
@@ -282,10 +303,8 @@ type invalidation struct {
 	reason      string
 }
 
-// invalidate transmite el evento; devuelve true si la API y Hacienda lo aceptaron
-func (c *apiClient) invalidate(t *testing.T, inv invalidation) bool {
-	t.Helper()
-
+// invalidationRequest arma el cuerpo de POST /dte/invalidation con el reemplazo cuando se indica
+func invalidationRequest(inv invalidation) map[string]interface{} {
 	req := map[string]interface{}{
 		"generation_code": inv.target.GenerationCode,
 		"reason": map[string]interface{}{
@@ -299,6 +318,14 @@ func (c *apiClient) invalidate(t *testing.T, inv invalidation) bool {
 	if inv.replacement != nil {
 		req["replacement_generation_code"] = inv.replacement.GenerationCode
 	}
+	return req
+}
+
+// invalidate transmite el evento; devuelve true si la API y Hacienda lo aceptaron
+func (c *apiClient) invalidate(t *testing.T, inv invalidation) bool {
+	t.Helper()
+
+	req := invalidationRequest(inv)
 
 	status, resp, raw := c.post(t, "/dte/invalidation", req)
 	if status >= 300 || !resp.Success {
@@ -419,21 +446,11 @@ func assertArchive(t *testing.T, archive json.RawMessage, generationCode, stamp 
 	}
 }
 
-// expectInvalidationRejected exige que la invalidacion sea rechazada (por la API o por Hacienda)
 // expectInvalidationRejected expects the invalidation to be rejected with an error containing every wantTexts fragment.
 func (c *apiClient) expectInvalidationRejected(t *testing.T, inv invalidation, wantTexts ...string) {
 	t.Helper()
 
-	req := map[string]interface{}{
-		"generation_code": inv.target.GenerationCode,
-		"reason": map[string]interface{}{
-			"type": inv.kind, "reason_field": inv.reason,
-			"responsible_name": "Responsable de Pruebas", "responsible_doc_type": "36",
-			"responsible_num_doc": os.Getenv("E2E_MH_USER"),
-			"requestor_name":      os.Getenv("E2E_RECEPTOR_NAME"), "requestor_doc_type": "36",
-			"requestor_num_doc": os.Getenv("E2E_RECEPTOR_NIT"),
-		},
-	}
+	req := invalidationRequest(inv)
 	status, resp, raw := c.post(t, "/dte/invalidation", req)
 	if status < 300 && resp.Success {
 		t.Errorf("se esperaba rechazo de la invalidacion de %s y fue aceptada", inv.target.GenerationCode)

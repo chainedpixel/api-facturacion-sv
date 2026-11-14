@@ -199,6 +199,7 @@ func (c *ServicesContainer) initNotificationStack() {
 	c.eventBus.Subscribe(event.EventContingencyActivated, handler)
 	c.eventBus.Subscribe(event.EventEmissionFailure, handler)
 	c.eventBus.Subscribe(event.EventRetransmissionJobFailed, handler)
+	c.eventBus.Subscribe(event.EventStampedDocumentNotSaved, handler)
 }
 
 func buildCooldownRedisClient() *redis.Client {

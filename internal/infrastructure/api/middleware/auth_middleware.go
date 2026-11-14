@@ -40,7 +40,6 @@ func (m *AuthMiddleware) Handle(next http.Handler) http.Handler {
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			logs.Warn("Invalid Authorization header format", map[string]interface{}{
-				"header": authHeader,
 				"path":   r.URL.Path,
 				"method": r.Method,
 			})

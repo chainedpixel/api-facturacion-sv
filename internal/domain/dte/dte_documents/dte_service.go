@@ -229,6 +229,7 @@ func (m *DTEService) GetByGenerationCodeConsult(ctx context.Context, branchID ui
 		Transmission:   dteDocument.Details.Transmission,
 		ReceptionStamp: dteDocument.Details.ReceptionStamp,
 		JSONData:       jsonData,
+		ProcessingDate: dteDocument.Details.ProcessingDate,
 		CreatedAt:      dteDocument.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:      dteDocument.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil

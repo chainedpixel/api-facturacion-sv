@@ -118,7 +118,7 @@ Como los descuentos son 0, `SubTotal = SubTotalSales`.
 | Ítems | Todos deben referenciar un doc relacionado | `MissingItemRelatedDoc` |
 | Referencias | Deben existir en la lista del documento | `InvalidItemRelatedDoc` |
 
-La estrategia común `RelatedDocsStrategy` aplica además el plazo de **3 meses** desde la generación del CCF o CR (`RelatedDocOutOfPeriod`); ver [README, RelatedDocsStrategy](./README.md#relateddocsstrategy).
+La estrategia común `RelatedDocsStrategy` aplica además el plazo de **3 meses** desde la generación del CCF o CR, calculado con `calendar.AddMonthsClamped` (tope en el último día del mes: 30 de noviembre + 3 meses = 28 de febrero) (`RelatedDocOutOfPeriod`); ver [README, RelatedDocsStrategy](./README.md#relateddocsstrategy).
 
 ---
 

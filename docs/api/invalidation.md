@@ -26,7 +26,7 @@ Content-Type: application/json
 |-------|------|-----------|-------------|
 | `generation_code` | string | Sí | UUID del DTE a anular (`codigoGeneracion`) |
 | `reason` | `Reason` | Sí | Motivo y responsables de la anulación |
-| `replacement_generation_code` | string | No* | UUID del DTE de reemplazo. **Obligatorio para tipos `1` y `3`**. Prohibido para tipo `2` |
+| `replacement_generation_code` | string | No* | UUID del DTE de reemplazo. **Obligatorio para tipos `1` y `3`**, excepto cuando el documento anulado es una Nota de Crédito (`05`) o un Comprobante de Liquidación (`08`), en cuyo caso debe omitirse o ser `null`. Prohibido para tipo `2` |
 
 ---
 
@@ -47,9 +47,9 @@ Content-Type: application/json
 
 | `type` | Descripción | `replacement_generation_code` | `reason_field` |
 |--------|-------------|-------------------------------|----------------|
-| `1` | Error en datos — se emitió un DTE de reemplazo | **Obligatorio** | Opcional |
+| `1` | Error en datos — se emitió un DTE de reemplazo | **Obligatorio** (nulo si el documento anulado es `05` u `08`) | Opcional |
 | `2` | Anulación sin reemplazo — el DTE se elimina sin sustituir | **Prohibido** | Opcional |
-| `3` | Otro motivo — anulación con reemplazo y justificación | **Obligatorio** | **Obligatorio** |
+| `3` | Otro motivo — anulación con reemplazo y justificación | **Obligatorio** (nulo si el documento anulado es `05` u `08`) | **Obligatorio** |
 
 ---
 
@@ -64,7 +64,7 @@ Content-Type: application/json
 | `reason.type` | `1`, `2` o `3` |
 | `reason.responsible_doc_type`, `reason.requestor_doc_type` | `36` (NIT), `13` (DUI), `02` (Carnet de residente), `03` (Pasaporte) o `37` (Otro) |
 | `reason.responsible_num_doc`, `reason.requestor_num_doc` | NIT y DUI se aceptan con o sin guiones (se eliminan); el DUI debe tener 9 dígitos. Longitud de 3 a 20 caracteres |
-| `replacement_generation_code` | **Obligatorio** para tipos `1` y `3`; **prohibido** para tipo `2` (`INVALIDREPLACEMENTCODE1AND3`, `INVALIDINVALIDATIONTYPE2`) |
+| `replacement_generation_code` | **Prohibido** para tipo `2` (`INVALIDINVALIDATIONTYPE2`). Para tipos `1` y `3` se valida en las reglas del evento (ver abajo): obligatorio salvo que el documento anulado sea una Nota de Crédito (`05`) o un Comprobante de Liquidación (`08`) |
 | `reason.reason_field` | **Obligatorio** para tipo `3` (`INVALIDINVALIDATIONTYPE3`), de 5 a 250 caracteres. Para los tipos `1` y `2` se ignora aunque se envíe |
 
 ### Del documento a invalidar
@@ -74,6 +74,16 @@ Content-Type: application/json
 | Estado | No puede estar `INVALIDATED` (`DOCUMENTALREADYINVALID`), `REJECTED` (`DOCUMENTREJECT`) ni `PENDING` (`DOCUMENTPENDING`). Si hay documento de reemplazo (tipos `1` y `3`), se aplican las mismas verificaciones de estado al reemplazo |
 | Sello de recepción | Debe tener sello de recepción de 40 caracteres alfanuméricos; sin sello se rechaza con `DOCUMENTWITHOUTSTAMP` (un documento en contingencia sin transmitir no tiene sello) |
 | CCF o CR con notas vigentes | Se rechaza con `PENDINGADJUSTMENTNOTES`, que lista las NC/ND en estado `RECEIVED` o `PENDING` que lo ajustan. El consumidor invalida cada nota y luego vuelve a solicitar la invalidación del CCF o CR; el microservicio no invalida notas automáticamente |
+
+### Código de reemplazo según el tipo de documento
+
+La regla se evalúa en las reglas del evento (`InvalidationReasonStrategy`, mediante `policy.RequiresReplacement`), con el tipo del documento invalidado. Corresponde al campo `codigoGeneracionR` del Anexo V.
+
+| Tipo de anulación | Documento invalidado | `replacement_generation_code` | Error si no se cumple |
+|---|---|---|---|
+| `1` o `3` | Cualquiera excepto `05` y `08` | Obligatorio | `InvalidReplacementCode1And3` (dentro de `MANY_ERRORS`) |
+| `1` o `3` | Nota de Crédito (`05`) o Comprobante de Liquidación (`08`) | Debe omitirse o ser `null` | `ReplacementCodeNotAllowedForType` (dentro de `MANY_ERRORS`) |
+| `2` | Cualquiera | Siempre `null` | `INVALIDINVALIDATIONTYPE2` |
 
 ### Plazos y fecha del evento
 
@@ -91,7 +101,7 @@ Las reglas siguen el Cuadro 6 de la Normativa de Cumplimiento DTE v2.0 (plazos p
 
 ### Orden de verificación
 
-1. Campos del request y reglas de tipo (`reason.type`, reemplazo, `reason_field`).
+1. Campos del request y reglas de tipo (`reason.type`, reemplazo en tipo `2`, `reason_field`).
 2. Estado del documento a invalidar y del reemplazo.
 3. Dependencias (`PENDINGADJUSTMENTNOTES`) y sello de recepción.
 4. Datos del evento, plazo y fecha del evento.
@@ -209,7 +219,7 @@ La estructura firmada se devuelve sin alteraciones; `firmaElectronica` (JWS) y `
 | `selloRecibido` | Sello de recepción del DTE invalidado |
 | `numeroControl` | Número de control del DTE invalidado |
 | `fecEmi` | Fecha de generación del DTE invalidado |
-| `codigoGeneracionR` | Código de generación del reemplazo; `null` en tipo `2` |
+| `codigoGeneracionR` | Código de generación del reemplazo; `null` en tipo `2` y cuando el documento invalidado es una Nota de Crédito (`05`) o un Comprobante de Liquidación (`08`) |
 | `tipoDocumento`, `numDocumento`, `nombre`, `telefono`, `correo` | Datos del receptor (o sujeto excluido) tomados del DTE invalidado |
 
 **`motivo`:** `tipoAnulacion`, `motivoAnulacion` (solo tipo `3`; `null` en los demás), `nombreResponsable`, `tipDocResponsable`, `numDocResponsable`, `nombreSolicita`, `tipDocSolicita`, `numDocSolicita`.
@@ -219,7 +229,8 @@ La estructura firmada se devuelve sin alteraciones; `firmaElectronica` (JWS) y `
 ### Efectos sobre el documento
 
 - El DTE original pasa a estado `INVALIDATED`.
-- Si el documento invalidado es una Nota de Crédito o de Débito, se registra una transacción de control de saldo `INVALIDATED` que suma sus montos (gravado, exento y no sujeto) al saldo del documento relacionado electrónico.
+- Si el documento invalidado es una Nota de Crédito, se registra una transacción de control de saldo `INVALIDATED` que suma sus montos (gravado, exento y no sujeto) al saldo del CCF relacionado.
+- Si el documento invalidado es una Nota de Débito, se registra una transacción de control de saldo `DEBIT_NOTE_INVALID` que resta sus montos del saldo del CCF relacionado (la nota de débito los había sumado).
 
 ---
 
@@ -230,14 +241,13 @@ Los errores usan la estructura descrita en [Formato de respuestas](./README.md#r
 | HTTP | `code` | Cuándo ocurre |
 |------|--------|---------------|
 | `400` | `REQUIREDFIELD` | Falta `generation_code`, `reason` o alguno de sus campos obligatorios |
-| `400` | `INVALIDREPLACEMENTCODE1AND3` | Tipo `1` o `3` sin `replacement_generation_code` |
 | `400` | `INVALIDINVALIDATIONTYPE2` | Tipo `2` con `replacement_generation_code` |
 | `400` | `INVALIDINVALIDATIONTYPE3` | Tipo `3` sin `reason_field` |
 | `400` | `FAILEDTOVERIFYDTE` | El `generation_code` (o el reemplazo) no existe en la sucursal |
 | `400` | `DOCUMENTALREADYINVALID`, `DOCUMENTREJECT`, `DOCUMENTPENDING` | El documento (o el reemplazo) está invalidado, rechazado o pendiente de retransmitir |
 | `400` | `PENDINGADJUSTMENTNOTES` | El CCF o CR tiene Notas de Crédito o Débito vigentes; el mensaje lista sus códigos |
 | `400` | `DOCUMENTWITHOUTSTAMP` | El documento no tiene sello de recepción |
-| `400` | `MANY_ERRORS` | Falló una regla del evento; `error.details` incluye `InvalidationDeadlineExpired` (plazo vencido), `InvalidationEventDateOutOfRange`, `InvalidationEventDateMismatch`, `MissingStampDate` o errores de formato de los datos del evento |
+| `400` | `MANY_ERRORS` | Falló una regla del evento; `error.details` incluye `InvalidReplacementCode1And3` (tipo `1` o `3` sin `replacement_generation_code`, salvo NC `05` y CLE `08`), `ReplacementCodeNotAllowedForType` (`replacement_generation_code` enviado para una NC `05` o CLE `08`), `InvalidationDeadlineExpired` (plazo vencido), `InvalidationEventDateOutOfRange`, `InvalidationEventDateMismatch`, `MissingStampDate` o errores de formato de los datos del evento |
 | `400` | `TRANSMISSIONFAILED` | Hacienda no procesó el evento |
 | `400` | `HACIENDA_<codigo>` | Hacienda rechazó la anulación |
 | `500` | `SYSTEM_ERROR` | Error interno |

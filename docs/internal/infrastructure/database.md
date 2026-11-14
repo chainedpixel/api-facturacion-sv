@@ -141,7 +141,7 @@ Movimiento de una nota que afecta el saldo.
 | `id` | uint, PK | |
 | `balance_control_id` | int | FK a `dte_balance_control` |
 | `adjustment_document_id` | varchar(36) | FK a `dte_details.id` (la nota) |
-| `transaction_type` | varchar(20) | tipo de DTE de la nota (`05` o `06`) |
+| `transaction_type` | varchar(20) | tipo de DTE de la nota (`05` o `06`) o tipo de invalidación (`INVALIDATED` para una NC invalidada, `DEBIT_NOTE_INVALID` para una ND invalidada). `AfterCreate` resta los montos del saldo restante cuando el tipo es `05` o `DEBIT_NOTE_INVALID`; con cualquier otro tipo los suma |
 | `taxed_amount`, `exempt_amount`, `not_subject_amount` | decimal(18,2) | |
 | `created_at` | timestamp | |
 

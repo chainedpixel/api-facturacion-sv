@@ -292,19 +292,7 @@ func TestMapToDebitNoteData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "Debit note with discount greater than 100% in item",
-			req: func() *structs.CreateDebitNoteRequest {
-				req := fixtures.CreateDefaultDebitNoteRequest()
-				item := fixtures.CreateDefaultDebitNoteItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.DebitNoteItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 
 		{

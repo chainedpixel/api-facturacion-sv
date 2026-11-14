@@ -145,7 +145,6 @@ func (s *StandardAuthStrategy) GetHaciendaCredentials(token string) (*models.Hac
 	creds, err := s.cacheService.GetCredentials(token)
 	if err != nil {
 		logs.Error("Failed to get Hacienda credentials", map[string]interface{}{
-			"token": token,
 			"error": err.Error(),
 		})
 		return nil, shared_error.NewFormattedGeneralServiceError(
@@ -155,9 +154,7 @@ func (s *StandardAuthStrategy) GetHaciendaCredentials(token string) (*models.Hac
 		)
 	}
 
-	logs.Info("Hacienda credentials retrieved successfully", map[string]interface{}{
-		"token": token,
-	})
+	logs.Info("Hacienda credentials retrieved successfully", map[string]interface{}{})
 
 	return creds, nil
 }

@@ -72,7 +72,7 @@ func TestMHTransmitter_CheckDocumentStatus_HTTP200OK(t *testing.T) {
 	trans := transmitter.NewMHTransmitter(&stubHaciendaAuth{}, nil)
 	doc := sampleTestDocument()
 
-	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000")
+	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000", "system-token")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, "PROCESADO", result.Status)
@@ -110,7 +110,7 @@ func TestMHTransmitter_CheckDocumentStatus_HTTP202Accepted(t *testing.T) {
 	trans := transmitter.NewMHTransmitter(&stubHaciendaAuth{}, nil)
 	doc := sampleTestDocument()
 
-	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000")
+	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000", "system-token")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, "RECIBIDO", result.Status)
@@ -133,7 +133,7 @@ func TestMHTransmitter_CheckDocumentStatus_HTTP400Error(t *testing.T) {
 	trans := transmitter.NewMHTransmitter(&stubHaciendaAuth{}, nil)
 	doc := sampleTestDocument()
 
-	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000")
+	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000", "system-token")
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -155,7 +155,7 @@ func TestMHTransmitter_CheckDocumentStatus_HTTP500Error(t *testing.T) {
 	trans := transmitter.NewMHTransmitter(&stubHaciendaAuth{}, nil)
 	doc := sampleTestDocument()
 
-	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000")
+	result, err := trans.CheckDocumentStatus(context.Background(), doc, "06140101010000", "system-token")
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }

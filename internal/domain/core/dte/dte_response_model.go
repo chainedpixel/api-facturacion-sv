@@ -10,6 +10,7 @@ type DTEResponse struct {
 	Status         string                 `json:"status"`
 	CreatedAt      string                 `json:"created_at"`
 	UpdatedAt      string                 `json:"updated_at"`
+	ProcessingDate string                 `json:"processing_date,omitempty"`
 	JSONData       map[string]interface{} `json:"json_data"`
 }
 

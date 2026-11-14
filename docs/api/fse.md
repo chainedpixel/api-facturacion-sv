@@ -45,12 +45,12 @@ El número de ítem lo asigna el servicio según la posición en el arreglo (`nu
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `type` | integer | Sí | Tipo: `1`=Producto, `2`=Servicio, `3`=Ambos, `4`=Impuesto (el servicio acepta los cuatro valores del catálogo) |
+| `type` | integer | Sí | Tipo: `1`=Producto, `2`=Servicio, `3`=Ambos, `4`=Impuesto (el tipo `4` se rechaza en la FSE con `InvalidFSEItemType`) |
 | `description` | string | Sí | Descripción (1–1500 caracteres) |
 | `quantity` | float | Sí | Cantidad (> 0, hasta `99999999999.99`) |
 | `unit_measure` | integer | Sí | Unidad de medida (1–99) |
 | `unit_price` | float | Sí | Precio unitario (> 0, hasta 8 decimales) |
-| `discount` | float | No | **Monto** de descuento del ítem (no porcentaje). El servicio acepta valores de `0` a `100` |
+| `discount` | float | No | **Monto** de descuento del ítem (no porcentaje). El servicio acepta cualquier monto de `0` a `99999999999.99`; un valor negativo se rechaza con `InvalidAmount` |
 | `purchase` | float | Sí | Monto de compra del ítem (> 0). Ver regla |
 | `code` | string | No | Código del ítem (1–24 caracteres efectivos; el mensaje de error indica "1 a 25") |
 
@@ -121,13 +121,17 @@ El resumen de la FSE **no usa** los campos `total_non_subject`, `total_exempt`, 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `code` | string | Sí | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017) |
-| `amount` | float | Sí | Monto (distinto de `0`) |
+| `amount` | float | Sí | Monto. En ventas a crédito (condición `2`) debe enviarse `0.00` (ver reglas) |
 | `period` | integer | Condicional | Período. Ver reglas |
 | `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`). Ver reglas |
 | `reference` | string | No | Referencia del pago |
 
 **Reglas:**
 - La suma de `amount` debe coincidir con `total_to_pay` (tolerancia ±0.01, `InvalidPaymentTotal`).
+- En ventas a crédito (condición `2`) el valor normativo de `amount` es `0.00` (Anexo IV: el monto por forma de pago "deberá completarse con $0.00") y es el que deben enviar los consumidores. Con al menos un pago y todos los `amount` en `0.00` no se compara la suma con `total_to_pay`.
+- Por compatibilidad, la API acepta de forma transitoria que con condición `2` el `amount` sea igual al total a pagar (la suma se compara con `total_to_pay` como siempre). Esta tolerancia se eliminará en una versión futura, después de la cual con condición `2` solo se aceptará `0.00`.
+- Una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
+- `code` es requerido por la API en todos los pagos (`InvalidPaymentTypeInfo`), aunque el Anexo IV solo lo exige con condición `1` o `3`. `reference` puede omitirse (con condición `2` puede ser `null`).
 - Condición `2` (Crédito): si ningún pago usa el código `"01"`, todos los pagos deben informar `period` y `term` (`InvalidPaymentTerms`).
 - Condición `1` (Contado): si ningún pago usa el código `"01"`, los pagos no deben informar `period` ni `term` (`InvalidPaymentTermsOF`).
 
@@ -307,6 +311,7 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | Clave | Cuándo ocurre |
 |-------|---------------|
 | `FSEItemInvalidEmpty`, `FSEItemInvalidPurchase`, `FSEItemInvalidDescription`, `FSEItemInvalidQuantity`, `FSEItemInvalidUnitPrice` | Sin ítems, o un ítem con `purchase`, `quantity` o `unit_price` ≤ 0, o descripción vacía |
+| `InvalidFSEItemType` | Ítem de tipo `4` (impuesto), no permitido en la FSE |
 | `ExcessiveItemDiscount` | `discount` mayor que `quantity × unit_price` |
 | `InvalidItemSaleAmount` | `purchase` no coincide con `(quantity × unit_price) - discount` |
 | `InvalidTotalPurchase` | `total_purchase` no coincide con la suma de `purchase` |

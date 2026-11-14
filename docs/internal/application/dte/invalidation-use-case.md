@@ -105,7 +105,7 @@ CreateInvalidationRequest
 [10] Marcar documento como invalidado
   │   invalidationManager.InvalidateDocument(ctx, branchID, request.GenerationCode)
   │   ├── Actualizar estado → INVALIDATED
-  │   └── Recuperar balance (si el documento invalidado es nota de crédito/débito)
+  │   └── Ajustar balance (si el documento invalidado es nota de crédito: suma; nota de débito: resta)
   │
   ▼
 [11] Registrar el evento y responder
@@ -121,7 +121,7 @@ CreateInvalidationRequest
 type CreateInvalidationRequest struct {
     GenerationCode            string         `json:"generation_code"`                       // UUID del documento a invalidar
     Reason                    *ReasonRequest `json:"reason"`                                // Motivo de invalidación
-    ReplacementGenerationCode *string        `json:"replacement_generation_code,omitempty"` // UUID del doc de reemplazo (tipos 1 y 3)
+    ReplacementGenerationCode *string        `json:"replacement_generation_code,omitempty"` // UUID del doc de reemplazo (tipos 1 y 3, salvo NC `05` y CLE `08`)
 }
 
 type ReasonRequest struct {
@@ -141,7 +141,6 @@ Reglas de `ValidateInvalidationReRequest`:
 | Regla | Error |
 |---|---|
 | `reason` ausente, o cualquier campo obligatorio vacío | `ValidationError` `RequiredField` |
-| Tipo 1 o 3 sin `replacement_generation_code` | `InvalidReplacementCode1And3` |
 | Tipo 2 con `replacement_generation_code` | `InvalidInvalidationType2` |
 | Tipo 3 sin `reason_field` | `InvalidInvalidationType3` |
 
@@ -240,7 +239,7 @@ Los datos de `documento` (receptor, teléfono, correo, tipo y número de documen
 | Validación de estado | No | Sí (documento original y reemplazo) |
 | Validación de dependencias | No | Sí (`ValidateDependencies`) |
 | Documento existente | No se modifica | Se actualiza estado a `INVALIDATED` |
-| Operaciones adicionales | Balance (crédito/débito) | Recuperación de balance (si se invalida una nota) |
+| Operaciones adicionales | Balance (crédito/débito) | Ajuste de balance (si se invalida una nota) |
 | Estado de transmisión | No se verifica en el caso de uso (el `BaseTransmitter` decide) | Verifica `PROCESADO` |
 | Persistencia | Documento en `dte` | Evento en `dte_events` |
 | Respuesta | Archivo DTE del documento | `EventArchiveResponse` |
@@ -252,7 +251,7 @@ Los datos de `documento` (receptor, teléfono, correo, tipo y número de documen
 
 | Paso | Error | Causa |
 |---|---|---|
-| 2 | `ValidationError` / `InvalidReplacementCode1And3` / `InvalidInvalidationType2` / `InvalidInvalidationType3` | Request incompleto o inválido |
+| 2 | `ValidationError` / `InvalidInvalidationType2` / `InvalidInvalidationType3` | Request incompleto o inválido |
 | 3 | `DocumentAlreadyInvalid` | Documento ya invalidado |
 | 3 | `DocumentReject` | Documento rechazado |
 | 3 | `DocumentPending` | Documento pendiente de retransmitir |
@@ -273,7 +272,7 @@ Los datos de `documento` (receptor, teléfono, correo, tipo y número de documen
 
 1. **Sin contingencia**: Si Hacienda no está disponible, la invalidación falla. No se almacena para reintento posterior.
 2. **Verificación de status**: El caso de uso verifica explícitamente que `result.Status == "PROCESADO"`; el `GenericDTEUseCase` no lo verifica.
-3. **Balance cascade**: Al invalidar una nota de crédito/débito, el `InvalidationManager` revierte automáticamente el efecto en el balance de los documentos electrónicos relacionados.
+3. **Balance cascade**: Al invalidar una nota de crédito, el `InvalidationManager` suma sus montos al balance de los documentos electrónicos relacionados (`DocumentInvalid`); al invalidar una nota de débito los resta (`DebitNoteInvalid`, `DEBIT_NOTE_INVALID`).
 4. **Sin acciones recursivas**: Para invalidar un CCF o CR con notas vigentes, el servicio rechaza la petición y lista las notas pendientes; nunca las invalida de forma encadenada.
 5. **Atomicidad parcial**: Los pasos 10 y 11 no forman una transacción con la transmisión del paso 9; un fallo en ellos se devuelve como error aunque Hacienda ya haya aceptado el evento.
 6. **Estado `EXPIRED`**: `ValidateStatus` solo rechaza `INVALIDATED`, `REJECTED` y `PENDING`; cualquier otro estado (incluido `EXPIRED`) pasa esa validación.

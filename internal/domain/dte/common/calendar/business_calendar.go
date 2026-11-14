@@ -109,3 +109,15 @@ func easterSunday(year int, loc *time.Location) time.Time {
 	day := ((h + l - 7*m + 114) % 31) + 1
 	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, loc)
 }
+
+// AddMonthsClamped adds months to a date keeping the time of day; when the day does not exist in the
+// target month, the last day of that month is used.
+func AddMonthsClamped(from time.Time, months int) time.Time {
+	firstOfTarget := time.Date(from.Year(), from.Month(), 1, from.Hour(), from.Minute(), from.Second(), from.Nanosecond(), from.Location()).AddDate(0, months, 0)
+	lastDay := firstOfTarget.AddDate(0, 1, -1).Day()
+	day := from.Day()
+	if day > lastDay {
+		day = lastDay
+	}
+	return time.Date(firstOfTarget.Year(), firstOfTarget.Month(), day, from.Hour(), from.Minute(), from.Second(), from.Nanosecond(), from.Location())
+}

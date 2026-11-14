@@ -121,6 +121,11 @@ func (s *invalidationService) handleControlBalance(ctx context.Context, branchID
 		}(rd)
 	}
 
+	transactionType := constants.DocumentInvalid
+	if doc.Details.DTEType == constants.NotaDebitoElectronica {
+		transactionType = constants.DebitNoteInvalid
+	}
+
 	for _, item := range extractor.Items {
 		relatedDoc, ok := relatedDocsMap[item.RelatedDoc]
 		if ok && relatedDoc.GenerationType == constants.ElectronicDocument {
@@ -135,7 +140,7 @@ func (s *invalidationService) handleControlBalance(ctx context.Context, branchID
 
 			if err := s.dteManager.GenerateBalanceTransactionWithAmounts(ctx,
 				branchID,
-				constants.DocumentInvalid,
+				transactionType,
 				relatedDoc.DocumentNumber,
 				originalCode,
 				item.TaxedAmount,
@@ -149,7 +154,7 @@ func (s *invalidationService) handleControlBalance(ctx context.Context, branchID
 		}
 	}
 
-	logs.Info("Balance control transaction generated successfully, the amounts was added to the balance", map[string]interface{}{
+	logs.Info("Balance control transaction generated successfully", map[string]interface{}{
 		"branchID":     branchID,
 		"originalCode": originalCode,
 	})

@@ -4,6 +4,8 @@ package e2e
 
 import (
 	"testing"
+
+	"github.com/chainedpixel/ordo-factus/pkg/mapper/request_mapper/structs"
 )
 
 // Invalidaciones reales (CAT-024: 1 error en la informacion, 2 rescision, 3 otro). Cada caso emite
@@ -102,5 +104,76 @@ func TestE2E_Invalidacion(t *testing.T) {
 		if client.invalidate(t, invalidation{target: target, kind: 2, reason: "Primera invalidacion"}) {
 			client.expectInvalidationRejected(t, invalidation{target: target, kind: 2, reason: "Segunda invalidacion"})
 		}
+	})
+}
+
+// TestE2E_InvalidacionNotaCredito verifies that credit notes are invalidated without a replacement for types 1 and 3
+// and that the API rejects a replacement code for them before transmitting to Hacienda.
+func TestE2E_InvalidacionNotaCredito(t *testing.T) {
+	client := newAPIClient(t)
+
+	emitNote := func(t *testing.T, price float64) *emittedDTE {
+		t.Helper()
+		ccf := client.emit(t, "/dte/ccf", buildCCF(ccfSpec{receiver: ccfReceiver(),
+			items: []itemSpec{shoe("Venta base de la nota", 1, price, 0)}}))
+		if ccf == nil {
+			t.Fatal("no se pudo emitir el CCF base")
+		}
+		note := client.emit(t, "/dte/creditnote", buildCreditNote(adjustmentSpec{receiver: adjustmentReceiver(), related: ccf,
+			items: []itemSpec{shoe("Devolucion parcial", 1, price, 0)}}))
+		if note == nil {
+			t.Fatal("no se pudo emitir la NC")
+		}
+		return note
+	}
+
+	t.Run("NC tipo 1 sin reemplazo", func(t *testing.T) {
+		note := emitNote(t, 35.00)
+		client.invalidate(t, invalidation{target: note, kind: 1, reason: "Error en la informacion de la nota"})
+	})
+
+	t.Run("NC tipo 3 sin reemplazo", func(t *testing.T) {
+		note := emitNote(t, 36.00)
+		client.invalidate(t, invalidation{target: note, kind: 3, reason: "Otro motivo para anular la nota"})
+	})
+
+	t.Run("NC tipo 1 con reemplazo se rechaza antes de transmitir", func(t *testing.T) {
+		note := emitNote(t, 37.00)
+		replacement := emitNote(t, 38.00)
+		client.expectInvalidationRejected(t, invalidation{target: note, kind: 1, replacement: replacement,
+			reason: "Intento con reemplazo"}, "debe ser nulo")
+	})
+}
+
+// TestE2E_InvalidacionNotaDebitoSaldo verifies that invalidating a debit note subtracts its amount from the CCF
+// balance: after the ND of 20.00 is invalidated, the available balance returns to the original 100.00.
+func TestE2E_InvalidacionNotaDebitoSaldo(t *testing.T) {
+	client := newAPIClient(t)
+
+	ccf := client.emit(t, "/dte/ccf", buildCCF(ccfSpec{receiver: ccfReceiver(),
+		items: []itemSpec{shoe("Venta base con saldo", 1, 100.00, 0)}}))
+	if ccf == nil {
+		t.Fatal("no se pudo emitir el CCF base")
+	}
+	debit := client.emit(t, "/dte/debitnote", buildDebitNote(adjustmentSpec{receiver: adjustmentReceiver(), related: ccf,
+		items: []itemSpec{shoe("Cargo adicional", 1, 20.00, 0)}}))
+	if debit == nil {
+		t.Fatal("no se pudo emitir la ND")
+	}
+	if !client.invalidate(t, invalidation{target: debit, kind: 2, reason: "Se rescinde el cargo adicional"}) {
+		t.Fatal("no se pudo invalidar la ND")
+	}
+
+	creditNote := func(price float64) *structs.CreateCreditNoteRequest {
+		return buildCreditNote(adjustmentSpec{receiver: adjustmentReceiver(), related: ccf,
+			items: []itemSpec{shoe("Devolucion contra el saldo", 1, price, 0)}})
+	}
+
+	t.Run("NC de 110.00 excede el saldo de 100.00", func(t *testing.T) {
+		client.expectRejectedAny(t, "/dte/creditnote", creditNote(110.00), "InvalidCreditNoteTransaction", "remaining balance", "saldo")
+	})
+
+	t.Run("NC de 100.00 dentro del saldo", func(t *testing.T) {
+		client.emit(t, "/dte/creditnote", creditNote(100.00))
 	})
 }

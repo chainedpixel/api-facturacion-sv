@@ -270,5 +270,5 @@ Application Layer
 
 1. **Paso adicional**: El `calculateTotalToPay()` se ejecuta **después** de la validación y de generar los identificadores, diferenciándolo de la nota de crédito.
 2. **Balance**: La nota de crédito genera una transacción de tipo `05` (resta) y la nota de débito de tipo `06` (suma).
-3. **Invalidación**: Al invalidar una nota de débito se registra una transacción de balance de tipo `INVALIDATED` (ver [invalidation.md](invalidation.md)), que el modelo de persistencia suma al saldo restante.
+3. **Invalidación**: Al invalidar una nota de débito se registra una transacción de balance de tipo `DEBIT_NOTE_INVALID` (ver [invalidation.md](invalidation.md)), que el modelo de persistencia resta del saldo restante (la nota de débito los había sumado al emitirse).
 4. **Validadores compartidos**: El `DebitNoteItemStrategy` es idéntico al `CreditNoteItemStrategy`.

@@ -70,6 +70,7 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		event.EventContingencyActivated:    "contingency_activated.html",
 		event.EventEmissionFailure:         "emission_failure.html",
 		event.EventRetransmissionJobFailed: "retransmission_job_failed.html",
+		event.EventStampedDocumentNotSaved: "stamped_document_not_persisted.html",
 	}
 	for evtName, path := range contentTemplates {
 		b, err := mails.FS.ReadFile(path)
@@ -90,6 +91,7 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		event.EventContingencyActivated:    "plain/contingency_activated.txt",
 		event.EventEmissionFailure:         "plain/emission_failure.txt",
 		event.EventRetransmissionJobFailed: "plain/retransmission_job_failed.txt",
+		event.EventStampedDocumentNotSaved: "plain/stamped_document_not_persisted.txt",
 	}
 	for evtName, path := range plainFiles {
 		b, err := mails.FS.ReadFile(path)
@@ -107,26 +109,31 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		event.EventContingencyActivated:    "[Ordo-Factus] Contingencia activada en sucursal #%d",
 		event.EventEmissionFailure:         "[Ordo-Factus] DTE %s falla tras %d intento(s)",
 		event.EventRetransmissionJobFailed: "[Ordo-Factus] Job de retransmisión: fallo de ejecución",
+		event.EventStampedDocumentNotSaved: "[Ordo-Factus] DTE %s sellado por Hacienda pero no guardado",
 	}
 	r.badgeByEvt = map[string]string{
 		event.EventContingencyActivated:    "Contingencia",
 		event.EventEmissionFailure:         "Emisión",
 		event.EventRetransmissionJobFailed: "Job",
+		event.EventStampedDocumentNotSaved: "Persistencia",
 	}
 	r.titleByEvt = map[string]string{
 		event.EventContingencyActivated:    "Contingencia activada",
 		event.EventEmissionFailure:         "Falla consistente de emisión",
 		event.EventRetransmissionJobFailed: "Job de retransmisión con fallos",
+		event.EventStampedDocumentNotSaved: "DTE sellado sin persistir",
 	}
 	r.introByEvt = map[string]string{
 		event.EventContingencyActivated:    "El sistema detectó una contingencia y activó el modo offline para la sucursal afectada.",
 		event.EventEmissionFailure:         "Un DTE no pudo emitirse después de varios intentos. Requiere atención.",
 		event.EventRetransmissionJobFailed: "El job programado de retransmisión finalizó con documentos fallidos.",
+		event.EventStampedDocumentNotSaved: "Hacienda aceptó y selló un DTE, pero no pudo guardarse localmente. Requiere recuperación manual.",
 	}
 	r.iconByEvt = map[string]string{
 		event.EventContingencyActivated:    "icon_warning",
 		event.EventEmissionFailure:         "icon_error",
 		event.EventRetransmissionJobFailed: "icon_warning",
+		event.EventStampedDocumentNotSaved: "icon_error",
 	}
 
 	return r, nil
@@ -176,6 +183,12 @@ func (r *TemplateRenderer) buildSubject(evt event.Event) (string, error) {
 			id = e.GenerationCode
 		}
 		return fmt.Sprintf(pattern, id, e.Attempts), nil
+	case event.StampedDocumentNotPersistedEvent:
+		id := e.ControlNumber
+		if id == "" {
+			id = e.GenerationCode
+		}
+		return fmt.Sprintf(pattern, id), nil
 	case event.RetransmissionJobFailedEvent:
 		if len(e.FailedDocuments) > 0 {
 			return fmt.Sprintf("[Ordo-Factus] Retransmisión: %d documento(s) rechazado(s) por MH", len(e.FailedDocuments)), nil
@@ -206,6 +219,9 @@ func (r *TemplateRenderer) buildData(evt event.Event, subject string) map[string
 		"attempts":              "Attempts",
 		"job_name":              "JobName",
 		"failed_documents":      "FailedDocuments",
+		"generation_code":       "GenerationCode",
+		"reception_stamp":       "ReceptionStamp",
+		"processing_date":       "ProcessingDate",
 	}
 	for snake, pascal := range aliases {
 		if v, ok := data[snake]; ok {

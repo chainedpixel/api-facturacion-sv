@@ -9,7 +9,7 @@ import (
 
 type BaseTransmitter interface {
 	RetryTransmission(ctx context.Context, document interface{}, token string, nit string) (*models.TransmitResult, error)
-	CheckStatus(ctx context.Context, document interface{}, nit string) (*models.TransmitResult, error)
+	CheckStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*models.TransmitResult, error)
 }
 
 type SignerManager interface {

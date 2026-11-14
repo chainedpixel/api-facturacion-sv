@@ -13,8 +13,6 @@ const (
 	TaxIVAExportAmount      = 0.0
 	TaxTourismAmount        = 0.05
 	TaxTourismAirportAmount = 7.0
-	TaxFOVIALAmount         = 0.20
-	TaxCOTRANSAmount        = 0.10
 )
 
 var (
@@ -23,8 +21,6 @@ var (
 		TaxIVAExport,
 		TaxTourism,
 		TaxTourismAirport,
-		TaxFOVIAL,
-		TaxCOTRANS,
 		TaxSpecialOther,
 	}
 
@@ -33,8 +29,12 @@ var (
 		TaxIVAExport:      true,
 		TaxTourism:        true,
 		TaxTourismAirport: true,
-		TaxFOVIAL:         true,
-		TaxCOTRANS:        true,
 		TaxSpecialOther:   true,
+	}
+
+	// UnsupportedTaxTypes lists catalog tax codes that are charged per volume unit, which the system cannot compute.
+	UnsupportedTaxTypes = map[string]bool{
+		TaxFOVIAL:  true,
+		TaxCOTRANS: true,
 	}
 )

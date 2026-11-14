@@ -30,7 +30,7 @@ Se construye con `NewDTEConsultUseCase(dteService)` en `UseCaseContainer.Initial
 | `GetEvents` | `GET /api/v1/dte/{id}/eventos` | `DTEManager.GetEvents` |
 | `GetAllDTEs` | `GET /api/v1/dte` | `parseDTEFilters` + `DTEManager.GetAllDTEs` |
 
-Los cuatro métodos leen los claims del contexto (`ctx.Value("claims")`) para limitar la consulta a la sucursal autenticada (`GetAllDTEs` lo hace salvo `all=true`).
+Los cuatro métodos leen los claims del contexto (`ctx.Value("claims")`) para limitar la consulta a la sucursal autenticada (`GetAllDTEs` lo hace salvo `all=true` con NIT en los claims, caso en el que se limita a las sucursales del emisor).
 
 ### `GetByGenerationCode`
 
@@ -57,6 +57,7 @@ type DTEResponse struct {
     Status         string                 `json:"status"`
     CreatedAt      string                 `json:"created_at"`
     UpdatedAt      string                 `json:"updated_at"`
+    ProcessingDate string                 `json:"processing_date,omitempty"` // fhProcesamiento de Hacienda
     JSONData       map[string]interface{} `json:"json_data"`
 }
 ```
@@ -130,7 +131,7 @@ Se consultan DTEs con filtros, paginación y resumen estadístico.
 
 | Parámetro | Tipo | Default | Descripción |
 |---|---|---|---|
-| `all` | `bool` | `false` | Si es `true`, no se filtra por sucursal (consulta todas las sucursales) |
+| `all` | `bool` | `false` | Si es `true` y los claims traen NIT, se listan los documentos de las sucursales del emisor (`IssuerNIT`); sin NIT se ignora y se usa la sucursal del claim |
 | `status` | `string` | — | Estado del documento |
 | `transmission` | `string` | — | Tipo de transmisión |
 | `type` | `string` | — | Tipo(s) de DTE (separados por coma) |
@@ -166,7 +167,8 @@ Códigos de DTE de `constants.ValidDTETypes`, separados por coma: `01`, `03`, `0
 
 ```go
 type DTEFilters struct {
-    BranchID     uint
+    BranchID     uint   // sucursal del claim (si no se consulta por emisor)
+    IssuerNIT    string // NIT del claim, solo con all=true
     IncludeAll   bool
     StartDate    *time.Time
     EndDate      *time.Time
@@ -245,7 +247,7 @@ Si un valor no es válido, se retorna un `ServiceError` formateado (`InvalidQuer
 
 ## Notas
 
-1. **Filtro por sucursal**: Por defecto, solo se retornan documentos de la sucursal del usuario autenticado. El parámetro `all=true` consulta todas las sucursales y el código no comprueba ningún permiso adicional: basta con estar autenticado.
+1. **Filtro por sucursal**: Por defecto, solo se retornan documentos de la sucursal del usuario autenticado. El parámetro `all=true` consulta las sucursales cuyo usuario propietario tiene el mismo NIT que el del token (`branch_offices.user_id` → `users.nit`); sin NIT en los claims se usa la sucursal del claim. El código no comprueba ningún permiso adicional: basta con estar autenticado.
 2. **Case insensitive**: Los valores de `status` y `transmission` se aceptan en minúsculas y se convierten internamente a mayúsculas.
 3. **Tipos múltiples**: Se puede filtrar por múltiples tipos de DTE usando coma: `?type=01,03,05`.
 4. **Resumen estadístico**: La respuesta incluye un resumen con conteos por estado y tipo de transmisión, calculado con los mismos filtros.

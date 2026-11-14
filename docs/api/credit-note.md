@@ -49,7 +49,7 @@ Content-Type: application/json
 | `quantity` | float | Sí | Cantidad |
 | `unit_measure` | integer | Sí | Unidad de medida (1–99; `99` para tipo `4`) |
 | `unit_price` | float | Sí | Precio unitario |
-| `discount` | float | Sí | Descuento del ítem. Se valida en el rango `0`–`100` y se transmite sin transformación como `montoDescu` |
+| `discount` | float | Sí | Descuento del ítem, **monto** no negativo (`InvalidAmount` si es negativo; no tiene tope de 100). Se transmite sin transformación como `montoDescu` |
 | `non_subject_sale` | float | Sí | Venta no sujeta |
 | `exempt_sale` | float | Sí | Venta exenta |
 | `taxed_sale` | float | Sí | Venta gravada |
@@ -136,7 +136,7 @@ El receptor de una nota se identifica por NIT y debe coincidir con el receptor d
 
 > **Regla:** solo se permiten los tipos `03` (CCF) y `07` (CR), y todos los documentos relacionados deben ser del mismo tipo (`MixedDocumentTypesNotAllowed`). Máximo 50.
 
-> **Regla de plazo:** la nota debe generarse a más tardar 3 meses después de la fecha de generación del CCF o CR relacionado; de lo contrario se rechaza con `RelatedDocOutOfPeriod`. El mensaje indica el documento, su fecha y la fecha límite. Esta regla corresponde al numeral de documentos relacionados de la Normativa de Cumplimiento DTE v2.0 (la nota debe generarse a más tardar dentro de 3 meses respecto de la fecha de generación del CCF o CR).
+> **Regla de plazo:** la nota debe generarse a más tardar 3 meses después de la fecha de generación del CCF o CR relacionado; de lo contrario se rechaza con `RelatedDocOutOfPeriod`. El mensaje indica el documento, su fecha y la fecha límite. Esta regla corresponde al numeral de documentos relacionados de la Normativa de Cumplimiento DTE v2.0 (la nota debe generarse a más tardar dentro de 3 meses respecto de la fecha de generación del CCF o CR). Los 3 meses se suman con `calendar.AddMonthsClamped`, que limita el resultado al último día del mes cuando el día no existe (30 de noviembre + 3 meses = 28 de febrero); es la misma función que usa el plazo de invalidación.
 
 > **Regla:** el documento relacionado debe existir en la sucursal autenticada, estar en estado `RECEIVED` (`RelatedDocumentNotReceived`) y tener el mismo NIT de receptor.
 
@@ -153,7 +153,7 @@ Las fórmulas completas, redondeos y tolerancias se detallan en [Reglas de cálc
 - `Σ taxed_sale = total_taxed` (±0.01); `Σ exempt_sale = total_exempt` y `Σ non_subject_sale = total_non_subject` (exactos).
 - `sub_total_sales = total_taxed + total_exempt + total_non_subject`.
 - `sub_total = sub_total_sales` (no hay descuentos globales).
-- Cada tributo del resumen: `20` = `total_taxed × 0.13`; `59` = `total_taxed × 0.05`; `D1` = `total_taxed × 0.20`; `71` = `7.00` fijo; `C8` = `0.10` fijo; `C3` = `0`; `D5` no se recalcula.
+- Cada tributo del resumen: `20` = `total_taxed × 0.13`; `59` = `total_taxed × 0.05`; `71` = `7.00` fijo; `C3` = `0`; `D5` no se recalcula. `D1` (FOVIAL) y `C8` (COTRANS) se rechazan con `UnsupportedTaxCode`.
 - `iva_perception`, si es distinto de `0`, debe ser `total_taxed × 0.01`.
 - `total_operation = sub_total_sales + Σ tributos del resumen`.
 - `total_to_pay = total_operation + iva_perception - iva_retention + total_non_taxed`.
@@ -217,7 +217,7 @@ Los errores usan la estructura descrita en [Formato de respuestas](./README.md#r
 
 | HTTP | `code` | Cuándo ocurre |
 |------|--------|---------------|
-| `400` | `REQUIREDFIELD` y otros códigos de formato | Campo obligatorio ausente o con formato inválido (por ejemplo `related_docs` vacío, NIT inválido, descuento fuera de 0–100) |
+| `400` | `REQUIREDFIELD` y otros códigos de formato | Campo obligatorio ausente o con formato inválido (por ejemplo `related_docs` vacío, NIT inválido, descuento negativo) |
 | `400` | `VALIDATIONFAILED` | Falló una regla propia de la Nota de Crédito; `error.details` lista cada regla: `MissingItemRelatedDoc`, `InvalidItemRelatedDoc`, `InvalidRelatedDocTypeForCreditNote`, `MixedSalesTypesNotAllowed`, `GlobalDiscountNotAllowedInAdjustment`, `IncomeRetentionNotAllowed`, `InvalidTaxCalculation`, `InvalidSubTotalCalculation`, `InvalidTotalOperation`, `InvalidTotalToPayCalculation`, `InvalidPerceptionAmount`, `MissingIVAForTaxedAmount`, etc. |
 | `400` | `MANY_ERRORS` | Falló una regla general de DTE; `error.details` incluye, por ejemplo, `RelatedDocOutOfPeriod`, `MixedDocumentTypesNotAllowed`, `ExceededRelatedDocsLimit`, `InvalidRelatedDocDate` |
 | `400` | `FAILEDTOGETDTE` | El documento relacionado no existe en la sucursal |

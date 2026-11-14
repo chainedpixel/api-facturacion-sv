@@ -69,3 +69,15 @@ func TestRelatedDocRules(t *testing.T) {
 		assert.Nil(t, strategy.ValidateRelatedDocPeriod(constants.NotaCreditoElectronica, constants.CCFElectronico, time.Time{}, day("2026-11-13")))
 	})
 }
+
+// TestRelatedDocPeriod_ClampedWindow checks the credit note window ends on the last day of a shorter month.
+func TestRelatedDocPeriod_ClampedWindow(t *testing.T) {
+	test.TestMain(t)
+
+	ccf := day("2026-11-30")
+	assert.Nil(t, strategy.ValidateRelatedDocPeriod(constants.NotaCreditoElectronica, constants.CCFElectronico, ccf, day("2027-02-28")))
+	err := strategy.ValidateRelatedDocPeriod(constants.NotaCreditoElectronica, constants.CCFElectronico, ccf, day("2027-03-01"))
+	if assert.NotNil(t, err) {
+		test.AssertErrorCode(t, err, "RelatedDocOutOfPeriod")
+	}
+}

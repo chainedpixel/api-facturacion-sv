@@ -205,7 +205,7 @@ Esto significa que si agregas un campo VO a cualquier struct de modelo, se valid
 |------|--------------|----------------|---------------|-----------------|
 | `Amount` | `float64` | `0 ≤ value ≤ 99999999999.99`; `NewAmount` redondea a 8 decimales y `NewAmountForTotal` exige a lo sumo 2 decimales | `1150.00` | `-0.01` |
 | `Currency` | `string` | Debe ser `"USD"` | `"USD"` | `"EUR"` |
-| `Discount` | `float64` | `0 ≤ value ≤ 100` (porcentaje, evaluado con 2 decimales) | `10.0` | `101.0` |
+| `Discount` | `float64` | `0 ≤ value ≤ 100` (porcentaje, evaluado con 2 decimales); se usa en `discount_percentage` del resumen, no en el `discount` por ítem (que usa `Amount`) | `10.0` | `101.0` |
 | `PaymentCondition` | `int` | 1 (contado), 2 (crédito) o 3 (otro) | `1` | `4` |
 | `PaymentTerm` | `string` | Patrón `^0[1-3]$` | `"01"` | `"30"` |
 | `PaymentType` | `string` | Código `01`–`14` o `99` (expresión regular `^(0[1-9]||1[0-4]||99)$`, que por sus alternativas vacías acepta también la cadena vacía) | `"01"` | `"15"` |

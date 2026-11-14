@@ -2,7 +2,7 @@
 
 ## Descripción
 
-La API expone cuatro endpoints de consulta, todos protegidos con `Authorization: Bearer <token>` y limitados a los DTEs de la sucursal autenticada (salvo el parámetro `all` del listado):
+La API expone cuatro endpoints de consulta, todos protegidos con `Authorization: Bearer <token>` y limitados a los DTEs de la sucursal autenticada (salvo el parámetro `all` del listado, que amplía la consulta a las sucursales del mismo emisor):
 
 - **Obtener un DTE específico** por su `codigoGeneracion` (`GET /api/v1/dte/{id}`)
 - **Obtener el Archivo DTE** de un documento (`GET /api/v1/dte/{id}/archivo`)
@@ -41,6 +41,7 @@ Authorization: Bearer <token>
     "status": "RECEIVED",
     "created_at": "2024-01-15T14:30:00Z",
     "updated_at": "2024-01-15T14:30:05Z",
+    "processing_date": "15/01/2024 14:30:05",
     "json_data": { /* Estructura completa del DTE según tipo */ }
   }
 }
@@ -57,6 +58,7 @@ Authorization: Bearer <token>
 | `status` | string | Estado actual del DTE (ver tabla de estados) |
 | `created_at` | string (ISO 8601) | Fecha/hora de creación |
 | `updated_at` | string (ISO 8601) | Fecha/hora de última actualización |
+| `processing_date` | string | Fecha de procesamiento informada por Hacienda (`fhProcesamiento`), con el mismo valor y formato con que se guarda. Se omite si el documento no la tiene guardada. Es la fecha desde la que se cuentan los plazos de invalidación de FE, FEXE y FSE (ver [Anulación](./invalidation.md#plazos-y-fecha-del-evento)) |
 | `json_data` | object | Estructura completa del DTE en formato MH (varía según tipo) |
 
 #### Estados posibles (`status`)
@@ -162,7 +164,7 @@ Authorization: Bearer <token>
 
 **Respuesta exitosa:** `HTTP 200 OK`
 
-Retorna todos los DTEs de la sucursal autenticada, con soporte para filtros y paginación.
+Retorna los DTEs de la sucursal autenticada (o, con `all=true`, de las sucursales del emisor), con soporte para filtros y paginación.
 
 #### Query Parameters
 
@@ -175,7 +177,7 @@ Retorna todos los DTEs de la sucursal autenticada, con soporte para filtros y pa
 | `transmission` | string | No | Filtrar por tipo de transmisión |
 | `startDate` | string (RFC3339) | No | Inicio del rango; se compara con la fecha de registro del documento (`created_at`) |
 | `endDate` | string (RFC3339) | No | Fecha de fin del rango de consulta |
-| `all` | boolean | No | Si es `true`, no se filtra por sucursal y se listan los DTEs de todas las sucursales. El servicio no aplica una verificación de permisos adicional para este parámetro |
+| `all` | boolean | No | Si es `true`, se listan los DTEs de todas las sucursales que pertenecen al mismo emisor (NIT) del usuario autenticado (`branch_offices.user_id` → `users.nit`). Si el token no incluye NIT, se ignora y se lista solo la sucursal autenticada. El servicio no aplica una verificación de permisos adicional para este parámetro |
 
 #### Valores válidos por parámetro
 

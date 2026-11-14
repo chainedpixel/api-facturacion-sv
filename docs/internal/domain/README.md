@@ -63,7 +63,7 @@ internal/domain/
 │   └── token_cache_port.go     CacheManager, TokenManager
 └── dte/                        Toda la lógica de negocio de documentos electrónicos
     ├── common/                 Bloques reutilizables compartidos por todos los tipos de DTE
-    │   ├── calendar/           BusinessCalendar: días hábiles y asuetos de El Salvador
+    │   ├── calendar/           BusinessCalendar: días hábiles y asuetos de El Salvador, y AddMonthsClamped (suma de meses con tope en el último día del mes)
     │   ├── constants/          Constantes con nombre: códigos de tipo DTE, códigos de impuesto, helpers de código de error
     │   ├── dte_errors/         DTEError, ValidationError, CompositeError
     │   ├── interfaces/         Todas las interfaces del dominio (documento, ítem, resumen, …)

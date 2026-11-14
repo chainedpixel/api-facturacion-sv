@@ -12,7 +12,7 @@ Características principales:
 - **No es un DTE en sí** — Es una operación sobre DTEs existentes
 - **Restricciones temporales** — Ventana de tiempo limitada para invalidar
 - **Tipos de invalidación** — Reemplazo, anulación, u otro motivo
-- **Recuperación de balance** — Al invalidar notas de crédito/débito, se revierte el balance
+- **Ajuste de balance** — Al invalidar notas de crédito/débito, se revierte su efecto en el balance
 - **Prevención de doble invalidación** — Un documento ya inválido no se puede invalidar nuevamente
 
 ---
@@ -138,14 +138,16 @@ Cuando se invalida una nota de crédito o débito, se registra una transacción 
 ```go
 dteManager.GenerateBalanceTransactionWithAmounts(
     ctx, branchID,
-    constants.DocumentInvalid, // tipo de transacción: "INVALIDATED"
+    transactionType,           // "INVALIDATED" (nota de crédito) o "DEBIT_NOTE_INVALID" (nota de débito)
     relatedDocumentNumber,     // documento original afectado
     originalCode,              // nota invalidada
     taxedAmount, exemptAmount, notSubjectAmount,
 )
 ```
 
-El efecto sobre el saldo se aplica en el modelo de persistencia (`DTEBalanceTransaction.AfterCreate`): si el tipo de transacción es `05` se restan los montos del saldo restante; con cualquier otro tipo (incluido `INVALIDATED`) se suman. Por tanto, la invalidación de una nota devuelve los montos al saldo del documento original. Para una nota de débito, la transacción de creación también suma al saldo, por lo que la invalidación aplica la misma suma.
+El tipo de transacción es `constants.DocumentInvalid` (`INVALIDATED`) salvo que el documento invalidado sea una nota de débito (`NotaDebitoElectronica`), caso en el que se usa `constants.DebitNoteInvalid` (`DEBIT_NOTE_INVALID`, definida en `constants/dte_states.go`).
+
+El efecto sobre el saldo se aplica en el modelo de persistencia (`DTEBalanceTransaction.AfterCreate`): si el tipo de transacción es `05` o `DEBIT_NOTE_INVALID` se restan los montos del saldo restante; con cualquier otro tipo (incluido `INVALIDATED`) se suman. Por tanto, la invalidación de una nota de crédito devuelve los montos al saldo del documento original, y la invalidación de una nota de débito resta los montos que esa nota había sumado.
 
 ---
 
@@ -210,15 +212,16 @@ El código de reemplazo no forma parte de `InvalidationReason`: se ubica en `Inv
 
 | Tipo | Nombre | Descripción | ReplacementCode |
 |---|---|---|---|
-| `1` | Reemplazo | El documento se reemplaza por otro | **Requerido** |
+| `1` | Reemplazo | El documento se reemplaza por otro | **Requerido** (nulo si el documento invalidado es `05` u `08`) |
 | `2` | Anulación | El documento se anula completamente | **Debe ser null** |
-| `3` | Otro motivo | Invalidación por otro motivo | **Requerido** |
+| `3` | Otro motivo | Invalidación por otro motivo | **Requerido** (nulo si el documento invalidado es `05` u `08`) |
 
 ### Reglas por Tipo
 
-- **Tipo 1 (Reemplazo)**: Se requiere el código del documento de reemplazo. Si se envía, su estado se consulta en `ValidateStatus` y se rechaza si es `INVALIDATED`, `REJECTED` o `PENDING`.
+- **Tipo 1 (Reemplazo)**: Se requiere el código del documento de reemplazo, salvo que el documento invalidado sea una Nota de Crédito (`05`) o un Comprobante de Liquidación (`08`) (Anexo V, campo `codigoGeneracionR`), para los cuales debe ser nulo. Si se envía, su estado se consulta en `ValidateStatus` y se rechaza si es `INVALIDATED`, `REJECTED` o `PENDING`.
 - **Tipo 2 (Anulación)**: No debe tener código de reemplazo.
-- **Tipo 3 (Otro)**: Se requiere el campo `Reason` explicando el motivo, y el código de reemplazo.
+- **Tipo 3 (Otro)**: Se requiere el campo `Reason` explicando el motivo, y el código de reemplazo (con la misma excepción para `05` y `08`).
+- La regla del código de reemplazo para los tipos 1 y 3 la evalúa `InvalidationReasonStrategy` con `policy.RequiresReplacement(dteType)`: si se requiere y falta, `InvalidReplacementCode1And3`; si no se requiere (NC `05` o CLE `08`) y se envía, `ReplacementCodeNotAllowedForType`; el tipo 2 con código de reemplazo devuelve `InvalidInvalidationType2`.
 
 ---
 
@@ -331,7 +334,7 @@ InvalidationUseCase (Application Layer)
 ## Notas
 
 1. **Sin contingencia**: Las invalidaciones no entran en modo contingencia. Si falla la comunicación con Hacienda, se retorna error directo.
-2. **Balance reversal**: La invalidación de notas de crédito/débito tiene efecto cascada en el balance del documento original.
+2. **Balance reversal**: La invalidación de notas de crédito suma sus montos al balance del documento original y la de notas de débito los resta.
 3. **Idempotencia**: Se previene la doble invalidación verificando el estado actual.
 4. **Ventanas temporales**: FE, FEXE y FSE tienen 3 meses desde el sello; el resto, hasta el décimo día hábil del mes siguiente al sello.
 5. **Responsable y solicitante**: Ambos campos son obligatorios y deben incluir nombre, tipo y número de documento.

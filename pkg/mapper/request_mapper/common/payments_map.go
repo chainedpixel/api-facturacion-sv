@@ -15,7 +15,7 @@ func MapCommonRequestPaymentsType(payments []structs.PaymentRequest) ([]interfac
 	for i, payment := range payments {
 		var term *financial.PaymentTerm
 
-		if payment.Code == "" || payment.Amount == 0 {
+		if payment.Code == "" {
 			return nil, shared_error.NewFormattedGeneralServiceError(
 				"CommonMapper",
 				"MapCommonRequestPaymentsType",

@@ -27,7 +27,6 @@ El envío del evento de contingencia lo realiza `ContingencyHTTPService` (ver [c
 
 ```go
 type MHTransmitter struct {
-    HaciendaToken      string
     haciendaAuth       ports.HaciendaAuthManager
     failedSequenceRepo ports.FailedSequenceNumberRepositoryPort
     httpClient         *http.Client  // timeout: 8s
@@ -149,7 +148,7 @@ SendToHacienda(ctx, request, systemToken)
   │
   ├── [2] POST {request.URL} (ReceptionURL si viene vacía)
   │     Headers:
-  │       Authorization: {haciendaToken}
+  │       Authorization: {haciendaToken}   (variable local, no se conserva en el transmisor)
   │       Content-Type: application/json
   │       User-Agent: HaciendaApp/1.0
   │     Timeout del cliente: 8 s
@@ -169,11 +168,13 @@ El token se envía sin prefijo `Bearer`: se usa el valor devuelto por la autenti
 ### `CheckDocumentStatus` — Consulta de Estado
 
 ```
-CheckDocumentStatus(ctx, document, nit)
+CheckDocumentStatus(ctx, document, nit, systemToken)
+  │
+  ├── getHaciendaToken(ctx, systemToken)   ← token obtenido por llamada, no se guarda en el transmisor
   │
   ├── Extrae tipoDte y codigoGeneracion del documento
   ├── POST {ReceptionConsultURL}  { nitEmisor, tdte, codigoGeneracion }
-  │     Authorization: token de Hacienda del transmisor (HaciendaToken)
+  │     Authorization: token de Hacienda obtenido en esta llamada
   ├── Acepta HTTP 200 y 202; otro status devuelve error
   └── Retorna TransmitResult con estado, sello, fecha, mensaje, observaciones y HaciendaResponse
 ```

@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	authModels "github.com/chainedpixel/ordo-factus/internal/domain/auth/models"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/dte"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/ordo-factus/internal/infrastructure/adapters/repositories"
 	test "github.com/chainedpixel/ordo-factus/tests"
@@ -106,4 +107,21 @@ func TestDTERepository_Create_RejectsEmptyIdentification(t *testing.T) {
 			assert.NoError(t, mock.ExpectationsWereMet(), "no SQL should have been executed")
 		})
 	}
+}
+
+// TestDTERepository_GetTotalCount_IssuerNITRestrictsToIssuerBranches verifies that listing with an issuer NIT
+// filters by the branches owned by that issuer instead of removing the branch filter.
+func TestDTERepository_GetTotalCount_IssuerNITRestrictsToIssuerBranches(t *testing.T) {
+	test.TestMain(t)
+	db, mock := newDTERepoMockDB(t)
+
+	mock.ExpectQuery("branch_id IN \\(SELECT branch_offices.id FROM .branch_offices. JOIN users ON users.id = branch_offices.user_id WHERE users.nit = \\?\\)").
+		WithArgs("0614-010101-000-0").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+
+	total, err := repositories.NewDTERepository(db).GetTotalCount(dteRepoCtx(), &dte.DTEFilters{IssuerNIT: "0614-010101-000-0"})
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(3), total)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

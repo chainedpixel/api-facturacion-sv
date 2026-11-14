@@ -3,6 +3,7 @@ package dte
 import (
 	"github.com/chainedpixel/ordo-factus/internal/application/ports"
 	"github.com/chainedpixel/ordo-factus/internal/domain/auth"
+	"github.com/chainedpixel/ordo-factus/internal/domain/core/event"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/dte_documents"
 	"github.com/chainedpixel/ordo-factus/internal/domain/dte/invalidation"
 	domainPort "github.com/chainedpixel/ordo-factus/internal/domain/ports"
@@ -15,6 +16,7 @@ type DTEUseCaseFactory struct {
 	dteService        dte_documents.DTEManager
 	transmitter       ports.BaseTransmitter
 	sequentialManager dte_documents.SequentialNumberManager
+	bus               event.Bus
 	mapperFactory     *mapper.MapperFactory
 	operationsFactory *DTEOperations
 }
@@ -25,12 +27,14 @@ func NewDTEUseCaseFactory(
 	dteService dte_documents.DTEManager,
 	transmitter ports.BaseTransmitter,
 	sequentialManager dte_documents.SequentialNumberManager,
+	bus event.Bus,
 ) *DTEUseCaseFactory {
 	return &DTEUseCaseFactory{
 		authService:       authService,
 		dteService:        dteService,
 		transmitter:       transmitter,
 		sequentialManager: sequentialManager,
+		bus:               bus,
 		mapperFactory:     mapper.NewMapperFactory(),
 		operationsFactory: NewDTEOperations(),
 	}
@@ -47,6 +51,7 @@ func (f *DTEUseCaseFactory) CreateInvoiceUseCase(invoiceService domainPort.DTESe
 		f.mapperFactory.CreateInvoiceMapperAdapter(),
 		f.mapperFactory.GetInvoiceResponseMapper(),
 		f.operationsFactory.GetNoOperation(),
+		f.bus,
 	)
 }
 
@@ -61,6 +66,7 @@ func (f *DTEUseCaseFactory) CreateCCFUseCase(ccfService domainPort.DTEService) *
 		f.mapperFactory.CreateCCFMapperAdapter(),
 		f.mapperFactory.GetCCFResponseMapper(),
 		f.operationsFactory.GetNoOperation(),
+		f.bus,
 	)
 }
 
@@ -75,6 +81,7 @@ func (f *DTEUseCaseFactory) CreateCreditNoteUseCase(creditNoteService domainPort
 		f.mapperFactory.CreateCreditNoteMapperAdapter(),
 		f.mapperFactory.GetCreditNoteResponseMapper(),
 		f.operationsFactory.GetCreditNoteOperations(f.dteService),
+		f.bus,
 	)
 }
 
@@ -89,6 +96,7 @@ func (f *DTEUseCaseFactory) CreateRetentionUseCase(retentionService domainPort.D
 		f.mapperFactory.CreateRetentionMapperAdapter(),
 		f.mapperFactory.GetRetentionResponseMapper(),
 		f.operationsFactory.GetNoOperation(),
+		f.bus,
 	)
 }
 
@@ -103,6 +111,7 @@ func (f *DTEUseCaseFactory) CreateDebitNoteUseCase(debitNoteService domainPort.D
 		f.mapperFactory.CreateDebitNoteMapperAdapter(),
 		f.mapperFactory.GetDebitNoteResponseMapper(),
 		f.operationsFactory.GetDebitNoteOperations(f.dteService),
+		f.bus,
 	)
 }
 
@@ -117,6 +126,7 @@ func (f *DTEUseCaseFactory) CreateRemissionNoteUseCase(remissionNoteService doma
 		f.mapperFactory.CreateRemissionNoteMapperAdapter(),
 		f.mapperFactory.GetRemissionNoteResponseMapper(),
 		f.operationsFactory.GetNoOperation(),
+		f.bus,
 	)
 }
 
@@ -142,5 +152,6 @@ func (f *DTEUseCaseFactory) CreateFSEUseCase(fseService domainPort.DTEService) *
 		f.mapperFactory.CreateFSEMapperAdapter(),
 		f.mapperFactory.GetFSEResponseMapper(),
 		f.operationsFactory.GetNoOperation(),
+		f.bus,
 	)
 }

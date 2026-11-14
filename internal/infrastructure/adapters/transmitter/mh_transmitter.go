@@ -28,7 +28,6 @@ type HaciendaConsultRequest struct {
 }
 
 type MHTransmitter struct {
-	HaciendaToken      string
 	haciendaAuth       ports.HaciendaAuthManager
 	failedSequenceRepo ports2.FailedSequenceNumberRepositoryPort
 	httpClient         *http.Client
@@ -105,7 +104,12 @@ func marshalHaciendaResponse(resp *models2.HaciendaResponse) string {
 	return string(raw)
 }
 
-func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interface{}, nit string) (*models2.TransmitResult, error) {
+func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interface{}, nit string, systemToken string) (*models2.TransmitResult, error) {
+	haciendaToken, err := t.getHaciendaToken(ctx, systemToken)
+	if err != nil {
+		return nil, err
+	}
+
 	_, dteType, generationCode, _, err := processors.GetDocumentRequestData(document)
 
 	haciendaReqBody := HaciendaConsultRequest{
@@ -122,7 +126,7 @@ func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interf
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", t.HaciendaToken)
+	req.Header.Set("Authorization", haciendaToken)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := t.httpClient.Do(req)
@@ -159,7 +163,7 @@ func (t *MHTransmitter) CheckDocumentStatus(ctx context.Context, document interf
 }
 
 func (t *MHTransmitter) SendToHacienda(ctx context.Context, request *models2.HaciendaRequest, systemToken string) (*models2.HaciendaResponse, error) {
-	err := t.getHaciendaToken(ctx, systemToken)
+	haciendaToken, err := t.getHaciendaToken(ctx, systemToken)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +183,7 @@ func (t *MHTransmitter) SendToHacienda(ctx context.Context, request *models2.Hac
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", t.HaciendaToken)
+	req.Header.Set("Authorization", haciendaToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "HaciendaApp/1.0")
 
@@ -391,17 +395,16 @@ func (t *MHTransmitter) getProcessor(document interface{}) DocumentProcessor {
 	return t.processors["dte"]
 }
 
-func (t *MHTransmitter) getHaciendaToken(ctx context.Context, systemToken string) error {
+func (t *MHTransmitter) getHaciendaToken(ctx context.Context, systemToken string) (string, error) {
 	haciendaToken, err := t.haciendaAuth.GetOrCreateHaciendaToken(ctx, systemToken)
 	if err != nil {
 		logs.Error("Failed to get Hacienda token", map[string]interface{}{
 			"error": err.Error(),
 		})
-		return err
+		return "", err
 	}
 
-	t.HaciendaToken = haciendaToken
-	return nil
+	return haciendaToken, nil
 }
 
 func isInvalidationDocument(doc map[string]interface{}) bool {

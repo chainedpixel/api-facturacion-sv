@@ -211,19 +211,7 @@ func TestMapToFSEData(t *testing.T) {
 				return req
 			},
 			wantErr:   true,
-			errorCode: "InvalidDiscount",
-		},
-		{
-			name: "FSE with discount greater than 100% in item",
-			req: func() *structs.CreateFSERequest {
-				req := fixtures.CreateDefaultFSERequest()
-				item := fixtures.CreateDefaultFSEItem(0)
-				item.Discount = 150.0
-				req.Items = []structs.FSEItemRequest{item}
-				return req
-			},
-			wantErr:   true,
-			errorCode: "InvalidDiscount",
+			errorCode: "InvalidAmount",
 		},
 		{
 			name: "FSE with zero purchase amount in item",

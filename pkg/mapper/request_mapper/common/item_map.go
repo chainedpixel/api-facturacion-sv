@@ -41,7 +41,7 @@ func MapCommonRequestItem(item structs.ItemRequest, index int) (*models.Item, er
 		}
 	}
 
-	discount, err := financial.NewDiscount(item.Discount)
+	discount, err := financial.NewAmount(item.Discount)
 	if err != nil {
 		return nil, err
 	}
