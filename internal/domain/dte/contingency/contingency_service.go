@@ -58,9 +58,9 @@ func (s *ContingencyService) SetEventBus(bus event.Bus) {
 	s.bus = bus
 }
 
-// StoreDocumentInContingency persists a DTE document under contingency mode, with the deferred model and the
-// contingency transmission type that are later signed and transmitted, and registers it for retransmission.
-func (s *ContingencyService) StoreDocumentInContingency(ctx context.Context, document interface{}, dteType string, contingencyType int8, reason string) error {
+// StoreDocumentInContingency builds the deferred document (deferred model, contingency transmission type, contingency
+// type and reason), signs it once, persists the structure with its JWS and registers it for retransmission.
+func (s *ContingencyService) StoreDocumentInContingency(ctx context.Context, document interface{}, dteType string, contingencyType int8, reason string) (*DeferredDocument, error) {
 	claims := ctx.Value("claims").(*authModels.AuthClaims)
 
 	contingencyDoc := &dte.ContingencyDocument{
@@ -71,11 +71,16 @@ func (s *ContingencyService) StoreDocumentInContingency(ctx context.Context, doc
 
 	deferredDocument, err := utils.UpdateContingencyIdentification(document, &contingencyType, &reason)
 	if err != nil {
-		return shared_error.NewGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "failed to set contingency identification", err)
+		return nil, shared_error.NewGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "failed to set contingency identification", err)
 	}
 
-	if err := s.docSvc.store(ctx, deferredDocument, contingencyDoc); err != nil {
-		return err
+	signedDocument, err := s.txSvc.signDeferredDocument(ctx, deferredDocument, claims.NIT)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.docSvc.store(ctx, deferredDocument, contingencyDoc, signedDocument); err != nil {
+		return nil, err
 	}
 
 	logs.Info("Document stored in contingency", map[string]interface{}{
@@ -95,11 +100,12 @@ func (s *ContingencyService) StoreDocumentInContingency(ctx context.Context, doc
 		})
 	}
 
-	return nil
+	return &DeferredDocument{Document: deferredDocument, SignedDocument: signedDocument}, nil
 }
 
-// RetransmitPendingDocuments fetches all pending contingency documents, sends the contingency event
-// to Hacienda, and retransmits each document batch by DTE type.
+// RetransmitPendingDocuments fetches all pending contingency documents, sends one contingency event per issuer, branch
+// and contingency type, so every DTE carries the same contingency type as its event, and retransmits each batch by
+// DTE type. Documents that Hacienda already reports as processed or rejected are not transmitted again.
 func (s *ContingencyService) RetransmitPendingDocuments(ctx context.Context) error {
 	pendingDocs, err := s.docSvc.getPending(ctx, config.Server.MaxBatchSize)
 	if err != nil {
@@ -114,13 +120,10 @@ func (s *ContingencyService) RetransmitPendingDocuments(ctx context.Context) err
 
 	s.alertLongContingency(pendingDocs)
 
-	docsBySystemAndType := groupBySystemAndType(pendingDocs)
-
-	for systemNIT, typeGroups := range docsBySystemAndType {
-		var docsForNIT []dte.ContingencyDocument
-		for _, typeDocs := range typeGroups {
-			docsForNIT = append(docsForNIT, typeDocs...)
-		}
+	for _, group := range groupByEvent(pendingDocs) {
+		systemNIT := group.systemNIT
+		docsForNIT := group.documents
+		typeGroups := groupByDTEType(group.documents)
 
 		if err := s.contingencyEvents.PrepareAndSendContingencyEvent(ctx, docsForNIT); err != nil {
 			if contingencyErr, ok := err.(*ContingencyEventExistsError); ok {
@@ -129,7 +132,8 @@ func (s *ContingencyService) RetransmitPendingDocuments(ctx context.Context) err
 					"systemNIT": systemNIT,
 					"docCount":  len(contingencyErr.Documents),
 				})
-				s.verifyAndUpdateExistingDocuments(ctx, contingencyErr.Documents)
+				settled := s.verifyAndUpdateExistingDocuments(ctx, contingencyErr.Documents)
+				typeGroups = groupByDTEType(withoutSettled(group.documents, settled))
 				logs.Info("Continuing with document transmission after checking existing events")
 			} else {
 				logs.Error("Failed to send contingency event", map[string]interface{}{
@@ -265,7 +269,9 @@ func (s *ContingencyService) processSystemDocumentsByType(ctx context.Context, s
 	return nil
 }
 
-func (s *ContingencyService) verifyAndUpdateExistingDocuments(ctx context.Context, docs []dte.ContingencyDocument) {
+// verifyAndUpdateExistingDocuments queries Hacienda for each document of an event that already exists, stores the
+// reported status and returns the contingency ids whose status is final (processed or rejected).
+func (s *ContingencyService) verifyAndUpdateExistingDocuments(ctx context.Context, docs []dte.ContingencyDocument) map[string]bool {
 	type verifiedEntry struct {
 		contingencyID  string
 		stamp          string
@@ -337,15 +343,21 @@ func (s *ContingencyService) verifyAndUpdateExistingDocuments(ctx context.Contex
 		})
 	}
 
+	settled := make(map[string]bool)
 	for status, entries := range byStatus {
 		ids := make([]string, len(entries))
 		results := make(map[string]dte.ReceptionResult, len(entries))
 		for i, e := range entries {
 			ids[i] = e.contingencyID
 			results[e.contingencyID] = dte.ReceptionResult{ReceptionStamp: e.stamp, ProcessingDate: e.processingDate}
+			if status != constants.DocumentPending {
+				settled[e.contingencyID] = true
+			}
 		}
 		s.docSvc.markContingencyBatchVerified(ctx, ids, results, status)
 	}
+	return settled
+
 }
 
 // ContingencyEventExistsError is returned when Hacienda reports that the contingency event already exists.
@@ -359,14 +371,50 @@ func (e *ContingencyEventExistsError) Error() string {
 	return fmt.Sprintf("contingency event already exists: %s", e.Message)
 }
 
-func groupBySystemAndType(docs []dte.ContingencyDocument) map[string]map[string][]dte.ContingencyDocument {
-	result := make(map[string]map[string][]dte.ContingencyDocument)
+// eventGroup holds the pending documents reported in the same contingency event: same issuer, branch (establishment
+// and point of sale) and contingency type.
+type eventGroup struct {
+	systemNIT       string
+	branchID        uint
+	contingencyType int8
+	documents       []dte.ContingencyDocument
+}
+
+// groupByEvent splits the pending documents by issuer NIT, branch and contingency type, keeping the order in which
+// each group first appears.
+func groupByEvent(docs []dte.ContingencyDocument) []eventGroup {
+	var groups []eventGroup
+	index := make(map[string]int)
 	for _, doc := range docs {
 		nit := doc.Branch.User.NIT
-		if result[nit] == nil {
-			result[nit] = make(map[string][]dte.ContingencyDocument)
+		key := fmt.Sprintf("%s|%d|%d", nit, doc.BranchID, doc.ContingencyType)
+		position, exists := index[key]
+		if !exists {
+			position = len(groups)
+			index[key] = position
+			groups = append(groups, eventGroup{systemNIT: nit, branchID: doc.BranchID, contingencyType: doc.ContingencyType})
 		}
-		result[nit][doc.Document.DTEType] = append(result[nit][doc.Document.DTEType], doc)
+		groups[position].documents = append(groups[position].documents, doc)
+	}
+	return groups
+}
+
+// withoutSettled returns the documents whose contingency id is not in the settled set.
+func withoutSettled(docs []dte.ContingencyDocument, settled map[string]bool) []dte.ContingencyDocument {
+	remaining := make([]dte.ContingencyDocument, 0, len(docs))
+	for _, doc := range docs {
+		if !settled[doc.ID] {
+			remaining = append(remaining, doc)
+		}
+	}
+	return remaining
+}
+
+// groupByDTEType splits the documents of one event by DTE type, since each batch carries a single DTE type.
+func groupByDTEType(docs []dte.ContingencyDocument) map[string][]dte.ContingencyDocument {
+	result := make(map[string][]dte.ContingencyDocument)
+	for _, doc := range docs {
+		result[doc.Document.DTEType] = append(result[doc.Document.DTEType], doc)
 	}
 	return result
 }

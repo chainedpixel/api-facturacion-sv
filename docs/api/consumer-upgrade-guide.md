@@ -53,6 +53,7 @@ Clasificación usada:
 | 27 | Total a pagar `0.00` o saldo a favor: condición `1`; en FE, CCF y FEXE además forma de pago `99` | Rompe compatibilidad | Enviar `operation_condition: 1`; en FE, CCF y FEXE `[{"code": "99", "amount": 0.00}]`. En FSE, NC y ND solo la condición `1` |
 | 28 | ND: solo la venta no sujeta se limita por el saldo del CCF; gravado y exento sin tope | Cambio de comportamiento | Manejar `INVALIDDEBITNOTENOTSUBJECTAMOUNT` |
 | 29 | Orden de corrección de una NC: invalidar primero y emitir después | Informativo | Ver sección 5.5 |
+| 30 | Contingencia: el documento entregado viene firmado (`firmaElectronica`) y es el mismo que se transmite; `motivoContin` va `null` en los tipos 1 a 4; tras el sello se obtiene el Archivo DTE | Cambio de comportamiento | Guardar el documento firmado tal cual; al sellarse, obtener `GET /dte/{id}/archivo` y reenviarlo al receptor (ver 2.6.1) |
 
 ---
 
@@ -148,6 +149,26 @@ El consumidor ve el cambio en `GET /dte/{id}` y `GET /dte` como `status: "EXPIRE
 **Cambio en el consumidor.** Tratar `EXPIRED` como estado terminal: el documento no tiene sello ni validez, y si todavía se necesita la operación, emitir un documento nuevo. Quien filtraba por estado y asumía solo `RECEIVED`, `REJECTED`, `PENDING` e `INVALIDATED` debe agregar `EXPIRED`.
 
 Además, cuando la contingencia supera 3 días, el servicio envía al administrador una alerta que indica que se requiere un informe técnico; no tiene efecto en la API.
+
+### 2.6.1 Documento entregado en contingencia
+
+**Antes.** En contingencia la respuesta traía la estructura del DTE **sin firma**, con `tipoModelo` 2, `tipoOperacion` 2, `tipoContingencia` y `motivoContin` con texto. El documento que después se transmitía a Hacienda se firmaba aparte y salía con `tipoModelo` 1, `tipoOperacion` 1 y sin datos de contingencia, es decir, distinto del entregado.
+
+**Ahora.**
+
+- Se sigue respondiendo **HTTP 201** con `reception_stamp: null`: el consumidor sabe que el documento está en contingencia igual que antes.
+- `data` es el documento diferido **firmado**: la estructura del DTE más `firmaElectronica` (JWS). No trae `selloRecibido`.
+- `data.identificacion` lleva `tipoModelo` 2, `tipoOperacion` 2, `tipoContingencia` (1 a 5) y `motivoContin`: obligatorio con texto en el tipo 5 y `null` en los tipos 1 a 4.
+- Ese mismo documento, con el mismo contenido y la misma firma, es el que el servicio transmite a Hacienda en el lote, después del evento de contingencia. Hacienda lo valida contra el evento, que informa el mismo tipo de contingencia.
+- Mientras está pendiente, `GET /dte/{id}` muestra `status: "PENDING"` sin sello, y la invalidación se rechaza con `DOCUMENTPENDING`.
+- Cuando Hacienda lo sella, `GET /dte/{id}` muestra `status: "RECEIVED"` con `reception_stamp`, y `GET /dte/{id}/archivo` devuelve el Archivo DTE: la misma estructura firmada con `firmaElectronica` y `selloRecibido`.
+
+**Cambio en el consumidor.**
+
+1. Guardar el documento firmado recibido en contingencia tal cual, sin modificarlo, y entregarlo al receptor como documento en contingencia (sin sello).
+2. Consultar periódicamente `GET /dte/{id}` hasta que `reception_stamp` tenga valor (o el estado sea `EXPIRED`, ver 2.6).
+3. Al sellarse, obtener `GET /dte/{id}/archivo` y volver a enviarlo al receptor: es el documento definitivo, con sello.
+4. No esperar texto en `motivoContin` con los tipos 1 a 4.
 
 ### 2.7 Documentos relacionados en FE (01) y CCF (03)
 
@@ -510,6 +531,7 @@ Los códigos marcados "en `MANY_ERRORS`" provienen del validador de eventos, que
 - [ ] Evitar reintentos automáticos de emisión ante cualquier error 400 de servicio sin revisar el código.
 - [ ] Decidir por `error.code` y buscar también dentro de `error.details` (`MANY_ERRORS`).
 - [ ] Agregar `EXPIRED` al manejo de estados de DTE.
+- [ ] En contingencia: guardar el documento firmado recibido (`firmaElectronica`) sin modificarlo; al sellarse, obtener `GET /dte/{id}/archivo` y reenviarlo al receptor.
 - [ ] Si se usa `GET /dte?all=true`, revisar que no se dependa de otros emisores.
 
 ### Invalidación
@@ -534,13 +556,14 @@ Los códigos marcados "en `MANY_ERRORS`" provienen del validador de eventos, que
 8. Ítem con `discount` mayor que `100` en FE o CCF: debe aceptarse.
 9. Invalidar un CCF con una NC vigente: `PENDINGADJUSTMENTNOTES`; invalidar la NC (sin `replacement_generation_code`) y luego el CCF.
 10. Invalidar un documento fuera de plazo (si el ambiente permite documentos con sello antiguo): `INVALIDATIONDEADLINEEXPIRED`.
-11. Invalidar un documento en contingencia sin sello: `DOCUMENTWITHOUTSTAMP`; y uno `EXPIRED`: `DOCUMENTEXPIRED`.
+11. Invalidar un documento en contingencia todavía pendiente: `DOCUMENTPENDING`; y uno `EXPIRED`: `DOCUMENTEXPIRED`.
 12. `GET /dte/{id}`: verificar que llegue `processing_date`. `GET /dte?all=true`: verificar que solo aparezcan documentos del NIT autenticado.
 13. FE con condición `3`, un pago `01` y otro `13` que suman el total: debe aceptarse. FE con `total_to_pay` `0.00` y condición `2`: `NOPAYMENTDUEREQUIRESCASHCONDITION`.
 14. NR que relaciona un CCF con todos los ítems que lo referencian en `document_number`: debe aceptarse; con un ítem en `null`: `MISSINGITEMRELATEDDOC`.
 15. ND gravada mayor que el saldo restante del CCF: debe aceptarse. ND no sujeta mayor que el total no sujeto del CCF: `INVALIDDEBITNOTENOTSUBJECTAMOUNT`.
 16. NC incorrecta: invalidarla con tipo `1` y reemplazo `null`, y luego emitir la NC correcta: ambas deben aceptarse.
-17. Verificar manualmente (con el administrador) el manejo de `STAMPEDDOCUMENTNOTPERSISTED` y `ADDITIONALOPERATIONSFAILED`, porque no se pueden provocar de forma controlada desde un consumidor.
+17. Con la contingencia forzada en el ambiente de pruebas: emitir FE, CCF, NR y FSE; verificar `firmaElectronica`, `tipoModelo` 2, `tipoOperacion` 2 y `PENDING`; al restablecerse, verificar que cada uno quede `RECEIVED` y que el Archivo DTE traiga la misma firma y `selloRecibido`.
+18. Verificar manualmente (con el administrador) el manejo de `STAMPEDDOCUMENTNOTPERSISTED` y `ADDITIONALOPERATIONSFAILED`, porque no se pueden provocar de forma controlada desde un consumidor.
 
 ---
 

@@ -81,7 +81,7 @@ func TestContingencyService_StoreDocumentInContingency(t *testing.T) {
 			setup: mockSetup{
 				dteManager: func(m *mocks.MockDTEManager) {
 					m.EXPECT().
-						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, nil).
+						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, gomock.Any()).
 						Return(nil)
 				},
 				repo: func(m *mocks.MockContingencyRepositoryPort) {
@@ -109,7 +109,7 @@ func TestContingencyService_StoreDocumentInContingency(t *testing.T) {
 			setup: mockSetup{
 				dteManager: func(m *mocks.MockDTEManager) {
 					m.EXPECT().
-						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, nil).
+						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, gomock.Any()).
 						Return(errors.New("db error"))
 				},
 				repo:              func(m *mocks.MockContingencyRepositoryPort) {},
@@ -130,7 +130,7 @@ func TestContingencyService_StoreDocumentInContingency(t *testing.T) {
 			setup: mockSetup{
 				dteManager: func(m *mocks.MockDTEManager) {
 					m.EXPECT().
-						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, nil).
+						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, gomock.Any()).
 						Return(nil)
 				},
 				repo: func(m *mocks.MockContingencyRepositoryPort) {
@@ -203,7 +203,7 @@ func TestContingencyService_StoreDocumentInContingency(t *testing.T) {
 			setup: mockSetup{
 				dteManager: func(m *mocks.MockDTEManager) {
 					m.EXPECT().
-						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, nil).
+						Create(gomock.Any(), gomock.Any(), constants.TransmissionContingency, constants.DocumentPending, gomock.Any()).
 						Return(nil)
 				},
 				repo: func(m *mocks.MockContingencyRepositoryPort) {
@@ -237,11 +237,11 @@ func TestContingencyService_StoreDocumentInContingency(t *testing.T) {
 
 			svc := contingency.NewContingencyManager(
 				nil, mockDTE, mockRepo,
-				nil, nil, nil, nil, nil,
+				nil, nil, nil, &fakeContingencySigner{}, nil,
 				mockEvent, mockSeq, nil, nil,
 			)
 
-			err := svc.StoreDocumentInContingency(
+			_, err := svc.StoreDocumentInContingency(
 				tc.args.ctx,
 				tc.args.document,
 				tc.args.dteType,

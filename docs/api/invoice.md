@@ -423,8 +423,9 @@ Notas sobre la estructura:
 La FE soporta contingencia. Si la transmisión a Hacienda falla por causas no atribuibles al documento (red, indisponibilidad del servicio, timeout, etc.), el documento se almacena en contingencia a la espera de retransmisión y se responde igualmente **HTTP 201**, pero:
 
 - `reception_stamp` es `null`.
-- `data` es la estructura del documento **sin** `firmaElectronica` ni `selloRecibido` (no es un Archivo DTE).
-- `data.identificacion` cambia: `tipoModelo` pasa a `2` (diferido), `tipoOperacion` a `2` (contingencia), y se informan `tipoContingencia` (1–5, según el catálogo de contingencia) y `motivoContin`.
+- `data` es el documento diferido **firmado**: la estructura del DTE más `firmaElectronica` (JWS). No trae `selloRecibido`. Es exactamente el documento que se transmite después a Hacienda: el contenido y la firma no cambian.
+- `data.identificacion` lleva `tipoModelo` `2` (diferido), `tipoOperacion` `2` (contingencia), `tipoContingencia` (1–5, según el catálogo de contingencia) y `motivoContin`: obligatorio con texto en el tipo `5`; en los tipos 1 a 4 va `null`.
+- Cuando Hacienda sella el documento, se obtiene con `GET /api/v1/dte/{id}/archivo` (Archivo DTE con `firmaElectronica` y `selloRecibido`) para volver a enviarlo al receptor. Ver [Consulta de DTE](./dte-query.md).
 
 ```json
 {
@@ -441,7 +442,7 @@ La FE soporta contingencia. Si la transmisión a Hacienda falla por causas no at
       "tipoModelo": 2,
       "tipoOperacion": 2,
       "tipoContingencia": 1,
-      "motivoContin": "Servicio del Ministerio de Hacienda no disponible",
+      "motivoContin": null,
       "fecEmi": "2026-05-15",
       "horEmi": "10:15:30",
       "tipoMoneda": "USD"
@@ -449,14 +450,15 @@ La FE soporta contingencia. Si la transmisión a Hacienda falla por causas no at
     "emisor": { },
     "receptor": { },
     "cuerpoDocumento": [ ],
-    "resumen": { }
+    "resumen": { },
+    "firmaElectronica": "<JWS>"
   }
 }
 ```
 
 No se activa contingencia cuando el documento falla validación o Hacienda lo rechaza (`RECHAZADO`): en esos casos se devuelve el error correspondiente y el número de control se libera. Las condiciones de activación y los tipos de contingencia se describen en el [README](./README.md#contingencia).
 
-> **Normativa:** la contingencia se rige por la regla 13.2 y el Cuadro 7 de la Normativa de Cumplimiento DTE v2.0, que comprende a la FE entre los documentos admitidos. El Anexo IV (campos 6 a 9) define el modelo de facturación, el tipo de transmisión, el tipo de contingencia (CAT-005, códigos 1 a 5) y el motivo de contingencia, requerido cuando el tipo es `5` (campo 9, regla 1). Un documento en contingencia no cuenta con Sello de Recepción hasta su transmisión (regla 11.2).
+> La contingencia aplica a la FE. Un documento en contingencia no tiene sello de recepción hasta que se transmite: el tipo de contingencia del documento es el mismo del evento de contingencia en que se informa, y el motivo es obligatorio cuando el tipo es `5`.
 
 ---
 

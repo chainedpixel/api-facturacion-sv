@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	appPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
@@ -49,8 +50,11 @@ func NewContingencyHandler(
 	}
 }
 
+// HandleContingency stores the document in contingency when the error calls for it and returns the deferred document
+// signed once, which is delivered to the consumer and later transmitted unchanged; it returns nil when the error does
+// not call for contingency or the document could not be stored.
 func (ch *ContingencyHandler) HandleContingency(ctx context.Context,
-	document interface{}, dteType string, err error) (*int8, *string) {
+	document interface{}, dteType string, err error) *contingency.DeferredDocument {
 
 	logs.Info("Starting contingency handling", map[string]interface{}{
 		"dteType": dteType,
@@ -59,21 +63,26 @@ func (ch *ContingencyHandler) HandleContingency(ctx context.Context,
 
 	if !ch.shouldHandleAsContingency(err) {
 		logs.Info("Error does not require contingency handling")
-		return nil, nil
+		return nil
 	}
 
 	result := ch.classifyError(err)
 
-	if err := ch.storeForContingency(ctx, document, dteType, result); err != nil {
-		logs.Error("CONTINGENCY SERVICE CRITICAL ERROR - Failed to store document in contingency", map[string]interface{}{"error": err.Error()})
-		return nil, nil
+	deferred, storeErr := ch.storeForContingency(ctx, document, dteType, result)
+	if storeErr != nil {
+		logs.Error("CONTINGENCY SERVICE CRITICAL ERROR - Failed to store document in contingency", map[string]interface{}{"error": storeErr.Error()})
+		return nil
 	}
 
 	logs.Info("Contingency handling finished", map[string]interface{}{"dteType": dteType, "contingencyType": result.ContingencyType})
-	return &result.ContingencyType, &result.ContingencyReason
+	return deferred
 }
 
 func (ch *ContingencyHandler) shouldHandleAsContingency(err error) bool {
+	if errors.Is(err, appPorts.ErrSigning) {
+		return false
+	}
+
 	var validationErr *dte_errors.ValidationError
 	if errors.As(err, &validationErr) {
 		return false
@@ -104,9 +113,9 @@ func (ch *ContingencyHandler) storeForContingency(
 	document interface{},
 	dteType string,
 	result ContingencyResult,
-) error {
+) (*contingency.DeferredDocument, error) {
 
-	err := ch.contingencyService.StoreDocumentInContingency(
+	deferred, err := ch.contingencyService.StoreDocumentInContingency(
 		ctx,
 		document,
 		dteType,
@@ -120,7 +129,7 @@ func (ch *ContingencyHandler) storeForContingency(
 			"dteType":         dteType,
 			"contingencyType": result.ContingencyType,
 		})
-		return err
+		return nil, err
 	}
 
 	logs.Info("Document stored in contingency successfully", map[string]interface{}{
@@ -128,7 +137,7 @@ func (ch *ContingencyHandler) storeForContingency(
 		"contingencyType": result.ContingencyType,
 	})
 
-	return nil
+	return deferred, nil
 }
 
 func (ch *ContingencyHandler) classifyError(err error) ContingencyResult {

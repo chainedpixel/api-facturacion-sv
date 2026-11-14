@@ -265,6 +265,7 @@ Existen además fixtures inválidos por tipo, por ejemplo `CreateInvoiceRequestW
 | `mh_transmitter_token_adversarial_test.go`, `no_secrets_in_logs_adversarial_test.go` | Token de Hacienda obtenido por llamada (sin campo compartido) y ausencia de secretos en los logs |
 | `i18n_validation_keys_test.go` | Las claves de error nuevas existen y traducen en ambos idiomas |
 | `contingency_window_test.go` | Ventana de 72 horas, expiración de documentos y alertas al administrador |
+| `contingency_deferred_identification_test.go`, `contingency_adversarial_test.go` | Documento diferido de contingencia: identificación 2/2, motivo por tipo (texto en el tipo 5, `null` en 1 a 4, recorte a 500 caracteres), números conservados, firma única al guardar, documento entregado igual al del lote campo por campo y por firma, sin volver a firmar, eventos por NIT, sucursal y tipo de contingencia, documentos sin JWS guardado, lotes partidos, fallos parciales y documentos vencidos |
 | `mh_transmitter_test.go` | `MHTransmitter`: timeout y `CheckDocumentStatus` (HTTP 200, 202, 400 y 500) |
 | `compliance_audit_fixes_test.go` | `GetDocumentRequestData` (DTE e invalidación), timeouts de los clientes HTTP y rutas de `MHPaths` sin barra final |
 | `circuit_breaker_test.go` | `CircuitBreaker`: estados Closed/Open/HalfOpen, umbral y reinicio |
@@ -300,10 +301,10 @@ Existen además fixtures inválidos por tipo, por ejemplo `CreateInvoiceRequestW
 | `handlers/` | `AdminEmailHandler` (cooldown, render, errores) y `DebugNotifyHandler` |
 | `health/` | Checkers de eventos de dominio y SMTP |
 | `jobs/` | Ejecución y ejecución concurrente de los tres jobs |
-| `repositories/` | Rechazo de identificación vacía, guardado de eventos, filtrado de secuencias rechazadas por Hacienda, bloqueo `FOR UPDATE` y reintento del contador de número de control, saldo inicial neto de descuentos globales, limpieza de reservas por sucursal y filtro por NIT del emisor |
-| `application/` | `GenericDTEUseCase` (reintento de persistencia, `StampedDocumentNotPersisted`, `AdditionalOperationsFailed`, confirmación de reserva) y filtros del listado por NIT del emisor |
+| `repositories/` | Rechazo de identificación vacía, guardado de eventos, filtrado de secuencias rechazadas por Hacienda, bloqueo `FOR UPDATE` y reintento del contador de número de control, saldo inicial neto de descuentos globales, limpieza de reservas por sucursal, filtro por NIT del emisor y carga del JWS guardado de los documentos en contingencia (`contingency_signed_document_test.go`) |
+| `application/` | `GenericDTEUseCase` (reintento de persistencia, `StampedDocumentNotPersisted`, `AdditionalOperationsFailed`, confirmación de reserva, error del firmador que libera la reserva sin activar contingencia) y filtros del listado por NIT del emisor |
 
-### Test de Integración (1 archivo)
+### Tests de Integración
 
 > **Archivo:** `tests/integration/all_dte_test.go`
 
@@ -327,6 +328,8 @@ Se ejecuta un test parametrizado con `httptest` para cuatro tipos de DTE, cada u
 | Error de validación | Rechazo de un monto inválido a nivel de dominio |
 
 Se usa un router `mux` con el `GenericCreatorDTEHandler` real, el `GenericDTEUseCase` real y mocks de `MockAuthManager`, `MockDTEService`, `MockDTEManager`, `MockBaseTransmitter`, `MockSequentialNumberManager` y `MockContingencyManager`. Los paths de prueba son propios de la prueba (no coinciden con los endpoints reales `/dte/invoices`, etc.). No se prueban en esta suite nota de débito, nota de remisión, FSE ni invalidación a nivel HTTP.
+
+`tests/integration/contingency_adversarial_test.go` usa el `ContingencyService` real con un firmador falso para FE y CCF: respuesta 201 con el documento diferido firmado igual al guardado (campo por campo y por firma), errores que no activan contingencia (validación, negocio, servicio, `RECHAZADO`), firmador caído y clasificación de errores en los tipos 1, 2, 3 y 5.
 
 ---
 
@@ -407,7 +410,7 @@ Si la variable está definida, el cliente crea el directorio (permisos `0700`) y
 | `credit_related_docs_e2e_test.go` | `TestE2E_CreditoYDocumentosRelacionados` | FE y CCF a crédito con código y referencia en `null`, monto `0.00`, plazo y período (sello); rechazos locales por código, referencia, plazo o período a crédito y por código ausente al contado; FE que relaciona una NR con todos los ítems vinculados (sello); FE y CCF con un ítem en `null` junto a documentos relacionados, FE sin ítems vinculados y FE con referencia sin documentos relacionados (rechazo local) |
 | `notes_payments_invalidation_e2e_test.go` | `TestE2E_NotasPagosMixtosEInvalidacionNC` | NR que relaciona un CCF con todos los ítems vinculados (sello), con un ítem en `null` y sin ítems vinculados (rechazo local); NC con un ítem sin documento relacionado (rechazo local); ND gravada mayor que el saldo restante del CCF (sello); ND no sujeta mayor que el total no sujeto del CCF (rechazo local); FE con condición `3` y pagos `01` y `13` (sello); NC invalidada con tipo `1` y reemplazo `null` seguida de la NC correcta (ambas con sello) |
 | `deadlines_e2e_test.go` | `TestE2E_PlazosDocumentosAntiguos` | Plazos de invalidación y de documentos relacionados con documentos de meses atrás (`InvalidationDeadlineExpired`, `RelatedDocOutOfPeriod`) |
-| `contingency_e2e_test.go` | `TestE2E_Contingencia` | Contingencia por fases (ver abajo) |
+| `contingency_e2e_test.go` | `TestE2E_Contingencia` | Contingencia por fases (ver abajo): fase 1 verifica el documento diferido firmado (2/2, tipo de contingencia, `firmaElectronica`), estado `PENDING` e invalidación rechazada (`DOCUMENTPENDING`); fase 2 verifica sello, Archivo DTE con `selloRecibido` y la misma firma entregada en la fase 1, y que conserve 2/2 y el tipo de contingencia |
 
 `calculator_test.go` y `client_test.go` no contienen pruebas: arman los requests desde los items (cuerpo con 8 decimales y resumen con 2, calculado desde los valores ya redondeados de los items) y el cliente HTTP (login, `emit`, `expectRejected`, `invalidate`, consulta de archivo y eventos).
 

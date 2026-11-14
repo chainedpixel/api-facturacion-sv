@@ -13,6 +13,7 @@ import (
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/auth"
 	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/shared_error"
 
+	appPorts "github.com/chainedpixel/api-facturacion-sv/internal/application/ports"
 	"github.com/chainedpixel/api-facturacion-sv/pkg/shared/logs"
 )
 
@@ -69,7 +70,7 @@ func (s *DTESigner) SignDTE(ctx context.Context, dte json.RawMessage, nit string
 
 	jsonData, err := json.Marshal(req)
 	if err != nil {
-		return "", fmt.Errorf("error marshalling sign request: %w", err)
+		return "", fmt.Errorf("%w: error marshalling sign request: %w", appPorts.ErrSigning, err)
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx,
@@ -77,26 +78,26 @@ func (s *DTESigner) SignDTE(ctx context.Context, dte json.RawMessage, nit string
 		config.Signer.Path,
 		bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", fmt.Errorf("error creating sign request: %w", err)
+		return "", fmt.Errorf("%w: error creating sign request: %w", appPorts.ErrSigning, err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.client.Do(httpReq)
 	if err != nil {
-		return "", fmt.Errorf("error calling signer service: %w", err)
+		return "", fmt.Errorf("%w: error calling signer service: %w", appPorts.ErrSigning, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error reading response body: %w", err)
+		return "", fmt.Errorf("%w: error reading response body: %w", appPorts.ErrSigning, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		var springError SpringBootError
 		if err := json.Unmarshal(body, &springError); err == nil {
-			return "", fmt.Errorf("signer service error - status: %d, error: %s, message: %s",
+			return "", fmt.Errorf("%w: signer service error - status: %d, error: %s, message: %s", appPorts.ErrSigning,
 				springError.Status,
 				springError.Error,
 				springError.Message)
@@ -110,18 +111,18 @@ func (s *DTESigner) SignDTE(ctx context.Context, dte json.RawMessage, nit string
 			} `json:"body"`
 		}
 		if err := json.Unmarshal(body, &errorResp); err == nil {
-			return "", fmt.Errorf("signer service error - code: %s, messages: %v",
+			return "", fmt.Errorf("%w: signer service error - code: %s, messages: %v", appPorts.ErrSigning,
 				errorResp.Body.Codigo,
 				errorResp.Body.Mensaje)
 		}
 
-		return "", fmt.Errorf("unexpected error response from signer service (status %d): %s",
+		return "", fmt.Errorf("%w: unexpected error response from signer service (status %d): %s", appPorts.ErrSigning,
 			resp.StatusCode, string(body))
 	}
 
 	var signResp SignResponse
 	if err := json.Unmarshal(body, &signResp); err != nil {
-		return "", fmt.Errorf("error decoding successful response: %w, body: %s", err, string(body))
+		return "", fmt.Errorf("%w: error decoding successful response: %w, body: %s", appPorts.ErrSigning, err, string(body))
 	}
 
 	logs.Debug("Sign response", map[string]interface{}{

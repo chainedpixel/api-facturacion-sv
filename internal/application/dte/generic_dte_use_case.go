@@ -308,6 +308,10 @@ func extractControlNumber(mhModel interface{}) (string, error) {
 }
 
 func (u *GenericDTEUseCase) shouldHandleAsContingency(err error) bool {
+	if errors.Is(err, appPorts.ErrSigning) {
+		return false
+	}
+
 	var validationErr *dte_errors.ValidationError
 	if errors.As(err, &validationErr) {
 		return false

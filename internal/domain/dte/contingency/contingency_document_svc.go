@@ -30,9 +30,9 @@ func newContingencyDocumentSvc(
 	}
 }
 
-// store creates the DTE record in contingency mode and registers the contingency document.
+// store creates the DTE record in contingency mode with its signed document and registers the contingency document.
 // It fills in the DocumentID on contingencyDoc from the extracted DTE identification.
-func (s *contingencyDocumentSvc) store(ctx context.Context, document interface{}, contingencyDoc *dte.ContingencyDocument) error {
+func (s *contingencyDocumentSvc) store(ctx context.Context, document interface{}, contingencyDoc *dte.ContingencyDocument, signedDocument string) error {
 	dteInfo, err := utils.ExtractAuxiliarIdentification(document)
 	if err != nil {
 		logs.Error("Failed to extract general DTE info", map[string]interface{}{
@@ -45,7 +45,8 @@ func (s *contingencyDocumentSvc) store(ctx context.Context, document interface{}
 		return shared_error.NewFormattedGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "MissingDTEIdentification")
 	}
 
-	if err = s.dteManager.Create(ctx, document, constants.TransmissionContingency, constants.DocumentPending, nil); err != nil {
+	evidence := &dte.TransmissionEvidence{SignedDocument: signedDocument}
+	if err = s.dteManager.Create(ctx, document, constants.TransmissionContingency, constants.DocumentPending, evidence); err != nil {
 		logs.Error("Failed to store DTE", map[string]interface{}{
 			"error": err.Error(),
 		})

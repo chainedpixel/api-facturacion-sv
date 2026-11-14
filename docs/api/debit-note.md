@@ -208,7 +208,7 @@ Para cada documento relacionado electrónico se exige que exista su control de s
 }
 ```
 
-> En contingencia (`reception_stamp: null`) `data` es la estructura del DTE sin firma, con `tipoModelo = 2`, `tipoOperacion = 2`, `tipoContingencia` y `motivoContin`, y no el Archivo DTE.
+> En contingencia (`reception_stamp: null`) `data` es el documento diferido firmado (estructura más `firmaElectronica`, sin `selloRecibido`), con `tipoModelo = 2`, `tipoOperacion = 2`, `tipoContingencia` y `motivoContin` (`null` en los tipos 1 a 4). Tras el sello, el Archivo DTE se obtiene con `GET /api/v1/dte/{id}/archivo`.
 
 > `totalIva` del resumen y de los ítems se informa únicamente cuando el documento ajustado es un CR (`07`); al ajustar un CCF el IVA se informa solo como tributo `20` del resumen y `totalIva` va en `0`.
 

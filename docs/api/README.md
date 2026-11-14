@@ -67,7 +67,7 @@ Cuando se crea un DTE exitosamente, la respuesta tiene la siguiente estructura:
 | `success` | boolean | Siempre `true` en respuestas exitosas |
 | `reception_stamp` | string \| null | Sello de recepción emitido por Hacienda. `null` si el documento fue a contingencia |
 | `qr_link` | string \| null | URL pública para consultar el DTE en el portal de Hacienda |
-| `data` | object | **Archivo DTE**: la estructura firmada del documento, íntegra y sin alteraciones, más `firmaElectronica` (JWS) y `selloRecibido`. En contingencia (sin sello) es la estructura del DTE sin firma |
+| `data` | object | **Archivo DTE**: la estructura firmada del documento, íntegra y sin alteraciones, más `firmaElectronica` (JWS) y `selloRecibido`. En contingencia (sin sello) es el documento diferido firmado: la estructura más `firmaElectronica`, sin `selloRecibido` |
 
 ### Respuesta exitosa — otras operaciones
 
@@ -201,7 +201,7 @@ El tipo `4` (energía eléctrica) no se asigna automáticamente.
 
 ### Respuesta durante contingencia
 
-La respuesta es `HTTP 201` con la estructura del DTE (sin firma ni sello) y `reception_stamp: null`. El documento queda en estado `PENDING` con transmisión `CONTINGENCY`:
+La respuesta es `HTTP 201` con el documento diferido firmado (estructura del DTE más `firmaElectronica`, sin `selloRecibido`) y `reception_stamp: null`. El documento queda en estado `PENDING` con transmisión `CONTINGENCY`. El documento entregado y el que después se transmite a Hacienda son el mismo: igual contenido y misma firma.
 
 ```json
 {
@@ -213,13 +213,16 @@ La respuesta es `HTTP 201` con la estructura del DTE (sin firma ni sello) y `rec
       "tipoModelo": 2,
       "tipoOperacion": 2,
       "tipoContingencia": 1,
-      "motivoContin": "Servicio del Ministerio de Hacienda no disponible",
+      "motivoContin": null,
       ...
     },
-    ...
+    ...,
+    "firmaElectronica": "<JWS>"
   }
 }
 ```
+
+`motivoContin` es obligatorio con texto cuando `tipoContingencia` es `5`; con los tipos 1 a 4 va `null`. Cuando Hacienda sella el documento (el job de retransmisión envía primero el evento de contingencia y después el lote), el consumidor obtiene el Archivo DTE con `GET /api/v1/dte/{id}/archivo`, que trae la misma firma más `selloRecibido`, y lo vuelve a enviar al receptor.
 
 ---
 

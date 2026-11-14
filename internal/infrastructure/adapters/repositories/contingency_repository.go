@@ -183,6 +183,9 @@ func convertToDomainModel(doc *db_models.ContingencyDocument) dte.ContingencyDoc
 			ReceptionStamp: doc.Document.ReceptionStamp,
 			JSONData:       doc.Document.JSONData,
 		}
+		if doc.Document.SignedDocument != nil {
+			document.SignedDocument = *doc.Document.SignedDocument
+		}
 	}
 
 	return dte.ContingencyDocument{

@@ -139,9 +139,7 @@ func TestGenericUseCaseReportsStampedDocumentNotPersisted(t *testing.T) {
 	assert.NotContains(t, evt.Payload(), "signed_document")
 
 	contingencyHandler := helpers.NewContingencyHandler(mocks.NewMockContingencyManager(gomock.NewController(t)))
-	contiType, reason := contingencyHandler.HandleContingency(f.ctx, nil, "01", err)
-	assert.Nil(t, contiType)
-	assert.Nil(t, reason)
+	assert.Nil(t, contingencyHandler.HandleContingency(f.ctx, nil, "01", err))
 }
 
 func TestGenericUseCaseContinuesWhenConfirmReservationFails(t *testing.T) {
@@ -168,6 +166,5 @@ func TestGenericUseCaseWrapsUntypedAdditionalOperationsError(t *testing.T) {
 	assert.False(t, strings.HasPrefix(svcErr.Message, "["))
 
 	contingencyHandler := helpers.NewContingencyHandler(mocks.NewMockContingencyManager(gomock.NewController(t)))
-	contiType, _ := contingencyHandler.HandleContingency(f.ctx, nil, "01", err)
-	assert.Nil(t, contiType)
+	assert.Nil(t, contingencyHandler.HandleContingency(f.ctx, nil, "01", err))
 }

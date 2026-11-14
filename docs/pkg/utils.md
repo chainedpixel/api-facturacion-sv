@@ -262,21 +262,23 @@ msg := utils.TranslateHealthUp("database")
 func UpdateContingencyIdentification(document interface{}, contiType *int8, reason *string) (map[string]interface{}, error)
 ```
 
-Se modifica el JSON de un DTE para agregar información de contingencia:
+Se arma el documento diferido de contingencia a partir del JSON de un DTE:
 
 ```json
 // Antes:
 { "identificacion": { "tipoModelo": 1, "tipoOperacion": 1 } }
 
-// Después:
+// Después (tipo 1 a 4):
 { "identificacion": {
-    "tipoModelo": 2,           // ModeloFacturacionDiferido
-    "tipoOperacion": 2,        // TransmisionContingencia
-    "tipoContingencia": 2,     // Tipo proporcionado
-    "motivoContin": "Falla..." // Motivo proporcionado
+    "tipoModelo": 2,          // ModeloFacturacionDiferido
+    "tipoOperacion": 2,       // TransmisionContingencia
+    "tipoContingencia": 1,    // Tipo proporcionado
+    "motivoContin": null      // null en los tipos 1 a 4
   }
 }
 ```
+
+Con el tipo `5` (`OtroMotivo`), `motivoContin` lleva el motivo recibido sin espacios sobrantes; si viene vacío se usa la descripción del catálogo, y se recorta a 500 caracteres. El JSON se decodifica conservando el texto original de cada número (`UseNumber`), de modo que montos y enteros grandes se escriben igual que llegaron.
 
 Se acepta el documento como `string`, `[]byte`, o `interface{}`.
 

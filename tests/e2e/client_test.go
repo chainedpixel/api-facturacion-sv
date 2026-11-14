@@ -45,10 +45,13 @@ type apiResponse struct {
 
 // emittedDTE contiene los datos de un documento emitido que otros casos necesitan (NC, ND, invalidacion)
 type emittedDTE struct {
-	GenerationCode string
-	ControlNumber  string
-	EmissionDate   string
-	ReceptionStamp string
+	GenerationCode   string
+	ControlNumber    string
+	EmissionDate     string
+	ReceptionStamp   string
+	SignedDocument   string
+	ContingencyType  int
+	ContingencyNotes string
 }
 
 // loadDotEnv lee KEY=VALUE del .env de la raiz sin sobrescribir variables ya definidas en el entorno
@@ -481,20 +484,42 @@ func (c *apiClient) emitInContingency(t *testing.T, path string, body interface{
 	emitted := &emittedDTE{}
 	var document struct {
 		Identificacion struct {
-			CodigoGeneracion string `json:"codigoGeneracion"`
-			NumeroControl    string `json:"numeroControl"`
-			FecEmi           string `json:"fecEmi"`
-			TipoModelo       int    `json:"tipoModelo"`
-			TipoOperacion    int    `json:"tipoOperacion"`
+			CodigoGeneracion string  `json:"codigoGeneracion"`
+			NumeroControl    string  `json:"numeroControl"`
+			FecEmi           string  `json:"fecEmi"`
+			TipoModelo       int     `json:"tipoModelo"`
+			TipoOperacion    int     `json:"tipoOperacion"`
+			TipoContingencia *int    `json:"tipoContingencia"`
+			MotivoContin     *string `json:"motivoContin"`
 		} `json:"identificacion"`
+		FirmaElectronica string `json:"firmaElectronica"`
 	}
-	if err := json.Unmarshal(resp.Data, &document); err == nil {
-		emitted.GenerationCode = document.Identificacion.CodigoGeneracion
-		emitted.ControlNumber = document.Identificacion.NumeroControl
-		emitted.EmissionDate = document.Identificacion.FecEmi
-		t.Logf("CONTINGENCIA | %s | tipoModelo %d tipoOperacion %d", emitted.GenerationCode,
-			document.Identificacion.TipoModelo, document.Identificacion.TipoOperacion)
+	if err := json.Unmarshal(resp.Data, &document); err != nil {
+		t.Errorf("el documento entregado en contingencia no es JSON valido: %v", err)
+		return nil
 	}
+	ident := document.Identificacion
+	emitted.GenerationCode = ident.CodigoGeneracion
+	emitted.ControlNumber = ident.NumeroControl
+	emitted.EmissionDate = ident.FecEmi
+	emitted.SignedDocument = document.FirmaElectronica
+	if ident.TipoModelo != 2 || ident.TipoOperacion != 2 || ident.TipoContingencia == nil {
+		t.Errorf("el documento entregado en contingencia no es diferido: tipoModelo=%d tipoOperacion=%d tipoContingencia=%v",
+			ident.TipoModelo, ident.TipoOperacion, ident.TipoContingencia)
+		return emitted
+	}
+	emitted.ContingencyType = *ident.TipoContingencia
+	if ident.MotivoContin != nil {
+		emitted.ContingencyNotes = *ident.MotivoContin
+	}
+	if *ident.TipoContingencia == 5 && emitted.ContingencyNotes == "" {
+		t.Errorf("el documento de contingencia tipo 5 %s no trae motivoContin", emitted.GenerationCode)
+	}
+	if strings.Count(emitted.SignedDocument, ".") != 2 {
+		t.Errorf("el documento entregado en contingencia %s no trae firmaElectronica", emitted.GenerationCode)
+	}
+	t.Logf("CONTINGENCIA | %s | tipoModelo %d tipoOperacion %d tipoContingencia %d | firmado: %t", emitted.GenerationCode,
+		ident.TipoModelo, ident.TipoOperacion, emitted.ContingencyType, emitted.SignedDocument != "")
 	return emitted
 }
 

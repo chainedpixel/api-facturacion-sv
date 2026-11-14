@@ -114,8 +114,8 @@ func TestAdversarialPersistFailureWithEveryErrorShape(t *testing.T) {
 			require.Len(t, bus.events, 1)
 
 			handler := helpers.NewContingencyHandler(mocks.NewMockContingencyManager(gomock.NewController(t)))
-			contiType, _ := handler.HandleContingency(advContext(), nil, "01", err)
-			assert.Nil(t, contiType, "a stamped document must never be sent to contingency")
+			deferred := handler.HandleContingency(advContext(), nil, "01", err)
+			assert.Nil(t, deferred, "a stamped document must never be sent to contingency")
 		})
 	}
 }

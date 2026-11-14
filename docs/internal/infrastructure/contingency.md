@@ -41,19 +41,33 @@ RetransmitPendingDocuments(ctx)
   │     RetransmissionJobFailedEvent (JobName = contingency_technical_report)
   │     indicando que se requiere un informe técnico de contingencia
   │
-  ├── [4] Agrupar por NIT del emisor y tipo de DTE
+  ├── [4] groupByEvent: agrupar por NIT del emisor, sucursal y tipo de contingencia
+  │     (cada evento lleva el establecimiento y punto de venta de una sucursal y un solo
+  │     tipo de contingencia, igual al tipoContingencia de cada DTE que informa)
   │
-  └── [5] Por cada NIT:
+  └── [5] Por cada grupo:
         ├── PrepareAndSendContingencyEvent (este paquete)
         │     ├── Error ContingencyEventExistsError → verifyAndUpdateExistingDocuments
-        │     │     (consulta el estado de cada documento en Hacienda y actualiza)
-        │     │     y se continúa con la transmisión
-        │     └── Otro error → se registra y se pasa al siguiente NIT
-        └── Por cada tipo de DTE: lotes de TransmissionConfig.BatchSize
-              (firma → TransmitBatch → VerifyContingencyBatchStatus; ver transmitter.md)
+        │     │     (consulta el estado de cada documento en Hacienda y lo actualiza);
+        │     │     los documentos que Hacienda reporta PROCESADO o RECHAZADO no se
+        │     │     vuelven a transmitir
+        │     └── Otro error → se registra y se pasa al siguiente grupo
+        └── Por cada tipo de DTE del grupo: lotes de TransmissionConfig.BatchSize
+              (JWS guardado → TransmitBatch → VerifyContingencyBatchStatus; ver transmitter.md)
 ```
 
-Referencia normativa (Normativa de Cumplimiento DTE v2.0): el numeral 13.2.2 establece que los documentos en estado transitorio y los eventos generados en contingencia deben transmitirse en el plazo de setenta y dos horas contadas a partir de la obtención del Sello de Recepción del Evento de Contingencia; el numeral 13.2.1.1 exige un Informe Técnico de Contingencia cuando la contingencia persiste por más de tres días consecutivos.
+Los documentos generados en contingencia deben transmitirse dentro de las setenta y dos horas siguientes al sello de recepción del evento de contingencia, y una contingencia de más de tres días consecutivos requiere un informe técnico.
+
+### Documento diferido firmado una sola vez
+
+Al guardar un documento en contingencia (`StoreDocumentInContingency`):
+
+1. `utils.UpdateContingencyIdentification` arma la estructura diferida: `tipoModelo` 2, `tipoOperacion` 2, `tipoContingencia` y `motivoContin` (texto obligatorio en el tipo 5; `null` en los tipos 1 a 4).
+2. La estructura se firma **una sola vez** con el NIT del emisor (`signDeferredDocument`).
+3. Se guardan la estructura en `dte_details.json_data` y el JWS en `dte_details.signed_document`.
+4. Se devuelve un `DeferredDocument`; el handler responde `Response()`, que es la misma estructura más `firmaElectronica`.
+
+Al retransmitir, `signDocuments` envía en el lote el JWS guardado sin volver a firmarlo, de modo que el documento entregado al consumidor y el transmitido son idénticos (contenido y firma). Solo los documentos guardados antes de conservar el JWS se firman al retransmitir. Si el firmador falla, el error es `ports.ErrSigning`: no se activa contingencia, la reserva del número de control se libera y no se guarda nada sin firma. Tras el sello, `GET /dte/{id}/archivo` arma el Archivo DTE desde ese mismo JWS más `selloRecibido`.
 
 Las constantes de la ventana están en `contingency_window.go`: `TransmissionWindow = 72h` (desde el sello del evento), `TechnicalReportThreshold = 72h` y `ContingencyExpiredCode = "CONTINGENCY_72H_EXPIRED"`.
 
@@ -103,7 +117,8 @@ PrepareAndSendContingencyEvent(ctx, docs)
   │           fInicio: fecha del primer documento
   │           hInicio: hora del primer documento - 60 s
   │           fFin / hFin: ahora / ahora + 10 s
-  │           tipoContingencia y motivoContingencia: los del primer documento
+  │           tipoContingencia y motivoContingencia: los del primer documento del grupo
+  │           (todos los documentos del grupo tienen el mismo tipo de contingencia)
   │
   ├── [3] Construir evento (ContingencyEvent)
   │     identificacion: { version: 4, ambiente, codigoGeneracion (UUID nuevo en mayúsculas),

@@ -16,6 +16,7 @@ import (
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/contingency"
 	transmitterModels "github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/transmitter/models"
 	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/adapters/transmitter/hacienda_error"
 	"github.com/chainedpixel/api-facturacion-sv/internal/infrastructure/api/handlers"
@@ -44,6 +45,9 @@ type DTETestConfig struct {
 		ResponseMapper       mapper.ResponseMapperFunc
 	}
 }
+
+// integrationDeferredJWS is the signature returned by the contingency manager mock for the deferred document.
+const integrationDeferredJWS = "eyJhbGciOiJSUzUxMiJ9.eyJkZWZlcnJlZCI6dHJ1ZX0.c2lnbmF0dXJl"
 
 func TestAllDTETypes(t *testing.T) {
 	test.TestMain(t)
@@ -332,7 +336,13 @@ func TestAllDTETypes(t *testing.T) {
 						dteConfig.DocumentType,
 						int8(constants.NoDisponibilidadMH),
 						constants.ContingencyReasons[constants.NoDisponibilidadMH],
-					).Return(nil)
+					).DoAndReturn(func(_ context.Context, document interface{}, _ string, contingencyType int8, reason string) (*contingency.DeferredDocument, error) {
+					deferred, err := utils.UpdateContingencyIdentification(document, &contingencyType, &reason)
+					if err != nil {
+						return nil, err
+					}
+					return &contingency.DeferredDocument{Document: deferred, SignedDocument: integrationDeferredJWS}, nil
+				})
 			},
 			prepareRequest: func(dteConfig DTETestConfig) (*http.Request, error) {
 				dteRequest := dteConfig.GetRequest()
@@ -392,7 +402,13 @@ func TestAllDTETypes(t *testing.T) {
 				assert.Equal(t, constants.TransmisionContingencia, identification.Identificacion.TipoOperacion)
 				assert.Equal(t, constants.ModeloFacturacionDiferido, identification.Identificacion.TipoModelo)
 				assert.Equal(t, constants.NoDisponibilidadMH, identification.Identificacion.TipoContingencia)
-				assert.Nil(t, identification.Identificacion.MotivoContin, "motivoContin must be null for contingency types 1 to 4")
+				assert.Nil(t, identification.Identificacion.MotivoContin, "motivoContin defaults to null for contingency types 1 to 4")
+
+				var signed struct {
+					FirmaElectronica string `json:"firmaElectronica"`
+				}
+				require.NoError(t, json.Unmarshal(response.Data, &signed))
+				assert.Equal(t, integrationDeferredJWS, signed.FirmaElectronica, "the consumer receives the signed deferred document")
 			},
 			handleContingency: true,
 		},

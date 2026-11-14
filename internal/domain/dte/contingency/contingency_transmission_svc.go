@@ -139,11 +139,33 @@ func (s *contingencyTransmissionSvc) checkDocumentStatus(ctx context.Context, ge
 	return s.queryHaciendaStatus(ctx, generationCode, nit, dteType, haciendaToken)
 }
 
+// signDeferredDocument signs the deferred structure once with the issuer NIT; the returned JWS is the document
+// delivered to the consumer and transmitted later.
+func (s *contingencyTransmissionSvc) signDeferredDocument(ctx context.Context, document map[string]interface{}, nit string) (string, error) {
+	payload, err := json.Marshal(document)
+	if err != nil {
+		return "", shared_error.NewGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "failed to marshal deferred document", err)
+	}
+
+	signed, err := s.signer.SignDTE(ctx, payload, nit)
+	if err != nil {
+		return "", shared_error.NewGeneralServiceError("ContingencyService", "StoreDocumentInContingency", "failed to sign deferred document", err)
+	}
+
+	return signed, nil
+}
+
 func (s *contingencyTransmissionSvc) signDocuments(ctx context.Context, docs []dte.ContingencyDocument, nit string) ([]string, map[string]dte.ContingencyDocument) {
 	signedDocs := make([]string, 0, len(docs))
 	docsMap := make(map[string]dte.ContingencyDocument, len(docs))
 
 	for _, doc := range docs {
+		if doc.Document.SignedDocument != "" {
+			docsMap[doc.Document.ID] = doc
+			signedDocs = append(signedDocs, doc.Document.SignedDocument)
+			continue
+		}
+
 		signedDoc, err := s.signer.SignDTE(ctx, []byte(doc.Document.JSONData), nit)
 		if err != nil {
 			logs.Error("Failed to sign document", map[string]interface{}{
@@ -153,7 +175,6 @@ func (s *contingencyTransmissionSvc) signDocuments(ctx context.Context, docs []d
 			})
 			continue
 		}
-		// Se guarda el JWS que se transmite: es la firmaElectronica del Archivo DTE (Anexo I, regla 4.1)
 		if err := s.dteManager.UpdateDTE(ctx, doc.BranchID, dte.DTEDetails{ID: doc.Document.ID, SignedDocument: signedDoc}); err != nil {
 			logs.Warn("Failed to store signed document", map[string]interface{}{"error": err.Error(), "id": doc.Document.ID})
 		}
