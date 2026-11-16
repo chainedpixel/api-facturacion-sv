@@ -13,7 +13,7 @@ Todas se ejecutan y los errores de estrategias distintas se agrupan:
 2. **CreditNoteTaxStrategy** — Validación de cálculos fiscales
 3. **CreditNoteRelatedDocStrategy** — Validación de documentos relacionados
 
-Luego se aplican las [estrategias comunes](./README.md). La `PaymentTotalStrategy` no aplica a las notas de crédito.
+Luego se aplican las [estrategias comunes](./README.md). La `PaymentTotalStrategy` solo valida en las notas de crédito la condición de operación 1 (contado) cuando el total a pagar es 0.00 (`NoPaymentDueRequiresCashCondition`); no valida formas de pago.
 
 ---
 
@@ -71,13 +71,13 @@ Si `TotalTaxed = 0` y existen tributos → `InvalidTaxes`. Si `TotalTaxed > 0` y
 IVA (20) = TotalTaxed * 0.13    (±0.01)    InvalidTaxCalculation
 ```
 
-Con `TotalTaxed > 0` debe existir el tributo `20` con valor > 0 (`MissingIVAForTaxedAmount`). Las tasas de los otros tributos están en [Cálculos, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138).
+Con `TotalTaxed > 0` debe existir el tributo `20` con valor > 0 (`MissingIVAForTaxedAmount`). El tributo `59` usa como base la suma de `TaxedSale` de los ítems que llevan el código `59` (`PercentageTaxAmount`), sin dividir entre `1.13` ni restar descuentos. Los códigos `59` y `71` deben ser consistentes entre los ítems con venta gravada y el resumen (`ValidateSummaryTaxConsistency`): `MissingSummaryTax` o `MissingItemTaxForSummary`, con el código como parámetro. Las tasas de los otros tributos están en [Cálculos, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138).
 
 ### Percepción
 
 ```
 Si IVAPerception != 0:
-    IVAPerception = TotalTaxed * 0.01    (±0.01)    InvalidPerceptionAmount
+    IVAPerception = round((TotalTaxed - TaxedDiscount) * 0.01, 2)    (±0.01)    InvalidPerceptionAmount
 ```
 
 La retención de IVA (`IVARetention`) no se recalcula; solo interviene en el total a pagar.
@@ -164,6 +164,7 @@ Ver [Cálculos, sección 3.12](../../../api/calculations.md#312-saldo-del-docume
 | `InvalidUnitMeasure`, `InvalidTaxRulesCCF` | Ítem tipo 4 con unidad distinta de 99 o impuestos distintos de `20` |
 | `InvalidTotalTaxed`, `InvalidTotalExempt`, `InvalidTotalNonSubject`, `InvalidSubTotalSales` | Totales del resumen no coinciden con los ítems |
 | `InvalidTaxes`, `MissingTaxes`, `MissingIVAForTaxedAmount`, `InvalidTaxCalculation` | Tributos del resumen |
-| `InvalidPerceptionAmount` | Percepción distinta de 1% de `TotalTaxed` |
+| `InvalidPerceptionAmount` | Percepción distinta de 1% de `TotalTaxed - TaxedDiscount` (el descuento global es 0 en esta nota) |
+| `MissingSummaryTax`, `MissingItemTaxForSummary` | Tributo `59` o `71` sin correspondencia entre ítems con venta gravada y resumen |
 | `InvalidSubTotalCalculation`, `InvalidTotalOperation`, `InvalidTotalToPayCalculation` | Subtotal, monto total o total a pagar incorrectos |
 | `IncomeRetentionNotAllowed` | `IncomeRetention` distinto de 0 |

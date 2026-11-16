@@ -13,7 +13,7 @@ Todas se ejecutan y los errores de estrategias distintas se agrupan:
 2. **DebitNoteTaxStrategy** — Validación de cálculos fiscales
 3. **DebitNoteRelatedDocStrategy** — Validación de documentos relacionados
 
-Luego se aplican las [estrategias comunes](./README.md). La `PaymentTotalStrategy` no aplica a las notas de débito.
+Luego se aplican las [estrategias comunes](./README.md). La `PaymentTotalStrategy` solo valida en las notas de débito la condición de operación 1 (contado) cuando el total a pagar es 0.00 (`NoPaymentDueRequiresCashCondition`); no valida formas de pago.
 
 ---
 
@@ -50,7 +50,7 @@ Orden interno: descuentos globales no admitidos, totales base, descuentos, IVA, 
 | Valor de cada tributo del resumen | Se rechaza si difiere de la fórmula (`InvalidTaxCalculation`) | Se rechaza si difiere de la fórmula (`InvalidTaxCalculation`, parámetros: código, esperado, enviado); además se exige presencia de tributos y del tributo `20` |
 | Documento nulo | Sin error propio | `NullDocument` |
 
-Las reglas compartidas se mantienen: percepción `TotalTaxed * 0.01` (±0.01), `IncomeRetention = 0`, `TotalOperation = SubTotalSales + Sum(Taxes)` (±0.01) y `TotalToPay = TotalOperation + IVAPerception - IVARetention + TotalNonTaxed` (±0.01).
+Las reglas compartidas se mantienen: percepción `round((TotalTaxed - TaxedDiscount) * 0.01, 2)` (±0.01; el descuento global es 0 en esta nota), consistencia de los tributos `59` y `71` entre ítems con venta gravada y resumen (`MissingSummaryTax`, `MissingItemTaxForSummary`), el tributo `59` calculado sobre la venta gravada de los ítems que lo llevan (`PercentageTaxAmount`, sin dividir entre `1.13`), `IncomeRetention = 0`, `TotalOperation = SubTotalSales + Sum(Taxes)` (±0.01) y `TotalToPay = TotalOperation + IVAPerception - IVARetention + TotalNonTaxed` (±0.01).
 
 ---
 

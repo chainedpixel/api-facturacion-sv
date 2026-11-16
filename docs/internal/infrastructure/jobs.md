@@ -16,6 +16,8 @@ Todos los jobs se instancian y se programan en `cmd/setup/jobs.go` (`SetupJobs`)
 | `ReservationCleanerJob` | Cada 10 minutos |
 | `MetricsCleanupJob` | Cada 6 horas |
 
+Con la librería `gocron` (v1.37.0) un job programado con `Every(n).Minutes()` y sin `WaitForSchedule` se ejecuta una vez al iniciar el scheduler (`scheduler.StartAsync()`) y luego en cada intervalo; por eso `RetransmissionJob` (igual que los otros dos jobs) corre apenas arranca la API, sin esperar al primer intervalo. Los documentos de contingencia pendientes se retransmiten entonces en el arranque (por ejemplo, tras reiniciar la API con `FORCE_CONTINGENCY=false`).
+
 `JobConfig` también define `StartTime` y `EndTime` (22:00-05:00 en producción, 08:00-17:00 en pruebas), pero solo se usan para el log de arranque: el scheduler ejecuta el job de contingencia en cualquier hora del día con el intervalo indicado.
 
 ---

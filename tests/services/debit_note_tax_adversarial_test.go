@@ -22,6 +22,7 @@ type adversarialTax struct {
 
 func adversarialDebitNote(taxed float64, taxes []adversarialTax) *debit_note_models.DebitNoteModel {
 	summaryTaxes := make([]interfaces.Tax, 0, len(taxes))
+	itemCodes := make([]string, 0, len(taxes))
 	taxTotal := 0.0
 	for _, tx := range taxes {
 		taxEntity := &models.Tax{
@@ -30,11 +31,12 @@ func adversarialDebitNote(taxed float64, taxes []adversarialTax) *debit_note_mod
 			Value:       &models.TaxAmount{TotalAmount: *financial.NewValidatedAmount(tx.value)},
 		}
 		summaryTaxes = append(summaryTaxes, taxEntity)
+		itemCodes = append(itemCodes, tx.code)
 		taxTotal += tx.value
 	}
 
 	item := debit_note_models.DebitNoteItem{
-		Item:           &models.Item{},
+		Item:           &models.Item{Taxes: itemCodes},
 		TaxedSale:      *financial.NewValidatedAmount(taxed),
 		ExemptSale:     *financial.NewValidatedAmount(0),
 		NonSubjectSale: *financial.NewValidatedAmount(0),

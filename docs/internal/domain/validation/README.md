@@ -31,7 +31,7 @@ DTEValidationStrategy (interfaz)
 │   └── OtherDocumentsStrategy
 │
 ├── Reglas compartidas (funciones reutilizadas por los validadores de cada DTE)
-│   ├── calculation_rules.go      → holgura, venta por ítem, suma de operaciones, monto total, descuentos globales en NC/ND, totales de NC/ND
+│   ├── calculation_rules.go      → holgura, venta por ítem, suma de operaciones, monto total, descuentos globales en NC/ND, totales de NC/ND, base de los tributos porcentuales (`PercentageTaxBase`, `TaxedAmountWithTax`, `PercentageTaxAmount`) y consistencia de los tributos `59` y `71` (`ItemTaxes`, `ValidateSummaryTaxConsistency`)
 │   └── related_docs_rules.go     → tipos permitidos y plazos respecto del documento relacionado
 │
 └── Validadores Específicos por DTE (orquestan estrategias)
@@ -141,15 +141,17 @@ Las bases y tasas con que se recalcula el valor de cada tributo del resumen se d
 
 | Condición | Regla | Error |
 |---|---|---|
-| Operación a crédito (2) | Cada pago lleva el código en `null` | `CreditPaymentCodeNotAllowed` |
-| Operación a crédito (2) | Cada pago lleva el monto en `0.00`; la suma no se compara con el total | `InvalidCreditPaymentAmount` |
-| Operación a crédito (2) | Cada pago lleva la referencia en `null` | `CreditPaymentReferenceNotAllowed` |
+| Operación a crédito (2): FE y tipos sin política propia | Cada pago lleva el código en `null`, la referencia en `null` y el monto en `0.00`; la suma no se compara con el total | `CreditPaymentCodeNotAllowed`, `CreditPaymentReferenceNotAllowed`, `InvalidCreditPaymentAmount` |
+| Operación a crédito (2): CCF | Cada pago lleva el código y la referencia en `null`; la suma de los pagos coincide con el total a pagar (holgura ±0.01) | `CreditPaymentCodeNotAllowed`, `CreditPaymentReferenceNotAllowed`, `CreditPaymentTotalRequired` |
+| Operación a crédito (2): FSE | Cada pago lleva un código obligatorio y válido (01 a 14 o 99), la referencia es libre y el monto es `0.00` | `CreditPaymentCodeRequired`, `CreditPaymentCodeInvalid`, `InvalidCreditPaymentAmount` |
 | Operación a crédito (2) | Cada pago lleva plazo (`term`) | `CreditPaymentTermRequired` |
 | Operación a crédito (2) | Cada pago lleva período (`period`) mayor que cero | `CreditPaymentPeriodRequired` |
 | Operación al contado (1) u otra (3) | Cada pago lleva código | `PaymentCodeRequired` |
 | Total a pagar 0.00 | FE, CCF y FEXE: condición 1 y al menos un pago, todos con código `99` (`ValidateNoPaymentDue`). FSE, NC y ND: solo condición 1; con saldo a favor la misma regla se aplica desde `InvoiceTotalsStrategy` y `CCFTaxStrategy` (`ValidateBalanceInFavorPayments`) | `NoPaymentDueRequiresCashCondition`, `NoPaymentDueRequiresCode99` |
 | Operación al contado (1) sin pago en efectivo | Los pagos no deben tener plazo ni período | `InvalidPaymentTermsOF` |
 | Total de pagos | Con condición 1 o 3, `Sum(payment.Amount) == TotalToPay` (holgura ±0.01). Una lista de pagos vacía con crédito y total mayor que 0 también se rechaza | `InvalidPaymentTotal` |
+
+La política del crédito por tipo de documento se resuelve con la tabla `creditPaymentPolicies` (`creditPolicyFor`, `validateCreditPayments` y `validateCreditPaymentCode` en `payment_total_strategy.go`); un tipo que no figura en la tabla usa la política por defecto (código `null` y montos `0.00`). Comportamiento observado en el ambiente de pruebas de Hacienda el 2026-11-16: un CCF a crédito con monto `0.00` se sella con la observación `resumen.pagos.montoPago Forma de pago difiere del Total a Pagar.` y una FSE a crédito con código `null` con la observación `resumen.pagos.codigo Código vacio.`; el proyecto no acepta documentos con observaciones.
 
 Ver también [Cálculos, sección 3.11](../../../api/calculations.md#311-pagos).
 

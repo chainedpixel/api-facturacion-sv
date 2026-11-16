@@ -120,16 +120,16 @@ El resumen de la FSE **no usa** los campos `total_non_subject`, `total_exempt`, 
 
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
-| `code` | string | Condicional | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017). Obligatorio con condición `1` o `3`; con condición `2` debe ir `null` |
+| `code` | string | Condicional | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017). Obligatorio con las condiciones `1`, `2` y `3` |
 | `amount` | float | Sí | Monto. Con condición `2` debe enviarse `0.00` |
 | `period` | integer | Condicional | Número de días, meses o años del plazo, mayor que cero. Obligatorio con condición `2` |
 | `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`, CAT-018). Obligatorio con condición `2` |
-| `reference` | string | No | Referencia del pago. Con condición `2` debe ir `null` |
+| `reference` | string | No | Referencia del pago. Con condición `2` es libre |
 
 **Reglas con condición `2` (crédito)**, por cada forma de pago:
-- `code` debe ir `null` (`CreditPaymentCodeNotAllowed`).
+- `code` es obligatorio (`CreditPaymentCodeRequired`) y debe ser válido, `"01"` a `"14"` o `"99"` (`CreditPaymentCodeInvalid`, parámetro: código recibido). En el ambiente de pruebas de Hacienda (2026-11-16) una FSE a crédito con `code` en `null` se sella con la observación `resumen.pagos.codigo Código vacio.`, y el proyecto no acepta documentos con observaciones.
 - `amount` debe ser exactamente `0.00` (`InvalidCreditPaymentAmount`). No se compara la suma con `total_to_pay`.
-- `reference` debe ir `null` (`CreditPaymentReferenceNotAllowed`).
+- `reference` es libre, como en la condición de contado.
 - `term` es obligatorio (`CreditPaymentTermRequired`).
 - `period` es obligatorio y mayor que cero (`CreditPaymentPeriodRequired`).
 - Se requiere al menos una forma de pago: una lista vacía con `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
@@ -138,11 +138,11 @@ Ejemplo de forma de pago a crédito a 30 días:
 
 ```json
 "payment_types": [
-  { "code": null, "amount": 0.00, "reference": null, "term": "01", "period": 30 }
+  { "code": "01", "amount": 0.00, "reference": null, "term": "01", "period": 30 }
 ]
 ```
 
-En el JSON transmitido a Hacienda la forma de pago queda con `codigo` y `referencia` en `null`, `montoPago` en `0.00`, y `plazo` y `periodo` informados.
+En el JSON transmitido a Hacienda la forma de pago queda con `codigo` informado, `montoPago` en `0.00`, y `plazo` y `periodo` informados.
 
 **Reglas con condición `1` (contado) o `3` (otro):**
 - `code` es obligatorio en cada forma de pago (`PaymentCodeRequired`).
@@ -352,8 +352,8 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `InvalidPaymentTermsOF` | Condición `1` sin pago en efectivo y con `period` o `term` informados |
 | `InvalidPaymentTotal` | La suma de pagos no coincide con `total_to_pay` |
 | `InvalidCreditPaymentAmount` | Con condición `2` algún `amount` de pago es distinto de `0.00` |
-| `CreditPaymentCodeNotAllowed` | Con condición `2` una forma de pago trae `code` |
-| `CreditPaymentReferenceNotAllowed` | Con condición `2` una forma de pago trae `reference` |
+| `CreditPaymentCodeRequired` | Con condición `2` una forma de pago no trae `code` |
+| `CreditPaymentCodeInvalid` | Con condición `2` una forma de pago trae un `code` fuera de `"01"` a `"14"` y `"99"` |
 | `CreditPaymentTermRequired` | Con condición `2` una forma de pago no trae `term` |
 | `CreditPaymentPeriodRequired` | Con condición `2` una forma de pago no trae `period` o es menor o igual a cero |
 | `PaymentCodeRequired` | Con condición `1` o `3` una forma de pago no trae `code` |

@@ -155,6 +155,7 @@ Las fórmulas (IVA, percepción, subtotales, total de la operación y total a pa
 
 - No se admiten descuentos globales ni porcentaje de descuento (`GlobalDiscountNotAllowedInAdjustment`).
 - `IncomeRetention` debe ser cero (`IncomeRetentionNotAllowed`).
+- Si `IVAPerception` es distinto de cero se valida con `round(1% x (TotalTaxed - TaxedDiscount), 2)` y los códigos de tributo `59` y `71` deben ser consistentes entre ítems con venta gravada y resumen (`MissingSummaryTax`, `MissingItemTaxForSummary`).
 - El total de la operación es el subtotal de ventas más los tributos del resumen y el total a pagar se valida con la regla compartida `ValidateAdjustmentTotals`.
 
 ---

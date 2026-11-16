@@ -211,7 +211,7 @@ Fórmula del valor de cada tributo (holgura ±0.01; error `InvalidTaxCalculation
 |---|---|---|
 | `20` | IVA | CCF: `(total_taxed - taxed_discount) x 0.13`. NC y ND: `total_taxed x 0.13` (no admiten descuento global) |
 | `C3` | IVA exportación | `total_taxed x 0` (valor `0`) |
-| `59` | Turismo | `total_taxed x 0.05` |
+| `59` | Turismo (5 %) | FE: `round((Σ taxed_sale de los ítems que llevan el tributo 59) / 1.13 x 0.05, 2)`. CCF, NC y ND: `round((Σ taxed_sale de los ítems que llevan el tributo 59) x 0.05, 2)` (sin dividir entre `1.13`) |
 | `71` | Turismo aeropuerto | Valor fijo `7.00` |
 | `D5` | Especial u otro | Sin validación del valor |
 
@@ -219,8 +219,11 @@ Los códigos `D1` (FOVIAL) y `C8` (COTRANS) no se aceptan: se rechazan con `Unsu
 
 Notas:
 
-- La base de los tributos distintos de `20` es `total_taxed` **sin** restar `taxed_discount`, también en CCF.
-- En FE el tributo se compara contra `total_taxed` (que incluye IVA, porque el precio de la FE lo incluye).
+- La base del tributo `59` en CCF, NC y ND es la suma de `taxed_sale` de los ítems que llevan el código `59`, **sin** restar `taxed_discount` y sin dividir entre `1.13` (los precios de estos documentos no incluyen IVA). Los ítems sin el código no intervienen. Verificado en el ambiente de pruebas de Hacienda el 2026-11-16 (sellados sin observaciones): CCF con un ítem de servicio de 100.00 con `["20","59"]` y un ítem de producto de 50.00 con `["20"]` da `20` = 19.50, `59` = 5.00 y total 174.50; con `59` en ambos ítems de servicio da `59` = 7.50; NC y ND con un ítem de 40.00 con `59` y otro de 20.00 sin él dan `20` = 7.80, `59` = 2.00 y total 69.80. Calcular `59` sobre todo `total_taxed` con ítems mixtos genera una observación de Hacienda (`resumen.tributos.codigo.59 Valor inválido`).
+- El tributo `71` es fijo de `7.00` (verificado en FE y CCF: FE con un ítem de 100.00 con `71` da total 107.00; FE con `59` y `71` da `59` = 4.42, `71` = 7.00 y total 111.42; CCF con un ítem de servicio de 100.00 con `["20","71"]` da `20` = 13.00, `71` = 7.00 y total 120.00).
+- En CCF los ítems de tipo `1` (Producto) solo admiten el código `20` (`InvalidTaxCodeOnly20`): los tributos de turismo (`59`, `71`) deben ir en ítems de tipo `2` (Servicio) o `3`.
+- En FE los precios incluyen IVA, por lo que la base del tributo `59` es la venta gravada de los ítems que llevan el código `59` dividida entre `1.13`; no se resta el descuento global y los ítems que no llevan el tributo no intervienen. Con un ítem de 100.00 el tributo es `4.42` (`100.00 / 1.13 x 0.05`) sin importar un descuento global de 10.00. Este valor se verificó en el ambiente de pruebas de Hacienda el 2026-11-16 (documentos sellados sin observaciones).
+- Consistencia entre ítems y resumen para los códigos `59` y `71` (FE, CCF, NC y ND): un código que lleva un ítem con venta gravada exige una entrada con ese código en `taxes` del resumen (`MissingSummaryTax`, parámetro: código), y una entrada del resumen con ese código exige al menos un ítem con venta gravada que lo lleve (`MissingItemTaxForSummary`, parámetro: código). Los ítems sin venta gravada se ignoran. Sin esta regla Hacienda rechaza el documento con `[resumen.tributos] FALTAN DATOS PARA VALIDAR INFORMACION`.
 - En ND el desvío del valor del tributo contra la fórmula (holgura ±0.01) se rechaza con `InvalidTaxCalculation`, igual que en NC y CCF.
 - En NR no se aplica ninguna de estas fórmulas.
 
@@ -237,13 +240,13 @@ total_iva = Σ iva_item - (taxed_discount / 1.13) x 0.13        holgura ±0.01
 
 | Campo | Documentos | Regla | Error |
 |---|---|---|---|
-| `iva_perception` | CCF, NC, ND | Si es distinto de `0`: `total_taxed x 0.01`, holgura ±0.01. Con `0` no se valida | `InvalidPerceptionAmount` |
+| `iva_perception` | CCF, NC, ND | Si es distinto de `0`: `round(0.01 x (total_taxed - taxed_discount), 2)`, holgura ±0.01. Con `0` no se valida | `InvalidPerceptionAmount` |
 | `iva_retention` | FE, CCF, NC, ND | La API **no valida el monto ni la tasa**; el valor enviado solo interviene en el total a pagar. En FE debe ser `0` si `total_taxed = 0` | FE: `InvalidIVARetentionWithoutTaxedAmount` |
 | `income_retention` | FE, CCF, NC, ND | **Rechazado** si es distinto de `0` (eliminado por la Normativa v2.0, Anexo VI) | `IncomeRetentionNotAllowed` |
 | `iva_retention` (FSE) | FSE | **Rechazado** si es distinto de `0` (eliminado por la Normativa v2.0, Anexo VI) | `IVARetentionNotAllowedInFSE` |
 | `income_retention` (FSE) | FSE | Mayor o igual a 0; la API **no valida la tasa**, solo que el total a pagar la reste (sección 3.10) | `FSETaxInvalidIncomeRetention` si es negativa |
 
-- La base de la percepción es `total_taxed` (sin restar `taxed_discount`); la API no valida que se calcule sobre otra base.
+- La base de la percepción es el total gravado menos el descuento global a ventas gravadas (`total_taxed - taxed_discount`). Con `total_taxed` 700.00 y `taxed_discount` 50.00 la percepción es `6.50`. La retención no cambió: la API no valida su monto.
 - Los montos de percepción y retención deben ser múltiplos de `0.01` (`InvalidDecimals` en el mapeo; `InvalidMonetaryAmount` en la validación de FE, CCF y NC).
 
 ### 3.9 Monto total de la operación (campo 150)
@@ -283,18 +286,26 @@ Aplica a FE, CCF y FSE (no a NC, ND ni NR). En NC y ND solo se valida que la con
 
 | Regla | Error |
 |---|---|
-| Condición de operación `1` (contado) o `3` (otro): `Σ payment_types[].amount` coincide con `total_to_pay`, holgura ±0.01. Con condición `2` (crédito) no se compara la suma; una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 también se rechaza | `InvalidPaymentTotal` |
+| Condición de operación `1` (contado) o `3` (otro): `Σ payment_types[].amount` coincide con `total_to_pay`, holgura ±0.01. Con condición `2` (crédito) la suma solo se compara en CCF (`CreditPaymentTotalRequired`, ver política más abajo); una lista de pagos vacía con condición `2` y `total_to_pay` mayor que 0 también se rechaza | `InvalidPaymentTotal` |
 | Condición `1` o `3`: cada pago requiere `code` | `PaymentCodeRequired` |
 | Condición `3`: se admiten varias formas de pago con monto mayor que 0, incluido el código `13` para la parte no cobrada; la suma debe dar `total_to_pay` | `InvalidPaymentTotal` |
 | `total_to_pay` igual a `0.00` (FE, CCF, FSE, NC y ND) o `balance_in_favor` distinto de 0 (FE y CCF): condición `1` | `NoPaymentDueRequiresCashCondition` |
 | FE, CCF y FEXE con `total_to_pay` igual a `0.00` o `balance_in_favor` distinto de 0: al menos una forma de pago y todas con código `99` (no aplica a FSE, NC ni ND) | `NoPaymentDueRequiresCode99` |
-| Condición `2`: cada pago lleva `code` en `null` | `CreditPaymentCodeNotAllowed` |
-| Condición `2`: cada pago lleva `amount` en `0.00` | `InvalidCreditPaymentAmount` |
-| Condición `2`: cada pago lleva `reference` en `null` | `CreditPaymentReferenceNotAllowed` |
+| Condición `2` (crédito): cada pago cumple la política del tipo de documento (tabla siguiente) para `code`, `amount` y `reference` | `CreditPaymentCodeNotAllowed`, `CreditPaymentCodeRequired`, `CreditPaymentCodeInvalid`, `InvalidCreditPaymentAmount`, `CreditPaymentReferenceNotAllowed`, `CreditPaymentTotalRequired` |
 | Condición `2`: cada pago lleva `term` (CAT-018) | `CreditPaymentTermRequired` |
 | Condición `2`: cada pago lleva `period` mayor que cero | `CreditPaymentPeriodRequired` |
 | Condición de operación `1` (contado) sin pago en efectivo: los pagos no deben llevar `term` ni `period` | `InvalidPaymentTermsOF` |
 | `payment_types[].amount` debe ser múltiplo de `0.01` (FE, CCF, NC) | `InvalidMonetaryAmount` |
+
+Política de la condición `2` (crédito) por tipo de documento (`creditPaymentPolicies` en `PaymentTotalStrategy`). `term` y `period` son obligatorios en todos los tipos:
+
+| Tipo | `code` | `reference` | `amount` |
+|---|---|---|---|
+| FE (01) y cualquier tipo no listado | Debe ser `null` (`CreditPaymentCodeNotAllowed`) | Debe ser `null` (`CreditPaymentReferenceNotAllowed`) | `0.00` en cada pago (`InvalidCreditPaymentAmount`) |
+| CCF (03) | Debe ser `null` (`CreditPaymentCodeNotAllowed`) | Debe ser `null` (`CreditPaymentReferenceNotAllowed`) | La suma de los pagos debe coincidir con `total_to_pay`, holgura ±0.01 (`CreditPaymentTotalRequired`, parámetros: suma enviada y total a pagar) |
+| FSE (14) | Obligatorio (`CreditPaymentCodeRequired`) y válido, 01 a 14 o 99 (`CreditPaymentCodeInvalid`, parámetro: código recibido) | Libre | `0.00` en cada pago (`InvalidCreditPaymentAmount`) |
+
+Comportamiento observado en el ambiente de pruebas de Hacienda el 2026-11-16 que sustenta la política: un CCF a crédito con monto `0.00` se sella con la observación `resumen.pagos.montoPago Forma de pago difiere del Total a Pagar.`; una FSE a crédito con `code` en `null` se sella con la observación `resumen.pagos.codigo Código vacio.`; una FE a crédito con `code` en `null` y monto `0.00` se sella sin observaciones. El requisito del proyecto es que ningún documento se acepte con observaciones, aunque Hacienda devuelva el sello.
 
 ### 3.12 Saldo del documento relacionado en NC y ND
 
@@ -340,7 +351,9 @@ Resumen: `total_taxed` 77.00; `sub_total_sales` 77.00; `taxed_discount` 0.00; `t
 
 Con un descuento global a ventas gravadas de 10.00: `taxed_discount` 10.00; `sub_total` 67.00; `total_iva` = 8.85840708 - (10.00 / 1.13 x 0.13 = 1.15044248) = 7.70796460, es decir `7.71`; `total_operation` 67.00.
 
-Con el tributo `59` (turismo): valor `77.00 x 0.05 = 3.85` (base `total_taxed`); `total_operation` = 77.00 + 3.85 = 80.85.
+Con el tributo `59` (turismo) en los dos ítems: valor `round(77.00 / 1.13 x 0.05, 2) = 3.41` (base: venta gravada de los ítems con el tributo, sin IVA); `total_operation` = 77.00 + 3.41 = 80.41.
+
+Casos verificados en el ambiente de pruebas de Hacienda (2026-11-16, sellados sin observaciones): un ítem de 100.00 con el tributo `59` da `4.42` y total `104.42`; dos ítems, uno de 100.00 con el tributo y otro de 50.00 sin él, dan `4.42` y total `154.42`; un ítem de 100.00 con el tributo y un descuento global de 10.00 dan `4.42` y total `94.42` (el descuento no se resta de la base del tributo).
 
 ### 5.2 CCF con precio sin IVA
 
@@ -353,7 +366,9 @@ Sin descuento global: `total_taxed` 95.00; `sub_total_sales` 95.00; `total_disco
 
 Con un descuento global a ventas gravadas de 5.00: `taxed_discount` 5.00; `sub_total` 90.00; tributo `20` = `(95.00 - 5.00) x 0.13 = 11.70`; `total_operation` 101.70.
 
-Con percepción de IVA (base `total_taxed`): `iva_perception` = `95.00 x 0.01 = 0.95`; `total_to_pay` = 107.35 + 0.95 = 108.30.
+Con percepción de IVA y sin descuento global (base `total_taxed - taxed_discount`): `iva_perception` = `95.00 x 0.01 = 0.95`; `total_to_pay` = 107.35 + 0.95 = 108.30.
+
+Con percepción y descuento global: `total_taxed` 700.00 y `taxed_discount` 50.00; tributo `20` = `(700.00 - 50.00) x 0.13 = 84.50`; `total_operation` 734.50; `iva_perception` = `(700.00 - 50.00) x 0.01 = 6.50`; `total_to_pay` = 734.50 + 6.50 = 741.00 (caso verificado en el ambiente de pruebas de Hacienda).
 
 ### 5.3 NC sobre el CCF anterior (devolución de 1 unidad del ítem 1)
 
@@ -400,13 +415,16 @@ Todos los mensajes están en `assets/i18n/es.yaml`. Los parámetros se listan en
 | `InvalidSubTotalCalculation`, `InvalidSubTotal` | `sub_total` incorrecto |
 | `InvalidTaxCalculation` | Valor de un tributo del resumen incorrecto |
 | `InvalidTotalIVA` | `total_iva` de FE (o `total_iva` de CR) incorrecto |
-| `InvalidPerceptionAmount` | `iva_perception` distinto de 1 % de `total_taxed` |
+| `InvalidPerceptionAmount` | `iva_perception` distinto de 1 % de `total_taxed - taxed_discount` |
 | `InvalidTotalOperation` | `total_operation` incorrecto |
 | `InvalidTotalToPayCalculation` | `total_to_pay` incorrecto (FE, CCF, NC, ND) |
 | `FSETaxInvalidTotalToPay` | `total_to_pay` incorrecto (FSE) |
 | `InvalidPaymentTotal` | La suma de pagos no coincide con `total_to_pay` |
-| `InvalidCreditPaymentAmount` | Con condición `2` algún `amount` de pago es distinto de `0.00` |
-| `CreditPaymentCodeNotAllowed`, `CreditPaymentReferenceNotAllowed` | Con condición `2` una forma de pago trae `code` o `reference` |
+| `InvalidCreditPaymentAmount` | Con condición `2` (FE, FSE y tipos sin política propia) algún `amount` de pago es distinto de `0.00` |
+| `CreditPaymentTotalRequired` | Con condición `2` en CCF la suma de los pagos no coincide con `total_to_pay` (parámetros: suma y total a pagar) |
+| `CreditPaymentCodeNotAllowed`, `CreditPaymentReferenceNotAllowed` | Con condición `2` en FE, CCF y tipos sin política propia una forma de pago trae `code` o `reference` |
+| `CreditPaymentCodeRequired`, `CreditPaymentCodeInvalid` | Con condición `2` en FSE una forma de pago no trae `code` o trae uno fuera de 01 a 14 y 99 (parámetro de `CreditPaymentCodeInvalid`: código recibido) |
+| `MissingSummaryTax`, `MissingItemTaxForSummary` | Los tributos `59` y `71` no son consistentes entre ítems con venta gravada y resumen (parámetro: código del tributo) |
 | `CreditPaymentTermRequired`, `CreditPaymentPeriodRequired` | Con condición `2` una forma de pago no trae `term` o `period` mayor que cero |
 | `PaymentCodeRequired` | Con condición `1` o `3` una forma de pago no trae `code` |
 | `NoPaymentDueRequiresCashCondition`, `NoPaymentDueRequiresCode99` | Total a pagar `0.00` o saldo a favor sin condición `1` o sin formas de pago `99` |

@@ -253,7 +253,7 @@ Si `DocumentType` es `"36"` (NIT), se requiere el campo `NIT` del receptor.
 |---|---|---|
 | **Propósito** | Venta | Traslado de mercadería |
 | **IVA** | Sí | No hay validación de IVA en el resumen |
-| **Formas de pago** | Requeridas | `PaymentTotalStrategy` omite NC, ND y NRE |
+| **Formas de pago** | Requeridas | `PaymentTotalStrategy` omite la NRE; en NC y ND solo valida la condición 1 con total a pagar 0.00 |
 | **Receptor** | Requerido | Requerido (con `BienTitulo`) |
 | **BienTitulo** | No existe | Campo del receptor |
 | **Monto total** | Según el tipo de documento | Subtotal más tributos del resumen |

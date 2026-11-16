@@ -252,8 +252,6 @@ func (c *apiClient) emit(t *testing.T, path string, body interface{}) *emittedDT
 		return nil
 	}
 
-	assertObservationsArray(t, resp.Observations, "response of "+path)
-
 	emitted := &emittedDTE{ReceptionStamp: *resp.ReceptionStamp}
 	var document struct {
 		Identificacion struct {
@@ -267,6 +265,7 @@ func (c *apiClient) emit(t *testing.T, path string, body interface{}) *emittedDT
 		emitted.ControlNumber = document.Identificacion.NumeroControl
 		emitted.EmissionDate = document.Identificacion.FecEmi
 	}
+	assertNoObservations(t, resp.Observations, fmt.Sprintf("%s | %s | %s", path, emitted.ControlNumber, emitted.GenerationCode))
 	// La respuesta de creacion es el Archivo DTE (estructura + firmaElectronica + selloRecibido)
 	assertArchive(t, resp.Data, emitted.GenerationCode, emitted.ReceptionStamp)
 
@@ -364,6 +363,7 @@ func (c *apiClient) invalidate(t *testing.T, inv invalidation) bool {
 		t.Errorf("la invalidacion no devolvio el sello de Hacienda: %s", resp.Data)
 	}
 	assertArchive(t, event.Archive, event.GenerationCode, event.ReceptionStamp)
+	assertNoEventObservations(t, event, "/dte/invalidation | objetivo "+inv.target.GenerationCode+" | evento "+event.GenerationCode)
 	t.Logf("INVALIDATION aceptada | tipo %d | %s | sello %s", inv.kind, inv.target.GenerationCode, event.ReceptionStamp)
 	return true
 }
@@ -376,6 +376,7 @@ type eventResponse struct {
 	ReceptionStamp   string          `json:"reception_stamp"`
 	ProcessingDate   string          `json:"processing_date"`
 	HaciendaResponse json.RawMessage `json:"hacienda_response"`
+	Observations     json.RawMessage `json:"observations"`
 	Archive          json.RawMessage `json:"archivo_dte"`
 }
 
@@ -398,6 +399,9 @@ func (c *apiClient) events(t *testing.T, generationCode string) []eventResponse 
 	}
 	if err := json.Unmarshal(raw, &resp); err != nil {
 		t.Errorf("respuesta de eventos ilegible: %v", err)
+	}
+	for _, event := range resp.Data {
+		assertNoEventObservations(t, event, "GET /dte/"+generationCode+"/eventos | evento "+event.GenerationCode)
 	}
 	return resp.Data
 }
@@ -566,19 +570,43 @@ func (c *apiClient) consultStatus(t *testing.T, generationCode string) (stamp, s
 		} `json:"data"`
 	}
 	_ = json.Unmarshal(raw, &resp)
-	assertObservationsArray(t, resp.Data.Observations, "GET /dte/"+generationCode)
+	assertNoObservations(t, resp.Data.Observations, "GET /dte/"+generationCode)
 	if resp.Data.ReceptionStamp != nil {
 		stamp = *resp.Data.ReceptionStamp
 	}
 	return stamp, resp.Data.Status
 }
 
-// assertObservationsArray checks that the observations value is present as a JSON array, which may be empty.
-func assertObservationsArray(t *testing.T, observations json.RawMessage, where string) {
+// assertNoObservations fails when the observations value is missing, is not a JSON array of strings or is not empty.
+// Every observation text is reported verbatim together with the where context.
+func assertNoObservations(t *testing.T, observations json.RawMessage, where string) {
 	t.Helper()
 	var list []string
 	if len(observations) == 0 || string(observations) == "null" || json.Unmarshal(observations, &list) != nil {
-		t.Errorf("observations must be a JSON array in the %s, got %q", where, observations)
+		t.Errorf("observations must be a JSON array of strings in %s, got %q", where, observations)
+		return
+	}
+	if len(list) > 0 {
+		t.Errorf("OBSERVACIONES de Hacienda en %s: %q", where, list)
+	}
+}
+
+// assertNoEventObservations applies the no-observations rule to an event: its observations array and the
+// observaciones field of its stored Hacienda response, which may be a JSON object or a string holding JSON.
+func assertNoEventObservations(t *testing.T, event eventResponse, where string) {
+	t.Helper()
+	assertNoObservations(t, event.Observations, where)
+
+	response := event.HaciendaResponse
+	var text string
+	if json.Unmarshal(response, &text) == nil {
+		response = json.RawMessage(text)
+	}
+	var stored struct {
+		Observaciones []string `json:"observaciones"`
+	}
+	if json.Unmarshal(response, &stored) == nil && len(stored.Observaciones) > 0 {
+		t.Errorf("OBSERVACIONES de Hacienda en hacienda_response de %s: %q", where, stored.Observaciones)
 	}
 }
 

@@ -153,7 +153,8 @@ Las fórmulas (IVA, percepción, subtotales, total de la operación y total a pa
 
 - No se admiten descuentos globales ni porcentaje de descuento (`GlobalDiscountNotAllowedInAdjustment`); los descuentos por ítem siguen permitidos.
 - `IncomeRetention` debe ser cero (`IncomeRetentionNotAllowed`).
-- Si `IVAPerception` es distinto de cero, debe corresponder al 1% del gravado.
+- Si `IVAPerception` es distinto de cero, debe corresponder al 1% del gravado menos el descuento global gravado (siempre cero en esta nota): `round(1% x (TotalTaxed - TaxedDiscount), 2)`.
+- Los códigos de tributo `59` y `71` deben ser consistentes entre los ítems con venta gravada y el resumen (`MissingSummaryTax`, `MissingItemTaxForSummary`).
 - El total de la operación es el subtotal de ventas más los tributos del resumen; el total a pagar suma además `IVAPerception` y `TotalNonTaxed` y resta `IVARetention` (regla compartida `ValidateAdjustmentTotals`).
 
 ---
@@ -275,4 +276,4 @@ Application Layer (GenericDTEUseCase)
 2. **Balance**: La validación de balance ocurre en **dos momentos**: antes de la emisión (dentro de `Create`) y al registrar la transacción (post-transmisión).
 3. **Invalidación reversa**: Si una nota de crédito es invalidada, se **recupera** el balance del documento original (ver [invalidation.md](invalidation.md)).
 4. **Invalidación del documento original**: Mientras la nota esté vigente (`RECEIVED` o `PENDING`), el CCF o Comprobante de Retención al que ajusta no puede invalidarse.
-4. **No confundir con pagos**: La nota de crédito no aplica al `PaymentTotalStrategy` (no requiere formas de pago).
+4. **No confundir con pagos**: `PaymentTotalStrategy` no valida formas de pago en la nota de crédito; solo exige la condición de operación 1 (contado) cuando el total a pagar es 0.00 (`NoPaymentDueRequiresCashCondition`).

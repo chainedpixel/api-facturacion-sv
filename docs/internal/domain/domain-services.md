@@ -200,11 +200,20 @@ La fórmula de `IVAItem` y su tolerancia se documentan en [calculations.md](../.
 
 **Tipo de documento:** `03` — Comprobante de Crédito Fiscal Electrónico. Detalle en [dte/ccf.md](dte/ccf.md).
 
-**Diferencia clave con la Factura:** El IVA se calcula en el resumen sobre la base gravada menos el descuento, no a nivel de ítem. El modelo de ítem CCF tiene `ExemptSale`, `NonSubjectSale`, `TaxedSale`, `SuggestedPrice` y `NonTaxed`, y el resumen lleva `TaxedDiscount`, `IVAPerception` e `IVARetention`.
+**Diferencia clave con la Factura:** El IVA se calcula en el resumen sobre la base gravada menos el descuento, no a nivel de ítem. El modelo de ítem CCF tiene `ExemptSale`, `NonSubjectSale`, `TaxedSale`, `SuggestedPrice` y `NonTaxed`, y el resumen lleva `TaxedDiscount`, `IVAPerception` e `IVARetention`. La percepción se valida sobre `TotalTaxed - TaxedDiscount`. El tributo `59` del resumen se valida sobre la venta gravada de los ítems que lo llevan (`PercentageTaxAmount` en `calculation_rules.go`). A crédito, `PaymentTotalStrategy` exige código y referencia `null` y que la suma de los pagos sea igual al total a pagar.
 
 **Restricción del receptor:** El receptor del CCF debe tener NRC, código y descripción de actividad. Se aplica en `CCFReceiverStrategy`, y además en `DocumentTypeStrategy` (estrategia común que verifica `receiver.GetNRC() != nil` para el tipo CCF).
 
 **Tipos de documentos relacionados válidos para CCF:** `04` (Nota de Remisión), `08` (Comprobante Liquidación), `09` (Doc. Contable Liquidación).
+
+### Reglas de cálculo compartidas de tributos (`common/validator/strategy/calculation_rules.go`)
+
+FE, CCF, NC y ND validan los tributos porcentuales del resumen (hoy `59`) con la misma implementación:
+
+- `ItemTaxes`: `{TaxedSale decimal.Decimal; Codes []string}`, la venta gravada de un ítem y los códigos de tributo que lleva. Se construye con `NewItemTaxes(taxedSale float64, codes []string)`.
+- `TaxedAmountWithTax(items, taxCode)`: suma el `TaxedSale` de los ítems que llevan el código.
+- `PercentageTaxAmount(pricesIncludeIVA, items, taxCode, rate)`: `round(PercentageTaxBase(pricesIncludeIVA, TaxedAmountWithTax(...)) × rate, 2)`. FE usa `pricesIncludeIVA = true` (divide entre `1.13`); CCF, NC y ND usan `false`. No se resta el descuento global.
+- `ValidateSummaryTaxConsistency(items, summaryTaxes)`: usa los mismos `ItemTaxes` para verificar que `59` y `71` coincidan entre ítems y resumen.
 
 ### FSEService (`internal/domain/dte/fse/`)
 
@@ -215,6 +224,7 @@ La fórmula de `IVAItem` y su tolerancia se documentan en [calculations.md](../.
 - Nunca hay IVA; la retención de IVA debe ser `0` (`IVARetentionNotAllowedInFSE`)
 - El receptor FSE (`FSEReceiver`) es obligatorio y debe tener tipo y número de documento, nombre y dirección
 - `TotalTaxed` del resumen debe ser cero (`FSETaxInvalidTaxedSale`)
+- A crédito (condición 2), `PaymentTotalStrategy` exige el código de forma de pago válido en cada pago, referencia libre y monto `0.00` (`CreditPaymentCodeRequired`, `CreditPaymentCodeInvalid`, `InvalidCreditPaymentAmount`)
 
 ### CreditNoteService (`internal/domain/dte/credit_note/`)
 
@@ -222,7 +232,7 @@ La fórmula de `IVAItem` y su tolerancia se documentan en [calculations.md](../.
 
 **Requisito de documento relacionado:** Una nota de crédito debe referenciar al menos un documento relacionado de tipo CCF (`03`) o Comprobante de Retención (`07`). El servicio verifica que existan, estén `RECEIVED` y que el NIT del receptor coincida.
 
-**Sin validación de pago:** `PaymentTotalStrategy` omite las notas de crédito, débito y remisión (devuelve nil cuando el tipo DTE es `04`, `05` o `06`).
+**Validación de pago limitada:** `PaymentTotalStrategy` omite la nota de remisión (`04`, devuelve nil). Para las notas de crédito (`05`) y débito (`06`) no compara pagos con el total: solo cuando el total a pagar es 0.00 se valida que la condición de operación sea 1 (contado), con el error `NoPaymentDueRequiresCashCondition`; en cualquier otro caso devuelve nil.
 
 **Verificación de saldo:** Dentro de `Create`, para cada documento relacionado electrónico se llama a `DTEManager.ValidateForCreditNote`, que verifica que los totales gravado, exento y no sujeto de la nota no excedan el saldo restante del documento original. Esto previene el sobre-creditado.
 

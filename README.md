@@ -285,7 +285,7 @@ Documentación disponible:
 
 - [Arquitectura detallada](./ARCHITECTURE.md)
 - [Referencia de API para consumidores](./docs/api/README.md)
-- [Guía de actualización para sistemas consumidores](private/consumer-upgrade-guide.md)
+- [Guía de actualización para sistemas consumidores](consumer-upgrade-guide.md)
 - [Eventos de dominio y notificaciones por correo](./docs/internal/infrastructure/domain-events.md)
 - [Colección Postman](scripts/postman/Collection.postman_collection.json) y [environment](scripts/postman/Environment.postman_environment.json)
 
