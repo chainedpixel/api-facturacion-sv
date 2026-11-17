@@ -192,6 +192,7 @@ func (c *ServicesContainer) initNotificationStack() {
 		cooldown = adapterEmail.NewRedisCooldown(
 			cooldownClient,
 			time.Duration(config.Server.NotifyCooldownMinutes)*time.Minute,
+			config.NewRedisConfig().KeyPrefix(),
 		)
 	}
 

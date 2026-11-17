@@ -54,6 +54,7 @@ type redis struct {
 	Host     string `map-structure:"REDIS_HOST"`
 	Port     string `map-structure:"REDIS_PORT"`
 	Password string `map-structure:"REDIS_PASSWORD"`
+	Prefix   string `map-structure:"REDIS_PREFIX"`
 }
 
 // log is a struct that holds the logging configuration

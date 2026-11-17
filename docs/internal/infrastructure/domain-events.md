@@ -199,7 +199,7 @@ type Cooldown interface {
 }
 ```
 
-- Llave: `notify:cooldown:<eventName>:<aggregateID>`
+- Llave: `<REDIS_PREFIX>notify:cooldown:<eventName>:<aggregateID>` (prefijo normalizado con `:` final; vacío si no se configura).
 - Implementación: `SET ... NX EX <ttl>` — atómico.
 - TTL configurable vía `NOTIFY_COOLDOWN_MINUTES` (default 15; si el valor es menor o igual a 0 se usa 15 minutos).
 - Si la configuración de Redis no está disponible o su URL es inválida, no se construye el cooldown y el handler envía todas las notificaciones sin deduplicar.
