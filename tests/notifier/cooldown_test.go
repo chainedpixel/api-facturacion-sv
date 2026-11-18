@@ -28,7 +28,7 @@ func TestCooldownAllowsFirstThenBlocks(t *testing.T) {
 	test.TestMain(t)
 
 	rdb, _ := newRedisFromMini(t)
-	cd := email.NewRedisCooldown(rdb, 5*time.Minute)
+	cd := email.NewRedisCooldown(rdb, 5*time.Minute, "")
 
 	ok, err := cd.ShouldNotify(context.Background(), "e", "agg")
 	if err != nil || !ok {
@@ -44,7 +44,7 @@ func TestCooldownExpiresAndAllowsAgain(t *testing.T) {
 	test.TestMain(t)
 
 	rdb, mr := newRedisFromMini(t)
-	cd := email.NewRedisCooldown(rdb, 100*time.Millisecond)
+	cd := email.NewRedisCooldown(rdb, 100*time.Millisecond, "")
 
 	ok, _ := cd.ShouldNotify(context.Background(), "e", "agg")
 	if !ok {
@@ -62,7 +62,7 @@ func TestCooldownIsKeyedByEventAndAggregate(t *testing.T) {
 	test.TestMain(t)
 
 	rdb, _ := newRedisFromMini(t)
-	cd := email.NewRedisCooldown(rdb, 5*time.Minute)
+	cd := email.NewRedisCooldown(rdb, 5*time.Minute, "")
 
 	ok1, _ := cd.ShouldNotify(context.Background(), "e", "branch:1")
 	ok2, _ := cd.ShouldNotify(context.Background(), "e", "branch:2")
@@ -72,5 +72,20 @@ func TestCooldownIsKeyedByEventAndAggregate(t *testing.T) {
 	okOther, _ := cd.ShouldNotify(context.Background(), "other", "branch:1")
 	if !okOther {
 		t.Fatal("different event names should not collide")
+	}
+}
+
+func TestCooldownStoresKeysUnderConfiguredPrefix(t *testing.T) {
+	test.TestMain(t)
+
+	rdb, mr := newRedisFromMini(t)
+	cd := email.NewRedisCooldown(rdb, 5*time.Minute, "app-v2:")
+
+	ok, err := cd.ShouldNotify(context.Background(), "e", "agg")
+	if err != nil || !ok {
+		t.Fatalf("first call: ok=%v err=%v", ok, err)
+	}
+	if !mr.Exists("app-v2:notify:cooldown:e:agg") {
+		t.Fatalf("expected prefixed key, got keys %v", mr.Keys())
 	}
 }

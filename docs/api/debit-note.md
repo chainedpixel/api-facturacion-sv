@@ -115,7 +115,7 @@ El receptor de una nota se identifica por NIT y debe coincidir con el receptor d
 | `total_to_pay` | float | Sí | Total a pagar |
 | `operation_condition` | integer | Sí | `1`=Contado, `2`=Crédito, `3`=Otro. Si `total_to_pay` es `0.00` debe ser `1` (`NoPaymentDueRequiresCashCondition`, dentro de `MANY_ERRORS`) |
 | `taxes` | `Tax[]` | Condicional | Tributos del resumen. Obligatorio si `total_taxed > 0` (debe incluir el `20`); debe omitirse si `total_taxed = 0` |
-| `iva_perception` | float | Sí | IVA percibido (1 % de `total_taxed`) |
+| `iva_perception` | float | Sí | IVA percibido (1 % de `total_taxed - taxed_discount`; estas notas no admiten descuento global, por lo que equivale a `total_taxed`) |
 | `iva_retention` | float | Sí | IVA retenido |
 | `income_retention` | float | Sí | Debe ser `0`: la retención de renta no aplica a la Nota de Débito (`IncomeRetentionNotAllowed`) |
 | `total_in_words` | string | No | Total en letras; si se omite se genera a partir de `total_operation` |
@@ -154,8 +154,9 @@ Las fórmulas completas, redondeos y tolerancias se detallan en [Reglas de cálc
 - `sub_total_sales = total_taxed + total_exempt + total_non_subject`.
 - `sub_total = total_taxed + total_exempt + total_non_subject` (no hay descuentos globales).
 - `total_discount = Σ discount` de los ítems; ningún descuento puede ser negativo ni exceder su base.
-- Cada tributo del resumen: `20` = `total_taxed × 0.13`; `59` = `total_taxed × 0.05`; `71` = `7.00` fijo; `C3` = `0`; `D5` no se recalcula. `D1` (FOVIAL) y `C8` (COTRANS) se rechazan con `UnsupportedTaxCode`.
-- `iva_perception`, si es distinto de `0`, debe ser `total_taxed × 0.01`.
+- Cada tributo del resumen: `20` = `total_taxed × 0.13`; `59` = `round(Σ taxed_sale de los ítems que llevan el código 59 × 0.05, 2)` (sin dividir entre `1.13`, porque los precios no incluyen IVA, y sin restar descuento global); `71` = `7.00` fijo; `C3` = `0`; `D5` no se recalcula. `D1` (FOVIAL) y `C8` (COTRANS) se rechazan con `UnsupportedTaxCode`.
+- Los códigos `59` y `71` deben ser consistentes entre los ítems con venta gravada y el resumen: se rechazan con `MissingSummaryTax` (ítem con venta gravada sin entrada en el resumen) o `MissingItemTaxForSummary` (entrada del resumen sin ítem con venta gravada que la lleve). Los ítems sin venta gravada se ignoran.
+- `iva_perception`, si es distinto de `0`, debe ser `round((total_taxed - taxed_discount) × 0.01, 2)`.
 - `total_operation = sub_total_sales + Σ tributos del resumen`.
 - `total_to_pay = total_operation + iva_perception - iva_retention + total_non_taxed`.
 - Tras validar, el servicio recalcula `total_to_pay` a partir de los totales y es el valor que se transmite en el DTE.

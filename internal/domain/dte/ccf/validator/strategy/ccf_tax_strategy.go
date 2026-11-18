@@ -203,6 +203,15 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 		return dte_errors.NewDTEErrorSimple("MissingTaxes")
 	}
 
+	itemTaxes := make([]commonStrategy.ItemTaxes, 0, len(s.Document.CreditItems))
+	for _, item := range s.Document.CreditItems {
+		itemTaxes = append(itemTaxes, commonStrategy.NewItemTaxes(item.TaxedSale.GetValue(), item.GetTaxes()))
+	}
+	if err := commonStrategy.ValidateSummaryTaxConsistency(itemTaxes, s.Document.CreditSummary.TotalTaxes); err != nil {
+		logs.Error("Inconsistent summary taxes")
+		return err
+	}
+
 	taxedDiscount := decimal.NewFromFloat(s.Document.CreditSummary.TaxedDiscount.GetValue())
 	baseTaxedAfterDiscount := baseTaxed.Sub(taxedDiscount)
 
@@ -215,7 +224,7 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 		case constants.TaxIVAExport:
 			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxIVAExportAmount))
 		case constants.TaxTourism:
-			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxTourismAmount))
+			expectedTax = commonStrategy.PercentageTaxAmount(false, itemTaxes, tax.GetCode(), constants.TaxTourismAmount)
 		case constants.TaxTourismAirport:
 			expectedTax = decimal.NewFromFloat(constants.TaxTourismAirportAmount)
 		case constants.TaxSpecialOther:
@@ -242,21 +251,8 @@ func (s *CCFTaxStrategy) validateIVA() *dte_errors.DTEError {
 }
 
 func (s *CCFTaxStrategy) validatePerception() *dte_errors.DTEError {
-
-	if s.Document.CreditSummary.IVAPerception.GetValue() != 0 {
-		baseTaxed := decimal.NewFromFloat(s.Document.CreditSummary.TotalTaxed.GetValue())
-		expectedPerception := baseTaxed.Mul(decimal.NewFromFloat(0.01))
-		actualPerception := decimal.NewFromFloat(s.Document.CreditSummary.IVAPerception.GetValue())
-
-		diff := expectedPerception.Sub(actualPerception).Abs()
-		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
-			return dte_errors.NewDTEErrorSimple("InvalidPerceptionAmount",
-				actualPerception.StringFixed(2),
-				expectedPerception.StringFixed(2))
-		}
-	}
-
-	return nil
+	return commonStrategy.ValidateIVAPerception(s.Document.CreditSummary.TotalTaxed.GetValue(),
+		s.Document.CreditSummary.TaxedDiscount.GetValue(), s.Document.CreditSummary.IVAPerception.GetValue())
 }
 
 func (s *CCFTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {

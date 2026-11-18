@@ -152,6 +152,7 @@ Cada {Interval} minutos:
 
 - **Producción**: Se ejecuta cada 30 minutos
 - **Pruebas**: Se ejecuta cada 5 minutos
+- **Arranque**: El scheduler (`gocron`) ejecuta cada job una vez al iniciar con `scheduler.StartAsync()` y luego en cada intervalo (no se usa `WaitForSchedule`), por lo que la retransmisión de los documentos pendientes también corre al arrancar la API
 - Si la ejecución falla (incluido el timeout de 10 minutos), registra el error y publica un `RetransmissionJobFailedEvent` (`job_name: contingency_retransmission`) en el bus de eventos, que el `AdminEmailHandler` convierte en un correo al administrador.
 
 #### 2. ReservationCleanerJob — Limpieza de Reservaciones

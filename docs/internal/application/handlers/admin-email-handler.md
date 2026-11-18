@@ -123,7 +123,7 @@ Implementación concreta: `RedisCooldown`.
 ```
 ShouldNotify(ctx, eventName, aggregateID)
   │
-  ├── Clave Redis: "notify:cooldown:{eventName}:{aggregateID}"
+  ├── Clave Redis: "{REDIS_PREFIX}notify:cooldown:{eventName}:{aggregateID}"
   ├── SETNX con TTL configurado (NOTIFY_COOLDOWN_MINUTES, default: 15 minutos)
   ├── ok=true  → primera notificación del periodo → enviar
   └── ok=false → ya existe la clave → cooldown activo → omitir

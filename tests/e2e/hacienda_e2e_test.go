@@ -13,8 +13,8 @@ import (
 // Requisitos: API corriendo (E2E_API_URL), firmador disponible y credenciales E2E_* en .env.
 // Ejecucion: go test -tags e2e ./tests/e2e/ -v -count=1
 //
-// Cada caso pasa si Hacienda otorga sello de recepcion. Un rechazo muestra el codigo y las
-// observaciones de Hacienda, que es justamente lo que se busca descubrir.
+// Cada caso pasa si Hacienda otorga sello de recepcion y no devuelve observaciones. Un rechazo muestra el codigo
+// y las observaciones de Hacienda; un documento recibido con observaciones falla el caso.
 
 // contributorReceiver: receptor contribuyente registrado en Hacienda (E2E_RECEPTOR_* en .env).
 // Hacienda valida que el NIT exista ("NIT CONTRIBUYENTE NO EXISTE"), por lo que no sirven NIT ficticios.
@@ -86,6 +86,12 @@ func shoe(desc string, qty, price, discount float64) itemSpec {
 	return itemSpec{description: desc, itemType: 1, quantity: qty, unitPrice: price, discount: discount, kind: taxedSale}
 }
 
+// withoutExtraTax marks a taxed item as not carrying the additional tax of the invoice
+func withoutExtraTax(it itemSpec) itemSpec {
+	it.withoutExtraTax = true
+	return it
+}
+
 func bread(desc string, qty, price, discount float64) itemSpec {
 	return itemSpec{description: desc, itemType: 1, quantity: qty, unitPrice: price, discount: discount, kind: taxedSale}
 }
@@ -123,6 +129,36 @@ func remissionFor(receiver *structs.ReceiverRequest) *structs.CreateRemissionNot
 
 // ======================= FE =======================
 
+// invoiceCase is a named FE scenario of the suite
+type invoiceCase struct {
+	name string
+	spec invoiceSpec
+}
+
+// tourismTax is the additional tax 59 (5%) used by the tourism scenarios
+func tourismTax() *extraTax {
+	return &extraTax{code: "59", description: "Turismo: por alojamiento (5%)", rate: 0.05}
+}
+
+// tourismInvoiceCases are the FE scenarios of the additional tax 59, shared with the offline builder test
+func tourismInvoiceCases() []invoiceCase {
+	return []invoiceCase{
+		{"tributo adicional turismo 59", invoiceSpec{receiver: companyReceiver(),
+			items:    []itemSpec{shoe("Servicio turistico gravado", 1, 100.00, 0)},
+			extraTax: tourismTax()}},
+		{"turismo 59 mixto: un item con tributo y otro sin tributo", invoiceSpec{receiver: companyReceiver(),
+			items: []itemSpec{
+				shoe("Servicio turistico gravado", 1, 100.00, 0),
+				withoutExtraTax(shoe("Zapato casual sin tributo", 1, 50.00, 0)),
+			},
+			extraTax: tourismTax()}},
+		{"turismo 59 con descuento global a ventas gravadas", invoiceSpec{receiver: companyReceiver(),
+			items:    []itemSpec{shoe("Servicio turistico gravado", 1, 100.00, 0)},
+			global:   globalDiscounts{taxed: 10.00},
+			extraTax: tourismTax()}},
+	}
+}
+
 func TestE2E_FacturaElectronica(t *testing.T) {
 	client := newAPIClient(t)
 
@@ -132,10 +168,7 @@ func TestE2E_FacturaElectronica(t *testing.T) {
 		remission = client.emit(t, "/dte/remissionnote", remissionFor(remissionReceiver()))
 	})
 
-	cases := []struct {
-		name string
-		spec invoiceSpec
-	}{
+	cases := []invoiceCase{
 		{"venta gravada simple", invoiceSpec{receiver: companyReceiver(), items: []itemSpec{
 			shoe("Zapato casual cafe talla 40", 1, 45.00, 0),
 		}}},
@@ -225,13 +258,12 @@ func TestE2E_FacturaElectronica(t *testing.T) {
 			items:        []itemSpec{shoe("Venta a gran contribuyente", 4, 150.00, 0)},
 			global:       globalDiscounts{taxed: 20.00},
 			ivaRetention: true}},
-		{"tributo adicional turismo 59 (exploratorio)", invoiceSpec{receiver: companyReceiver(),
-			items:    []itemSpec{shoe("Servicio turistico gravado", 1, 100.00, 0)},
-			extraTax: &extraTax{code: "59", description: "Turismo: por alojamiento (5%)", rate: 0.05}}},
 		{"con observaciones", invoiceSpec{receiver: companyReceiver(),
 			items: []itemSpec{shoe("Zapato de vestir", 1, 55.00, 5.00)},
 			opts:  documentOptions{observation: "Venta de prueba E2E normativa v2.0"}}},
 	}
+
+	cases = append(cases, tourismInvoiceCases()...)
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -297,7 +329,7 @@ func TestE2E_CreditoFiscal(t *testing.T) {
 		{"con percepcion de IVA 1%", ccfSpec{receiver: ccfReceiver(),
 			items:         []itemSpec{shoe("Venta mayorista", 20, 35.00, 0)},
 			ivaPerception: true}},
-		{"percepcion con descuento global (VERIFICAR base)", ccfSpec{receiver: ccfReceiver(),
+		{"percepcion con descuento global", ccfSpec{receiver: ccfReceiver(),
 			items:         []itemSpec{shoe("Venta mayorista", 20, 35.00, 0)},
 			global:        globalDiscounts{taxed: 50.00},
 			ivaPerception: true}},
@@ -478,6 +510,9 @@ func TestE2E_SujetoExcluido(t *testing.T) {
 		{"dos formas de pago", fseSpec{receiver: excludedSubject(),
 			items:        []itemSpec{{description: "Servicio de reparacion de horno", itemType: 2, quantity: 1, unitPrice: 85.00}},
 			paymentCodes: []string{"01", "05"}}},
+		{"a credito con codigo 01, monto 0.00, plazo y periodo", fseSpec{receiver: excludedSubject(),
+			items:  []itemSpec{{description: "Servicio de limpieza a credito", itemType: 2, quantity: 2, unitPrice: 25.00}},
+			credit: &creditTerms{period: 30, term: "01"}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

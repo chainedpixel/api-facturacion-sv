@@ -276,7 +276,7 @@ func (b *CCFBuilder) AddSummaryWithCreditOperation() *CCFBuilder {
 		return b
 	}
 
-	b.setError(baseSummary.SetPaymentTypes([]interfaces.PaymentType{NewCreditPayment("02", 2)}))
+	b.setError(baseSummary.SetPaymentTypes([]interfaces.PaymentType{NewCreditPaymentOf("", baseSummary.GetTotalToPay(), "02", 2)}))
 	b.setError(baseSummary.SetOperationCondition(constants.Credit))
 
 	return b

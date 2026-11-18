@@ -47,6 +47,7 @@ x-app-environment: &app-environment
   REDIS_HOST: host.docker.internal  # Se conecta al Redis del host
   REDIS_PORT: 6379
   REDIS_PASSWORD:
+  REDIS_PREFIX:
 
   # Configuración del firmador - SERVICIO EXTERNO
   SIGNER_PATH: http://host.docker.internal:8113/sign

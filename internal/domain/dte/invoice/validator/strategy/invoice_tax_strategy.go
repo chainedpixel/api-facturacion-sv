@@ -152,8 +152,17 @@ func (s *InvoiceTaxStrategy) validateIVA() *dte_errors.DTEError {
 		return nil
 	}
 
+	itemTaxes := make([]strategy.ItemTaxes, 0, len(s.Document.InvoiceItems))
+	for _, item := range s.Document.InvoiceItems {
+		itemTaxes = append(itemTaxes, strategy.NewItemTaxes(item.TaxedSale.GetValue(), item.GetTaxes()))
+	}
+	if err := strategy.ValidateSummaryTaxConsistency(itemTaxes, s.Document.InvoiceSummary.TotalTaxes); err != nil {
+		logs.Error("Inconsistent summary taxes")
+		return err
+	}
+
 	for _, tax := range s.Document.InvoiceSummary.TotalTaxes {
-		if err := s.validateTaxCalculation(tax, baseTaxed); err != nil {
+		if err := s.validateTaxCalculation(tax, baseTaxed, itemTaxes); err != nil {
 			return err
 		}
 	}
@@ -191,7 +200,7 @@ func (s *InvoiceTaxStrategy) validateMonetaryAmounts() *dte_errors.DTEError {
 	return nil
 }
 
-func (s *InvoiceTaxStrategy) validateTaxCalculation(tax interfaces.Tax, baseTaxed decimal.Decimal) *dte_errors.DTEError {
+func (s *InvoiceTaxStrategy) validateTaxCalculation(tax interfaces.Tax, baseTaxed decimal.Decimal, itemTaxes []strategy.ItemTaxes) *dte_errors.DTEError {
 	var expectedTax decimal.Decimal
 
 	switch tax.GetCode() {
@@ -200,7 +209,7 @@ func (s *InvoiceTaxStrategy) validateTaxCalculation(tax interfaces.Tax, baseTaxe
 	case constants.TaxIVAExport:
 		expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxIVAExportAmount))
 	case constants.TaxTourism:
-		expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxTourismAmount))
+		expectedTax = strategy.PercentageTaxAmount(true, itemTaxes, tax.GetCode(), constants.TaxTourismAmount)
 	case constants.TaxTourismAirport:
 		expectedTax = decimal.NewFromFloat(constants.TaxTourismAirportAmount)
 	case constants.TaxSpecialOther:

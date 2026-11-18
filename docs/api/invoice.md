@@ -155,6 +155,10 @@ Los montos del resumen se envían con **máximo 2 decimales** (`InvalidDecimals`
 
 Si `total_taxed = 0` no se admiten tributos en el resumen (`InvalidTaxes`). La fórmula de cada tributo está en [calculations.md](./calculations.md#36-tributos-del-resumen-campos-136-a-138) (sección 3.6). `code`, `description` y `value` corresponden a los campos 136, 137 y 138 del Anexo IV de la Normativa de Cumplimiento DTE v2.0.
 
+**Base del tributo `59` (turismo, 5 %):** como los precios de la FE incluyen IVA, el valor es `round((Σ taxed_sale de los ítems que llevan el código 59) / 1.13 × 0.05, 2)` (±0.01). No se resta el descuento global y los ítems que no llevan el código no intervienen. Ejemplos verificados en el ambiente de pruebas de Hacienda el 2026-11-16 (sellados sin observaciones): un ítem de 100.00 con `taxes: ["59"]` da `4.42` y `total_operation` 104.42; dos ítems, 100.00 con el tributo y 50.00 sin él, dan `4.42` y 154.42; un ítem de 100.00 con el tributo y un descuento global de 10.00 dan `4.42` y 94.42.
+
+**Consistencia entre ítems y resumen (`59` y `71`):** un ítem con venta gravada que lleva el código sin entrada con ese código en `taxes` se rechaza con `MissingSummaryTax`; una entrada del resumen sin ítem con venta gravada que la lleve se rechaza con `MissingItemTaxForSummary`. Los ítems sin venta gravada se ignoran.
+
 ---
 
 ### Formas de pago (`payments` o `summary.payment_types`)
@@ -502,6 +506,7 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `InvalidTotalOperation` | `total_operation` no coincide con `sub_total` más tributos |
 | `InvalidTaxes` | Hay tributos en el resumen con `total_taxed = 0` |
 | `InvalidTaxCalculation` | Un tributo no coincide con su cálculo esperado |
+| `MissingSummaryTax`, `MissingItemTaxForSummary` | Los tributos `59` o `71` no son consistentes entre los ítems con venta gravada y el resumen |
 | `MissingIVAForTaxedAmount` | `total_taxed > 0` con `total_iva ≤ 0` |
 | `InvalidTotalIVA` | `total_iva` no coincide con el valor esperado |
 | `IncomeRetentionNotAllowed` | `income_retention ≠ 0` |

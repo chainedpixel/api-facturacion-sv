@@ -4,6 +4,7 @@ import (
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/constants"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/dte_errors"
 	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/interfaces"
+	"github.com/chainedpixel/api-facturacion-sv/internal/domain/dte/common/value_objects/financial"
 	"github.com/shopspring/decimal"
 )
 
@@ -44,7 +45,7 @@ func (s *PaymentTotalStrategy) Validate() *dte_errors.DTEError {
 	}
 
 	if summary.GetOperationCondition() == constants.Credit && len(payments) > 0 {
-		return validateCreditPayments(payments)
+		return validateCreditPayments(creditPolicyFor(dteType), payments, summary.GetTotalToPay())
 	}
 
 	for _, payment := range payments {
@@ -86,19 +87,42 @@ func (s *PaymentTotalStrategy) dontHaveCashPayment() bool {
 	return true
 }
 
-// validateCreditPayments Requires every payment of a credit operation to carry a null code, a 0.00 amount,
-// a null reference, a term and a period greater than zero
-func validateCreditPayments(payments []interfaces.PaymentType) *dte_errors.DTEError {
+// creditPaymentPolicy holds the two independent settings of the credit payment contract of a DTE type: whether the
+// payment method code is required (otherwise it must be null) and whether the payment amounts must add up to the
+// total to pay (otherwise every amount must be 0.00)
+type creditPaymentPolicy struct {
+	codeRequired      bool
+	amountsMatchTotal bool
+}
+
+// creditPaymentPolicies resolves the credit payment policy by DTE type; types that are not listed use the default
+// policy (null code and 0.00 amounts)
+var creditPaymentPolicies = map[string]creditPaymentPolicy{
+	constants.CCFElectronico:                   {codeRequired: false, amountsMatchTotal: true},
+	constants.FacturaSujetoExcluidoElectronica: {codeRequired: true, amountsMatchTotal: false},
+}
+
+// creditPolicyFor Returns the credit payment policy of the given DTE type
+func creditPolicyFor(dteType string) creditPaymentPolicy {
+	return creditPaymentPolicies[dteType]
+}
+
+// validateCreditPayments Requires every payment of a credit operation to follow the policy of its DTE type for the
+// code, the amount and the reference, and to carry a term and a period greater than zero; when the code is required
+// the reference is free, as in the cash condition
+func validateCreditPayments(policy creditPaymentPolicy, payments []interfaces.PaymentType, totalToPay float64) *dte_errors.DTEError {
+	paymentsTotal := decimal.Zero
+
 	for _, payment := range payments {
-		if payment.GetCode() != "" {
-			return dte_errors.NewDTEErrorSimple("CreditPaymentCodeNotAllowed", payment.GetCode())
+		if err := validateCreditPaymentCode(policy, payment); err != nil {
+			return err
 		}
 
-		if !decimal.NewFromFloat(payment.GetAmount()).IsZero() {
+		if !policy.amountsMatchTotal && !decimal.NewFromFloat(payment.GetAmount()).IsZero() {
 			return dte_errors.NewDTEErrorSimple("InvalidCreditPaymentAmount", payment.GetAmount())
 		}
 
-		if payment.GetReference() != "" {
+		if !policy.codeRequired && payment.GetReference() != "" {
 			return dte_errors.NewDTEErrorSimple("CreditPaymentReferenceNotAllowed", payment.GetReference())
 		}
 
@@ -109,6 +133,37 @@ func validateCreditPayments(payments []interfaces.PaymentType) *dte_errors.DTEEr
 		if payment.GetPeriod() == nil || *payment.GetPeriod() <= 0 {
 			return dte_errors.NewDTEErrorSimple("CreditPaymentPeriodRequired")
 		}
+
+		paymentsTotal = paymentsTotal.Add(decimal.NewFromFloat(payment.GetAmount()))
+	}
+
+	if policy.amountsMatchTotal {
+		operationTotal := decimal.NewFromFloat(totalToPay)
+		if operationTotal.Sub(paymentsTotal).Abs().GreaterThan(decimal.NewFromFloat(0.01)) {
+			return dte_errors.NewDTEErrorSimple("CreditPaymentTotalRequired",
+				paymentsTotal.InexactFloat64(), operationTotal.InexactFloat64())
+		}
+	}
+
+	return nil
+}
+
+// validateCreditPaymentCode Applies the code setting of the credit payment policy to one payment
+func validateCreditPaymentCode(policy creditPaymentPolicy, payment interfaces.PaymentType) *dte_errors.DTEError {
+	code := payment.GetCode()
+	if !policy.codeRequired {
+		if code != "" {
+			return dte_errors.NewDTEErrorSimple("CreditPaymentCodeNotAllowed", code)
+		}
+		return nil
+	}
+
+	if code == "" {
+		return dte_errors.NewDTEErrorSimple("CreditPaymentCodeRequired")
+	}
+
+	if !(&financial.PaymentType{Value: code}).IsValid() {
+		return dte_errors.NewDTEErrorSimple("CreditPaymentCodeInvalid", code)
 	}
 
 	return nil

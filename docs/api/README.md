@@ -280,7 +280,7 @@ El Ministerio de Hacienda exige numeración única, consecutiva y sin saltos por
 - [Anulación de DTE](./invalidation.md)
 - [Consulta de DTEs](./dte-query.md)
 - [Reglas de cálculo](./calculations.md)
-- [Guía de actualización para sistemas consumidores](../../private/consumer-upgrade-guide.md) — Cambios desde la versión 25fbd59 y pasos para actualizar las integraciones
+- [Guía de actualización para sistemas consumidores](../../consumer-upgrade-guide.md) — Cambios desde la versión 25fbd59 y pasos para actualizar las integraciones
 
 ### Plazo de 72 horas y estado `EXPIRED`
 

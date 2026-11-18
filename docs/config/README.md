@@ -93,6 +93,7 @@ Todas las claves son opcionales. Si `SMTP_HOST` está vacío el sistema degrada 
 | `REDIS_HOST` | string | Sí | Hostname/IP de Redis |
 | `REDIS_PORT` | string | Sí | Puerto de Redis |
 | `REDIS_PASSWORD` | string | No | Contraseña (opcional) |
+| `REDIS_PREFIX` | string | No | Prefijo aplicado a todas las claves del cache (ej. `facturacion-v2`). Se normaliza agregando `:` al final. Vacío conserva las claves sin prefijo. No debe contener comodines de patrón (`*`, `?`, `[`) |
 
 ### Logging
 
@@ -193,6 +194,7 @@ HostPattern = `^(localhost|IP|domain)$` // Se valida formato de host
 | `SMTP_*` | Solo si `SMTP_HOST` no está vacío: host válido, puerto válido (si se informa) y `SMTP_FROM` obligatorio |
 | Archivo `.env` | Debe existir en la raíz del proyecto; si no se encuentra la aplicación no inicia |
 | `REDIS_PASSWORD` | Excepción: puede estar vacío |
+| `REDIS_PREFIX` | Excepción: puede estar vacío (sin prefijo) |
 
 ---
 
@@ -260,6 +262,7 @@ type RedisConfig struct {
     Host     string
     Port     string
     Password string
+    Prefix   string
 }
 ```
 
@@ -267,6 +270,9 @@ type RedisConfig struct {
 |---|---|
 | `NewRedisConfig()` | Se crea una instancia desde las variables globales |
 | `GetURL()` | Se construye la URL: `redis://:password@host:port` o `redis://host:port` |
+| `KeyPrefix()` | Se devuelve el prefijo normalizado (`facturacion-v2` -> `facturacion-v2:`); vacío si `REDIS_PREFIX` no está definido |
+
+El prefijo se aplica de forma transparente en `RedisTokenCache` (todas las operaciones, incluido `ScanKeys`, que devuelve las claves sin el prefijo) y en el cooldown de notificaciones (`RedisCooldown`). Los consumidores siguen usando claves lógicas (`token:...`, `hacienda:token:...`, `metrics:...`). Cambiar el prefijo deja invisibles las claves anteriores, lo que permite ignorar un cache viejo sin tener que limpiar Redis; las claves antiguas expiran según su TTL.
 
 ---
 

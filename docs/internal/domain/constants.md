@@ -166,7 +166,7 @@ Lista permitida: `AllowedPaymentTypes`.
 | `TaxTourismAirport` | `"71"` | Turismo Aeropuerto | `TaxTourismAirportAmount` | `7.0` (monto fijo) |
 | `TaxSpecialOther` | `"D5"` | Especial/Otro | - | Sin validación |
 
-Listas permitidas: `AllowedTaxTypes` y `MapAllowedTaxTypes`. `TaxFOVIAL` (`"D1"`) y `TaxCOTRANS` (`"C8"`) existen como constantes pero se listan en `UnsupportedTaxTypes`: `financial.NewTaxType` los rechaza con `UnsupportedTaxCode`, porque el catálogo CAT-015 los define por galón (`0.20` y `0.10`) y la API no recibe cantidad de galones. Las fórmulas con que se usan estos valores se describen en [calculations.md](../../api/calculations.md).
+Listas permitidas: `AllowedTaxTypes` y `MapAllowedTaxTypes`. `TaxFOVIAL` (`"D1"`) y `TaxCOTRANS` (`"C8"`) existen como constantes pero se listan en `UnsupportedTaxTypes`: `financial.NewTaxType` los rechaza con `UnsupportedTaxCode`, porque el catálogo CAT-015 los define por galón (`0.20` y `0.10`) y la API no recibe cantidad de galones. Las fórmulas con que se usan estos valores se describen en [calculations.md](../../api/calculations.md). La base del tributo `59` depende del tipo de documento: en FE es la venta gravada de los ítems que llevan el código dividida entre `1.13` (`PercentageTaxBase(true, ...)`), y en CCF, NC y ND es esa misma suma sin dividir (`PercentageTaxBase(false, ...)`). Los cuatro tipos comparten `PercentageTaxAmount`, que suma con `TaxedAmountWithTax` el `TaxedSale` de los ítems que llevan el código; el descuento global no se resta.
 
 ---
 

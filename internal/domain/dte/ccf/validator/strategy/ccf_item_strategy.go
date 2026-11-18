@@ -100,7 +100,7 @@ func (s *CCFItemStrategy) validateCCFTaxRules(item *ccf_models.CreditItem) *dte_
 	if item.GetType() == constants.Impuesto {
 		for _, tax := range item.GetTaxes() {
 			if tax != constants.TaxIVA {
-				return dte_errors.NewDTEErrorSimple("InvalidTaxCodeOnly20", item.GetType(), tax)
+				return dte_errors.NewDTEErrorSimple("InvalidTaxCodeOnly20", tax, item.GetType())
 			}
 		}
 	}

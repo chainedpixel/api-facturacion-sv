@@ -14,7 +14,7 @@ Todas se ejecutan; cada estrategia agrupa sus propios errores y el validador agr
 3. **FSEReceiverStrategy** — Validación del receptor sujeto excluido
 4. **FSEDiscountStrategy** — Validación de compras, descuentos y subtotal
 
-Luego se aplican las [estrategias comunes](./README.md) (incluida `PaymentTotalStrategy`: la suma de pagos debe coincidir con `TotalToPay`).
+Luego se aplican las [estrategias comunes](./README.md) (incluida `PaymentTotalStrategy`: con condición 1 o 3 la suma de pagos debe coincidir con `TotalToPay`; con condición 2 (crédito) cada pago lleva un código obligatorio y válido (`CreditPaymentCodeRequired`, `CreditPaymentCodeInvalid`), la referencia es libre y el monto es `0.00` (`InvalidCreditPaymentAmount`), además del plazo y el período).
 
 ---
 

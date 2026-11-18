@@ -122,7 +122,7 @@ type RedisTokenCache struct {
 | `Get(key)` | Se recupera un valor por clave |
 | `Delete(token)` | Se elimina la entrada `token:{token}` |
 | `Expire(key, ttl)` | Se asigna expiración a una clave |
-| `ScanKeys(pattern)` | Se listan las claves que coinciden con un patrón (iteración por cursor) |
+| `ScanKeys(pattern)` | Se listan las claves que coinciden con un patrón (iteración por cursor); el prefijo se agrega al patrón y se retira de las claves devueltas |
 | `Close()` | Se cierra la conexión Redis |
 
 ### Métodos — Credenciales Cifradas
@@ -133,6 +133,8 @@ type RedisTokenCache struct {
 | `GetCredentials(token)` | Se descifran y retornan credenciales de `hacienda:credentials:{token}` |
 
 Otras claves que se escriben vía `Set`: `token:{jwt}`, `token:timestamps:{clientID}`, `hacienda:token:{jwt}` (token de Hacienda, 24 h) y `metrics:...` (ver [endpoint-metrics.md](endpoint-metrics.md)).
+
+Todas las claves se almacenan bajo el prefijo `REDIS_PREFIX` normalizado (`RedisConfig.KeyPrefix()`, ej. `facturacion-v2:token:{jwt}`). El prefijo se aplica dentro del adaptador, por lo que los consumidores y los logs (`redactKey`) trabajan con la clave lógica sin prefijo.
 
 ### Flujo de Cifrado de Credenciales
 
