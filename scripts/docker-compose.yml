@@ -57,6 +57,7 @@ x-app-environment: &app-environment
   REDIS_HOST: redis
   REDIS_PORT: 6379
   REDIS_PASSWORD:
+  REDIS_PREFIX:
 
   # Configuración del firmador
   SIGNER_PATH: http://signer:8113/sign #No modificar: nombre del servicio del firmador en la red de Docker

@@ -8,8 +8,8 @@ import (
 	"github.com/chainedpixel/api-facturacion-sv/pkg/mapper/request_mapper/structs"
 )
 
-// TestE2E_CreditoYDocumentosRelacionados covers the credit sale payment contract (null code, 0.00 amount, null
-// reference, term and period) and the strict link between items and related documents in FE and CCF.
+// TestE2E_CreditoYDocumentosRelacionados covers the credit sale payment contract per DTE type (FE: null code and 0.00
+// amount; CCF: null code and the total to pay; FSE: payment method code and 0.00 amount; always term and period) and the strict link between items and related documents in FE and CCF.
 func TestE2E_CreditoYDocumentosRelacionados(t *testing.T) {
 	client := newAPIClient(t)
 
@@ -23,7 +23,7 @@ func TestE2E_CreditoYDocumentosRelacionados(t *testing.T) {
 		client.emit(t, "/dte/invoices", creditInvoice("Venta a credito contrato nuevo"))
 	})
 
-	t.Run("CCF a credito con codigo null, monto 0.00, referencia null, plazo y periodo obtiene sello", func(t *testing.T) {
+	t.Run("CCF a credito con codigo null, monto igual al total a pagar, referencia null, plazo y periodo obtiene sello", func(t *testing.T) {
 		client.emit(t, "/dte/ccf", buildCCF(ccfSpec{receiver: ccfReceiver(),
 			items: []itemSpec{shoe("Pedido a credito contrato nuevo", 2, 25.00, 0)}, opts: credit}))
 	})
@@ -39,6 +39,78 @@ func TestE2E_CreditoYDocumentosRelacionados(t *testing.T) {
 			items: []itemSpec{shoe("CCF credito con codigo de pago", 2, 25.00, 0)}, opts: credit})
 		req.Summary.PaymentTypes[0].Code = "03"
 		client.expectRejected(t, "/dte/ccf", req, "CreditPaymentCodeNotAllowed")
+	})
+
+	creditCCF := func(desc string) *structs.CreateCreditFiscalRequest {
+		return buildCCF(ccfSpec{receiver: ccfReceiver(), items: []itemSpec{shoe(desc, 2, 25.00, 0)}, opts: credit})
+	}
+	creditFSE := func(desc string) *structs.CreateFSERequest {
+		return buildFSE(fseSpec{receiver: excludedSubject(),
+			items:  []itemSpec{{description: desc, itemType: 2, quantity: 2, unitPrice: 25.00}},
+			credit: &creditTerms{period: 30, term: "01"}})
+	}
+
+	t.Run("CCF a credito con pago de 0.00 se rechaza localmente", func(t *testing.T) {
+		req := creditCCF("CCF credito con pago en cero")
+		req.Summary.PaymentTypes[0].Amount = 0
+		client.expectRejected(t, "/dte/ccf", req, "CreditPaymentTotalRequired")
+	})
+
+	t.Run("CCF a credito con dos pagos que no suman el total se rechaza localmente", func(t *testing.T) {
+		req := creditCCF("CCF credito con pagos que no suman")
+		period, term := 30, "01"
+		half := req.Summary.TotalToPay / 2
+		req.Summary.PaymentTypes = []structs.PaymentRequest{
+			{Amount: half, Period: &period, Term: &term},
+			{Amount: half - 1.00, Period: &period, Term: &term},
+		}
+		client.expectRejected(t, "/dte/ccf", req, "CreditPaymentTotalRequired")
+	})
+
+	t.Run("CCF a credito sin plazo se rechaza localmente", func(t *testing.T) {
+		req := creditCCF("CCF credito sin plazo")
+		req.Summary.PaymentTypes[0].Term = nil
+		client.expectRejected(t, "/dte/ccf", req, "CreditPaymentTermRequired")
+	})
+
+	t.Run("CCF a credito sin periodo se rechaza localmente", func(t *testing.T) {
+		req := creditCCF("CCF credito sin periodo")
+		req.Summary.PaymentTypes[0].Period = nil
+		client.expectRejected(t, "/dte/ccf", req, "CreditPaymentPeriodRequired")
+	})
+
+	t.Run("FSE a credito con codigo 01 y monto 0.00 obtiene sello", func(t *testing.T) {
+		client.emit(t, "/dte/fse", creditFSE("FSE credito con codigo de pago"))
+	})
+
+	t.Run("FSE a credito sin codigo de forma de pago se rechaza localmente", func(t *testing.T) {
+		req := creditFSE("FSE credito sin codigo")
+		req.Summary.PaymentTypes[0].Code = ""
+		client.expectRejected(t, "/dte/fse", req, "CreditPaymentCodeRequired")
+	})
+
+	t.Run("FSE a credito con codigo invalido se rechaza localmente", func(t *testing.T) {
+		req := creditFSE("FSE credito con codigo invalido")
+		req.Summary.PaymentTypes[0].Code = "XX"
+		client.expectRejectedAny(t, "/dte/fse", req, "CreditPaymentCodeInvalid", "payment.code", "InvalidLength")
+	})
+
+	t.Run("FSE a credito con monto igual al total se rechaza localmente", func(t *testing.T) {
+		req := creditFSE("FSE credito con monto igual al total")
+		req.Summary.PaymentTypes[0].Amount = req.Summary.TotalToPay
+		client.expectRejected(t, "/dte/fse", req, "InvalidCreditPaymentAmount")
+	})
+
+	t.Run("FSE a credito sin plazo se rechaza localmente", func(t *testing.T) {
+		req := creditFSE("FSE credito sin plazo")
+		req.Summary.PaymentTypes[0].Term = nil
+		client.expectRejected(t, "/dte/fse", req, "CreditPaymentTermRequired")
+	})
+
+	t.Run("FSE a credito sin periodo se rechaza localmente", func(t *testing.T) {
+		req := creditFSE("FSE credito sin periodo")
+		req.Summary.PaymentTypes[0].Period = nil
+		client.expectRejected(t, "/dte/fse", req, "CreditPaymentPeriodRequired")
 	})
 
 	t.Run("venta a credito sin plazo se rechaza localmente", func(t *testing.T) {

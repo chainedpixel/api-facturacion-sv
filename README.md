@@ -114,6 +114,7 @@ Las variables de entorno se leen del archivo `.env` de la raíz del proyecto (se
 | `MH_AMBIENT_CODE` | Ambiente: `00` pruebas, `01` producción |
 | `DB_DRIVER`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_CHARSET` | Conexión a la base de datos (`mysql` o `postgres`) |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | Conexión a Redis |
+| `REDIS_PREFIX` | Prefijo opcional para todas las claves del cache (cambiarlo aísla el cache anterior) |
 | `SIGNER_PATH`, `SIGNER_HEALTH` | URLs del servicio externo de firma |
 | `MH_AUTH_URL`, `MH_RECEPTION_URL`, `MH_LOTE_RECEPTION_URL`, `MH_RECEPTION_CONSULT_URL`, `MH_RECEPTION_CONSULT_LOTE_URL`, `MH_CONTINGENCY_URL`, `MH_NULLIFY_URL` | Endpoints de Hacienda |
 | `RUN_MIGRATION` | Ejecuta las migraciones al iniciar (`true`/`false`) |
@@ -285,7 +286,7 @@ Documentación disponible:
 
 - [Arquitectura detallada](./ARCHITECTURE.md)
 - [Referencia de API para consumidores](./docs/api/README.md)
-- [Guía de actualización para sistemas consumidores](private/consumer-upgrade-guide.md)
+- [Guía de actualización para sistemas consumidores](consumer-upgrade-guide.md)
 - [Eventos de dominio y notificaciones por correo](./docs/internal/infrastructure/domain-events.md)
 - [Colección Postman](scripts/postman/Collection.postman_collection.json) y [environment](scripts/postman/Environment.postman_environment.json)
 

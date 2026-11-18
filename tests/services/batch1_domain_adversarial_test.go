@@ -164,6 +164,9 @@ func TestAdversarialBatch1KeysTranslate(t *testing.T) {
 		{"validation_errors", "InvalidPaymentTotal", []interface{}{1.0, 2.0}},
 		{"validation_errors", "CreditPaymentCodeNotAllowed", []interface{}{"03"}},
 		{"validation_errors", "CreditPaymentReferenceNotAllowed", []interface{}{"REF"}},
+		{"validation_errors", "CreditPaymentCodeRequired", nil},
+		{"validation_errors", "CreditPaymentCodeInvalid", []interface{}{"XX"}},
+		{"validation_errors", "CreditPaymentTotalRequired", []interface{}{1.0, 2.0}},
 		{"validation_errors", "CreditPaymentTermRequired", nil},
 		{"validation_errors", "CreditPaymentPeriodRequired", nil},
 		{"validation_errors", "PaymentCodeRequired", []interface{}{1}},
@@ -438,7 +441,7 @@ func advPaymentDocument(dteType string, condition int, total float64, amounts []
 			Code:   *financial.NewValidatedPaymentType(constants.TarjetaCredito),
 			Amount: *financial.NewValidatedAmount(amount),
 		}
-		if condition == constants.Credit {
+		if condition == constants.Credit && dteType != constants.FacturaSujetoExcluidoElectronica {
 			payment.Code = financial.PaymentType{}
 		}
 		if withTerms {
@@ -472,7 +475,11 @@ func TestAdversarialPaymentTotals(t *testing.T) {
 		wantCode  string
 	}{
 		{"credit two zero payments", "01", 2, 100, []float64{0, 0}, true, ""},
-		{"credit three zero payments", "03", 2, 100, []float64{0, 0, 0}, true, ""},
+		{"credit CCF three zero payments", "03", 2, 100, []float64{0, 0, 0}, true, "CREDITPAYMENTTOTALREQUIRED"},
+		{"credit CCF split sums full", "03", 2, 100, []float64{60, 40}, true, ""},
+		{"credit CCF within tolerance 0.01", "03", 2, 100, []float64{99.99}, true, ""},
+		{"credit CCF just outside tolerance", "03", 2, 100, []float64{99.98}, true, "CREDITPAYMENTTOTALREQUIRED"},
+		{"credit CCF split over total", "03", 2, 100, []float64{60, 40.02}, true, "CREDITPAYMENTTOTALREQUIRED"},
 		{"credit zero plus partial", "01", 2, 100, []float64{0, 40}, true, "INVALIDCREDITPAYMENTAMOUNT"},
 		{"credit partial plus zero", "01", 2, 100, []float64{40, 0}, true, "INVALIDCREDITPAYMENTAMOUNT"},
 		{"credit zero plus full", "01", 2, 100, []float64{0, 100}, true, "INVALIDCREDITPAYMENTAMOUNT"},
@@ -490,7 +497,9 @@ func TestAdversarialPaymentTotals(t *testing.T) {
 		{"cash full", "01", 1, 100, []float64{100}, false, ""},
 		{"condition 3 zero payment", "01", 3, 100, []float64{0}, false, "INVALIDPAYMENTTOTAL"},
 		{"condition 3 full", "01", 3, 100, []float64{100}, false, ""},
-		{"credit CCF zero", "03", 2, 100, []float64{0}, true, ""},
+		{"credit CCF zero", "03", 2, 100, []float64{0}, true, "CREDITPAYMENTTOTALREQUIRED"},
+		{"credit CCF full", "03", 2, 100, []float64{100}, true, ""},
+		{"FSE credit full amount rejected", "14", 2, 100, []float64{100}, true, "INVALIDCREDITPAYMENTAMOUNT"},
 		{"FSE credit zero", "14", 2, 100, []float64{0}, true, ""},
 		{"NC skips validation", "05", 1, 100, []float64{0}, false, ""},
 		{"ND skips validation", "06", 2, 100, []float64{7}, false, ""},

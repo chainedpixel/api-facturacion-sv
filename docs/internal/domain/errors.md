@@ -215,6 +215,9 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `CreditPaymentReferenceNotAllowed` | 1 | Con condición de operación crédito (2), la referencia de la forma de pago debe ir null; se recibió %s |
 | `CreditPaymentTermRequired` | 0 | Con condición de operación crédito (2), el plazo de la forma de pago es obligatorio |
 | `CreditPaymentPeriodRequired` | 0 | Con condición de operación crédito (2), el período de la forma de pago es obligatorio y debe ser mayor que cero |
+| `CreditPaymentCodeRequired` | 0 | Con condición de operación crédito (2), este tipo de documento requiere el código de forma de pago en cada pago |
+| `CreditPaymentCodeInvalid` | 1 | Con condición de operación crédito (2), el código de forma de pago no es válido (01-14 o 99); se recibió %s |
+| `CreditPaymentTotalRequired` | 2 | Con condición de operación crédito (2), este tipo de documento requiere que la suma de las formas de pago (%f) sea igual al total a pagar (%f) |
 | `PaymentCodeRequired` | 1 | Con condición de operación %d, el código de forma de pago es obligatorio |
 | `InvalidTotalIVA` | 2 | El total de IVA %f no coincide con la suma de impuestos IVA %f |
 | `InvalidTotalTaxed` | 2 | El total gravado %f no coincide con la suma de ventas gravadas %f |
@@ -244,9 +247,11 @@ Si la clave no existe en el idioma activo ni en `en`, el mensaje resultante es `
 | `InvalidNITFormat` | 1 | El formato de NIT %s no es válido, debe ser de 14 dígitos para personas jurídicas y 9 dígitos para personas naturales homologación |
 | `MixedDocumentTypesNotAllowed` | 0 | No se permiten tipos de documentos mixtos, se encontró un tipo diferente al esperado. Los tipos de documentos relacionados deben ser iguales, no mezcle tipos de documentos |
 | `MissingTaxes` | 0 | En los ítems existen impuestos pero en el resumen no existe ningún impuesto |
+| `MissingSummaryTax` | 1 | El ítem tiene el tributo %s con venta gravada pero el resumen no contiene ese tributo |
+| `MissingItemTaxForSummary` | 1 | El resumen contiene el tributo %s pero ningún ítem con venta gravada lo incluye |
 | `MissingTaxesItem` | 1 | El ítem %d tiene venta gravada pero no hay impuestos presentes, el impuesto (20) IVA debe estar presente para ventas gravadas |
 | `MissingItemUnitPrice` | 1 | El ítem %d, el precio unitario es requerido cuando la venta gravada es mayor que cero |
-| `InvalidPerceptionAmount` | 2 | El monto de percepción %s no coincide con el esperado (1%% del total gravado): %s |
+| `InvalidPerceptionAmount` | 2 | El monto de percepción %s no coincide con el esperado (1%% del total gravado menos el descuento global a ventas gravadas): %s |
 | `InvalidDTETypeForInvalidation` | 1 | El tipo de documento %s no es un tipo de DTE válido para invalidación |
 | `TransmissionFailed` | 0 | La transmisión falló, el documento no fue recibido por Hacienda |
 | `ExceededRelatedDocsLimit` | 1 | El número de documentos relacionados (%d) excede el límite permitido de 50 |

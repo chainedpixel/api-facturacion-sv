@@ -94,13 +94,13 @@ IVA (20) = (TotalTaxed - TaxedDiscount) * 0.13
 
 > **Diferencia con la Factura:** En FE el IVA va incluido en el precio y se informa en `TotalIva`; el CCF informa el IVA como tributo `20` del resumen.
 
-Los demás tributos usan `TotalTaxed` sin restar el descuento; las tasas están en [Cálculos, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138).
+El tributo `59` usa la suma de `TaxedSale` de los ítems que llevan el código `59` (`PercentageTaxAmount`), sin restar el descuento ni dividir entre `1.13` (los precios del CCF no incluyen IVA). En CCF, los ítems de tipo `1` solo admiten `20`, por lo que `59` y `71` van en ítems de tipo `2` o `3`. Los códigos `59` y `71` deben ser consistentes entre los ítems con venta gravada y el resumen (`ValidateSummaryTaxConsistency`): `MissingSummaryTax` o `MissingItemTaxForSummary`, con el código como parámetro. Las tasas están en [Cálculos, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138).
 
 ### Percepción de IVA
 
 ```
 Si IVAPerception != 0:
-    IVAPerception = TotalTaxed * 0.01    (±0.01)    InvalidPerceptionAmount
+    IVAPerception = round((TotalTaxed - TaxedDiscount) * 0.01, 2)    (±0.01)    InvalidPerceptionAmount
 ```
 
 La retención de IVA (`IVARetention`) no se recalcula: su valor solo interviene en el total a pagar.
@@ -194,7 +194,8 @@ La estrategia común `RelatedDocsStrategy` aplica además el plazo de generació
 | `InvalidTaxesWithNonSubject` | Impuestos en ítem no sujeto |
 | `MissingTaxesItem` | Gravado sin impuestos |
 | `InvalidItemSaleAmount` | Venta del ítem no coincide con `(UnitPrice * Quantity) - Discount` |
-| `InvalidPerceptionAmount` | Percepción no coincide con 1% |
+| `InvalidPerceptionAmount` | Percepción no coincide con 1% de `TotalTaxed - TaxedDiscount` |
+| `MissingSummaryTax`, `MissingItemTaxForSummary` | Tributo `59` o `71` sin correspondencia entre ítems con venta gravada y resumen |
 | `MissingTaxes`, `InvalidTaxes` | Gravado sin tributos en el resumen; tributos sin gravado |
 | `MissingIVAForTaxedAmount` | Gravado > 0 sin tributo `20` |
 | `InvalidTaxCalculation` | Valor de un tributo del resumen incorrecto |

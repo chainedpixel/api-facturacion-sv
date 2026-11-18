@@ -15,17 +15,19 @@ type Cooldown interface {
 type RedisCooldown struct {
 	client *redis.Client
 	ttl    time.Duration
+	prefix string
 }
 
-func NewRedisCooldown(client *redis.Client, ttl time.Duration) *RedisCooldown {
+// NewRedisCooldown builds a cooldown backed by Redis; keyPrefix namespaces every key it writes.
+func NewRedisCooldown(client *redis.Client, ttl time.Duration, keyPrefix string) *RedisCooldown {
 	if ttl <= 0 {
 		ttl = 15 * time.Minute
 	}
-	return &RedisCooldown{client: client, ttl: ttl}
+	return &RedisCooldown{client: client, ttl: ttl, prefix: keyPrefix}
 }
 
 func (c *RedisCooldown) ShouldNotify(ctx context.Context, eventName, aggregateID string) (bool, error) {
-	key := fmt.Sprintf("notify:cooldown:%s:%s", eventName, aggregateID)
+	key := fmt.Sprintf("%snotify:cooldown:%s:%s", c.prefix, eventName, aggregateID)
 	ok, err := c.client.SetNX(ctx, key, "1", c.ttl).Result()
 	if err != nil {
 		return false, err

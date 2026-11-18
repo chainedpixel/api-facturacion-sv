@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestE2E_CambiosNormativa covers credit sales paid with 0.00, item discounts above 100.00 and the
+// TestE2E_CambiosNormativa covers credit sales (FE with 0.00, CCF with the total to pay), item discounts above 100.00 and the
 // processing date returned by the consult endpoint.
 func TestE2E_CambiosNormativa(t *testing.T) {
 	client := newAPIClient(t)
@@ -20,7 +20,7 @@ func TestE2E_CambiosNormativa(t *testing.T) {
 			items: []itemSpec{shoe("Venta a credito sin abono", 2, 25.00, 0)}, opts: zeroCredit}))
 	})
 
-	t.Run("CCF a credito con pago de 0.00", func(t *testing.T) {
+	t.Run("CCF a credito con codigo null y monto igual al total a pagar", func(t *testing.T) {
 		client.emit(t, "/dte/ccf", buildCCF(ccfSpec{receiver: ccfReceiver(),
 			items: []itemSpec{shoe("Pedido a credito sin abono", 2, 25.00, 0)}, opts: zeroCredit}))
 	})

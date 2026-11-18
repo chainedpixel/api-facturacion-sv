@@ -94,6 +94,28 @@ func TestE2E_RechazosEsperados(t *testing.T) {
 			return req
 		}, ""},
 
+		{"FE con turismo 59 calculado sobre el monto con IVA", "/dte/invoices", func() interface{} {
+			req := buildInvoice(invoiceSpec{receiver: companyReceiver(),
+				items:    []itemSpec{shoe("Servicio turistico gravado", 1, 100.00, 0)},
+				extraTax: tourismTax()})
+			req.Summary.Taxes[0].Value = 5.00
+			req.Summary.TotalOperation = 105.00
+			req.Summary.TotalToPay = 105.00
+			req.Summary.PaymentTypes[0].Amount = 105.00
+			return req
+		}, "InvalidTaxCalculation"},
+
+		{"FE con item con turismo 59 y sin tributo en el resumen", "/dte/invoices", func() interface{} {
+			req := buildInvoice(invoiceSpec{receiver: companyReceiver(),
+				items:    []itemSpec{shoe("Servicio turistico gravado", 1, 100.00, 0)},
+				extraTax: tourismTax()})
+			req.Summary.Taxes = nil
+			req.Summary.TotalOperation = 100.00
+			req.Summary.TotalToPay = 100.00
+			req.Summary.PaymentTypes[0].Amount = 100.00
+			return req
+		}, "MissingSummaryTax"},
+
 		// ---- CCF ----
 		{"CCF con monto total sin el IVA", "/dte/ccf", func() interface{} {
 			req := validCCF()
@@ -115,6 +137,14 @@ func TestE2E_RechazosEsperados(t *testing.T) {
 			req.Summary.IVAPerception = 5.00
 			req.Summary.TotalToPay += 5.00
 			req.Summary.PaymentTypes[0].Amount = req.Summary.TotalToPay
+			return req
+		}, "InvalidPerceptionAmount"},
+		{"CCF con percepcion sobre el total gravado sin descontar el descuento global", "/dte/ccf", func() interface{} {
+			req := buildCCF(ccfSpec{receiver: ccfReceiver(), global: globalDiscounts{taxed: 50.00},
+				items: []itemSpec{shoe("Venta mayorista", 20, 35.00, 0)}})
+			req.Summary.IVAPerception = 7.00
+			req.Summary.TotalToPay = 741.50
+			req.Summary.PaymentTypes[0].Amount = 741.50
 			return req
 		}, "InvalidPerceptionAmount"},
 		{"CCF con retencion de renta (eliminada en v2.0)", "/dte/ccf", func() interface{} {

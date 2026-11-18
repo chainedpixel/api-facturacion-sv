@@ -40,6 +40,57 @@
 					"        pm.test('observations es un arreglo en la respuesta de emision', function () {",
 					"            pm.expect(body.observations).to.be.an('array');",
 					"        });",
+					"        // Ningun documento puede aceptarse con observaciones de Hacienda",
+					"        pm.test('Hacienda no devolvio observaciones', function () {",
+					"            pm.expect(body.observations, JSON.stringify(body.observations)).to.be.an('array').that.is.empty;",
+					"        });",
+					"    }",
+					"}",
+					"",
+					"// Lee las observaciones de un evento: su campo observations y el observaciones de la respuesta de Hacienda (objeto o texto JSON)",
+					"function observacionesDelEvento(evento) {",
+					"    let lista = [];",
+					"    if (evento && Array.isArray(evento.observations)) {",
+					"        lista = lista.concat(evento.observations);",
+					"    }",
+					"    let respuesta = evento ? evento.hacienda_response : null;",
+					"    if (typeof respuesta === 'string') {",
+					"        try { respuesta = JSON.parse(respuesta); } catch (e) { respuesta = null; }",
+					"    }",
+					"    if (respuesta && Array.isArray(respuesta.observaciones)) {",
+					"        lista = lista.concat(respuesta.observaciones);",
+					"    }",
+					"    return lista.filter(function (o) { return o; });",
+					"}",
+					"",
+					"// Solo se evaluan respuestas exitosas: los rechazos esperados (4xx) no entran en estas validaciones",
+					"if (pm.response.code === 200) {",
+					"    let cuerpo = null;",
+					"    try { cuerpo = pm.response.json(); } catch (e) { cuerpo = null; }",
+					"    const ruta = pm.request.url.getPath();",
+					"    const datos = cuerpo ? cuerpo.data : null;",
+					"",
+					"    if (pm.request.method === 'POST' && ruta.endsWith('/dte/invalidation') && datos) {",
+					"        pm.test('Hacienda no devolvio observaciones en la invalidacion', function () {",
+					"            const observaciones = observacionesDelEvento(datos);",
+					"            pm.expect(observaciones, JSON.stringify(observaciones)).to.be.empty;",
+					"        });",
+					"    }",
+					"",
+					"    if (pm.request.method === 'GET' && ruta.endsWith('/eventos') && Array.isArray(datos)) {",
+					"        pm.test('Hacienda no devolvio observaciones en los eventos', function () {",
+					"            const observaciones = [];",
+					"            datos.forEach(function (evento) {",
+					"                observacionesDelEvento(evento).forEach(function (o) { observaciones.push(evento.generation_code + ': ' + o); });",
+					"            });",
+					"            pm.expect(observaciones, JSON.stringify(observaciones)).to.be.empty;",
+					"        });",
+					"    }",
+					"",
+					"    if (pm.request.method === 'GET' && datos && !Array.isArray(datos) && Object.prototype.hasOwnProperty.call(datos, 'observations')) {",
+					"        pm.test('El DTE consultado no tiene observaciones', function () {",
+					"            pm.expect(datos.observations, JSON.stringify(datos.observations)).to.be.an('array').that.is.empty;",
+					"        });",
 					"    }",
 					"}"
 				]
@@ -909,7 +960,30 @@
 							]
 						},
 						"description": "Venta mixta (operation_condition 3): varias formas de pago con monto mayor que 0 cuya suma es igual a total_to_pay (holgura 0.01). La parte cobrada va con su codigo (01 efectivo) y la parte no cobrada con el codigo 13 (cuentas por pagar del receptor). Cada forma de pago requiere code (PaymentCodeRequired)."
-					}
+					},
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"}"
+								]
+							}
+						}
+					]
 				},
 				{
 					"name": "Tres formas de pago (efectivo, credito y transferencia)",
@@ -1000,7 +1074,7 @@
 								"invoices"
 							]
 						},
-						"description": "Operacion a credito (operation_condition 2): cada forma de pago va con code null, amount 0.00, reference null, term (01 dias, 02 meses o 03 anios) y period mayor que cero. total_to_pay se mantiene con el valor real de la venta. Con code distinto de null la API responde CreditPaymentCodeNotAllowed; sin term, CreditPaymentTermRequired; sin period o con period 0, CreditPaymentPeriodRequired; con reference, CreditPaymentReferenceNotAllowed; con amount distinto de 0.00, InvalidCreditPaymentAmount."
+						"description": "Operacion a credito (operation_condition 2) en FE: cada forma de pago va con code null, amount 0.00, reference null, term (01 dias, 02 meses o 03 anios) y period mayor que cero. total_to_pay se mantiene con el valor real de la venta. Esta forma aplica solo a FE: en CCF los pagos deben sumar total_to_pay y en FSE el code es obligatorio. Con code distinto de null la API responde CreditPaymentCodeNotAllowed; sin term, CreditPaymentTermRequired; sin period o con period 0, CreditPaymentPeriodRequired; con reference, CreditPaymentReferenceNotAllowed; con amount distinto de 0.00, InvalidCreditPaymentAmount."
 					},
 					"response": [],
 					"event": [
@@ -1445,7 +1519,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Servicio turistico gravado\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 100,\n            \"discount\": 0,\n            \"code\": \"FE-001\",\n            \"taxes\": [\n                \"59\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 100,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 11.50442478\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 100,\n        \"sub_total\": 100,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 105,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 100,\n        \"total_to_pay\": 105,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"59\",\n                \"description\": \"Turismo: por alojamiento (5%)\",\n                \"value\": 5\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 105\n            }\n        ],\n        \"total_in_words\": \"105 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 11.5,\n        \"balance_in_favor\": 0\n    }\n}",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Servicio turistico gravado\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 100,\n            \"discount\": 0,\n            \"code\": \"FE-001\",\n            \"taxes\": [\n                \"59\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 100,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 11.50442478\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 100,\n        \"sub_total\": 100,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 104.42,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 100,\n        \"total_to_pay\": 104.42,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"59\",\n                \"description\": \"Turismo: por alojamiento (5%)\",\n                \"value\": 4.42\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 104.42\n            }\n        ],\n        \"total_in_words\": \"104 DOLARES CON 42 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 11.5,\n        \"balance_in_favor\": 0\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1464,7 +1538,123 @@
 								"invoices"
 							]
 						},
-						"description": "Tributo de la seccion 1 de CAT-015; en FE nunca va el tributo 20."
+						"description": "Tributo de la seccion 1 de CAT-015; en FE nunca va el tributo 20. Los precios de FE incluyen IVA: el tributo 59 (5%) es round(suma de taxed_sale de los items con el tributo / 1.13 x 0.05, 2) y el descuento global no se resta de esa base."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Tributo turismo (59) mixto: un item con tributo y otro sin tributo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Servicio turistico gravado\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 100,\n            \"discount\": 0,\n            \"code\": \"FE-001\",\n            \"taxes\": [\n                \"59\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 100,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 11.50442478\n        },\n        {\n            \"number\": 2,\n            \"type\": 1,\n            \"description\": \"Servicio gravado sin tributo adicional\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 50,\n            \"discount\": 0,\n            \"code\": \"FE-002\",\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 50,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 5.75221239\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 150,\n        \"sub_total\": 150,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 154.42,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 150,\n        \"total_to_pay\": 154.42,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"59\",\n                \"description\": \"Turismo: por alojamiento (5%)\",\n                \"value\": 4.42\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 154.42\n            }\n        ],\n        \"total_in_words\": \"154 DOLARES CON 42 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 17.26,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invoices"
+							]
+						},
+						"description": "Solo los items que llevan el tributo 59 forman la base del tributo: round(100 / 1.13 x 0.05, 2) = 4.42. El item sin tributo no aporta a la base y no lleva taxes. total_iva es la suma de iva_item."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Tributo turismo (59) con descuento global a ventas gravadas",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Servicio turistico gravado\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 100,\n            \"discount\": 0,\n            \"code\": \"FE-001\",\n            \"taxes\": [\n                \"59\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 100,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0,\n            \"iva_item\": 11.50442478\n        }\n    ],\n    \"receiver\": {\n        \"document_type\": \"36\",\n        \"document_number\": \"{{receptor_nit}}\",\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 100,\n        \"sub_total\": 90,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 10,\n        \"total_discount\": 10,\n        \"total_operation\": 94.42,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 100,\n        \"total_to_pay\": 94.42,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"59\",\n                \"description\": \"Turismo: por alojamiento (5%)\",\n                \"value\": 4.42\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 94.42\n            }\n        ],\n        \"total_in_words\": \"94 DOLARES CON 42 CENTAVOS\",\n        \"taxed_discount\": 10,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 10.35,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/invoices",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"invoices"
+							]
+						},
+						"description": "El descuento global a ventas gravadas (taxed_discount) no se resta de la base del tributo 59: round(100 / 1.13 x 0.05, 2) = 4.42. total_iva = suma de iva_item - (taxed_discount / 1.13 x 13%)."
 					},
 					"response": [],
 					"event": [
@@ -1919,7 +2109,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Venta mayorista\",\n            \"quantity\": 20,\n            \"unit_measure\": 59,\n            \"unit_price\": 35,\n            \"discount\": 0,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 700,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 700,\n        \"sub_total\": 650,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 7.14,\n        \"total_discount\": 50,\n        \"total_operation\": 734.5,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 700,\n        \"total_to_pay\": 741.5,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 84.5\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 741.5\n            }\n        ],\n        \"total_in_words\": \"741 DOLARES CON 50 CENTAVOS\",\n        \"taxed_discount\": 50,\n        \"iva_perception\": 7,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Venta mayorista\",\n            \"quantity\": 20,\n            \"unit_measure\": 59,\n            \"unit_price\": 35,\n            \"discount\": 0,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 700,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 700,\n        \"sub_total\": 650,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 7.14,\n        \"total_discount\": 50,\n        \"total_operation\": 734.5,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 700,\n        \"total_to_pay\": 741,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 84.5\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 741\n            }\n        ],\n        \"total_in_words\": \"741 DOLARES CON 00 CENTAVOS\",\n        \"taxed_discount\": 50,\n        \"iva_perception\": 6.5,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1938,7 +2128,7 @@
 								"ccf"
 							]
 						},
-						"description": "Percepcion sobre el total gravado."
+						"description": "Percepcion de IVA 1% sobre el total gravado menos el descuento global a ventas gravadas: round(1% x (total_taxed - taxed_discount), 2)."
 					},
 					"response": [],
 					"event": [
@@ -2260,7 +2450,7 @@
 					]
 				},
 				{
-					"name": "Condicion credito con pago en 0.00 (sin abono inicial)",
+					"name": "Condicion credito con pago igual al total a pagar",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -2271,7 +2461,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Pedido semanal de pan\",\n            \"quantity\": 50,\n            \"unit_measure\": 59,\n            \"unit_price\": 1.1,\n            \"discount\": 2.5,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 52.5,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 52.5,\n        \"sub_total\": 52.5,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 2.5,\n        \"total_operation\": 59.33,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 52.5,\n        \"total_to_pay\": 59.33,\n        \"operation_condition\": 2,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.83\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": null,\n                \"amount\": 0,\n                \"reference\": null,\n                \"term\": \"01\",\n                \"period\": 15\n            }\n        ],\n        \"total_in_words\": \"59 DOLARES CON 33 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 1,\n            \"description\": \"Pedido semanal de pan\",\n            \"quantity\": 50,\n            \"unit_measure\": 59,\n            \"unit_price\": 1.1,\n            \"discount\": 2.5,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 52.5,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 52.5,\n        \"sub_total\": 52.5,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 2.5,\n        \"total_operation\": 59.33,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 52.5,\n        \"total_to_pay\": 59.33,\n        \"operation_condition\": 2,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 6.83\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": null,\n                \"amount\": 59.33,\n                \"reference\": null,\n                \"term\": \"01\",\n                \"period\": 15\n            }\n        ],\n        \"total_in_words\": \"59 DOLARES CON 33 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2290,7 +2480,7 @@
 								"ccf"
 							]
 						},
-						"description": "Operacion a credito (operation_condition 2): cada forma de pago va con code null, amount 0.00, reference null, term (01 dias, 02 meses o 03 anios) y period mayor que cero. total_to_pay se mantiene con el valor real de la venta. Con code distinto de null la API responde CreditPaymentCodeNotAllowed; sin term, CreditPaymentTermRequired; sin period o con period 0, CreditPaymentPeriodRequired; con reference, CreditPaymentReferenceNotAllowed; con amount distinto de 0.00, InvalidCreditPaymentAmount."
+						"description": "Operacion a credito (operation_condition 2) en CCF: cada forma de pago va con code null, reference null, term (01 dias, 02 meses o 03 anios) y period mayor que cero, y la suma de los montos debe ser igual a total_to_pay (con un solo pago, amount = total_to_pay). Con amount 0.00 la API responde CreditPaymentTotalRequired; con code distinto de null, CreditPaymentCodeNotAllowed; sin term, CreditPaymentTermRequired; sin period o con period 0, CreditPaymentPeriodRequired; con reference, CreditPaymentReferenceNotAllowed."
 					},
 					"response": [],
 					"event": [
@@ -2523,6 +2713,64 @@
 							]
 						},
 						"description": "Muchos items."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "CCF con tributo 59 en ítems mixtos",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 2,\n            \"description\": \"Servicio de hospedaje\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 100,\n            \"discount\": 0,\n            \"code\": \"CCF-S01\",\n            \"taxes\": [\n                \"20\",\n                \"59\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 100,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        },\n        {\n            \"number\": 2,\n            \"type\": 1,\n            \"description\": \"Pan dulce caja\",\n            \"quantity\": 1,\n            \"unit_measure\": 59,\n            \"unit_price\": 50,\n            \"discount\": 0,\n            \"code\": \"CCF-001\",\n            \"taxes\": [\n                \"20\"\n            ],\n            \"non_subject_sale\": 0,\n            \"exempt_sale\": 0,\n            \"taxed_sale\": 50,\n            \"suggested_price\": 0,\n            \"non_taxed\": 0\n        }\n    ],\n    \"receiver\": {\n        \"name\": \"{{receptor_name}}\",\n        \"nrc\": \"{{receptor_nrc}}\",\n        \"nit\": \"{{receptor_nit}}\",\n        \"address\": {\n            \"department\": \"07\",\n            \"municipality\": \"18\",\n            \"district\": \"01\",\n            \"complement\": \"Avenida Jose Maria Rivas #25, Cojutepeque\"\n        },\n        \"phone\": \"22123456\",\n        \"email\": \"receptor.e2e@example.com\",\n        \"activity_code\": \"{{receptor_activity}}\",\n        \"activity_description\": \"{{receptor_activity_desc}}\"\n    },\n    \"model_type\": 1,\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 150,\n        \"sub_total\": 150,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 174.5,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 150,\n        \"total_to_pay\": 174.5,\n        \"operation_condition\": 1,\n        \"taxes\": [\n            {\n                \"code\": \"20\",\n                \"description\": \"Impuesto al Valor Agregado 13%\",\n                \"value\": 19.5\n            },\n            {\n                \"code\": \"59\",\n                \"description\": \"Turismo\",\n                \"value\": 5\n            }\n        ],\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 174.5\n            }\n        ],\n        \"total_in_words\": \"174 DOLARES CON 50 CENTAVOS\",\n        \"taxed_discount\": 0,\n        \"iva_perception\": 0,\n        \"iva_retention\": 0,\n        \"income_retention\": 0,\n        \"total_iva\": 0,\n        \"balance_in_favor\": 0\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/ccf",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"ccf"
+							]
+						},
+						"description": "El tributo 59 se calcula solo sobre la venta gravada de los items que lo llevan, sin dividir entre 1.13: round(100 x 0.05, 2) = 5.00. El item de tipo 1 solo admite el codigo 20, por eso el tributo de turismo va en el item de servicio (tipo 2). IVA = 150 x 0.13 = 19.50; total_operation = 150 + 19.50 + 5.00 = 174.50."
 					},
 					"response": [],
 					"event": [
@@ -3645,6 +3893,64 @@
 							]
 						},
 						"description": "Efectivo y transferencia."
+					},
+					"response": [],
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const json = pm.response.json();",
+									"pm.test('Hacienda otorgo sello de recepcion', function () {",
+									"    pm.expect(pm.response.code).to.eql(201);",
+									"    pm.expect(json.reception_stamp).to.be.a('string').and.not.empty;",
+									"});",
+									"pm.test('Respuesta es el Archivo DTE (firmaElectronica + selloRecibido)', function () {",
+									"    pm.expect(json.data.firmaElectronica).to.be.a('string').and.not.empty;",
+									"    pm.expect(json.data.selloRecibido).to.eql(json.reception_stamp);",
+									"});",
+									"const id = json.data && json.data.identificacion;",
+									"if (id) {",
+									"    pm.environment.set('generation_code', id.codigoGeneracion);",
+									"}"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Condicion credito con codigo de pago y monto 0.00",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"items\": [\n        {\n            \"number\": 1,\n            \"type\": 2,\n            \"description\": \"Servicio de limpieza\",\n            \"quantity\": 4,\n            \"unit_measure\": 59,\n            \"unit_price\": 10,\n            \"discount\": 0,\n            \"code\": \"FSE-001\",\n            \"purchase\": 40\n        }\n    ],\n    \"excluded_subject\": {\n        \"name\": \"Juan Carlos Perez\",\n        \"address\": {\n            \"department\": \"06\",\n            \"municipality\": \"20\",\n            \"district\": \"01\",\n            \"complement\": \"Colonia Escalon, Calle El Mirador #45, San Salvador\"\n        },\n        \"phone\": \"22345678\",\n        \"email\": \"juan@example.com\",\n        \"document_type\": \"13\",\n        \"document_number\": \"00000000-0\",\n        \"activity_code\": \"46900\",\n        \"activity_description\": \"Servicios profesionales\"\n    },\n    \"summary\": {\n        \"total_non_subject\": 0,\n        \"total_exempt\": 0,\n        \"total_taxed\": 0,\n        \"sub_total\": 40,\n        \"non_subject_discount\": 0,\n        \"exempt_discount\": 0,\n        \"discount_percentage\": 0,\n        \"total_discount\": 0,\n        \"total_operation\": 0,\n        \"total_non_taxed\": 0,\n        \"sub_total_sales\": 0,\n        \"total_to_pay\": 36,\n        \"operation_condition\": 2,\n        \"payment_types\": [\n            {\n                \"code\": \"01\",\n                \"amount\": 0,\n                \"reference\": null,\n                \"term\": \"01\",\n                \"period\": 15\n            }\n        ],\n        \"total_in_words\": \"36 DOLARES CON 00 CENTAVOS\",\n        \"total_purchase\": 40,\n        \"iva_retention\": 0,\n        \"income_retention\": 4\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/{{api_version}}/dte/fse",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"{{api_version}}",
+								"dte",
+								"fse"
+							]
+						},
+						"description": "Operacion a credito (operation_condition 2) en FSE: cada forma de pago lleva un code valido del catalogo (por ejemplo 01), amount 0.00, reference null, term (01 dias, 02 meses o 03 anios) y period mayor que cero. total_to_pay se mantiene con el valor real de la operacion. Con code null la API responde CreditPaymentCodeRequired; sin term, CreditPaymentTermRequired; sin period o con period 0, CreditPaymentPeriodRequired; con reference, CreditPaymentReferenceNotAllowed; con amount distinto de 0.00, InvalidCreditPaymentAmount."
 					},
 					"response": [],
 					"event": [

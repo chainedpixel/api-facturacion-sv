@@ -477,6 +477,15 @@ func NewCreditPayment(term string, period int) *models.PaymentType {
 	}
 }
 
+// NewCreditPaymentOf builds a credit payment with the given code and amount and the given term and period, the shape
+// required by DTE types whose credit contract carries a code or the total to pay
+func NewCreditPaymentOf(code string, amount float64, term string, period int) *models.PaymentType {
+	payment := NewCreditPayment(term, period)
+	payment.Code = *financial.NewValidatedPaymentType(code)
+	payment.Amount = *financial.NewValidatedAmount(amount)
+	return payment
+}
+
 // AddSummaryWithInvalidPayment adds a summary with invalid payments for testing
 func (b *DTEBuilder) AddSummaryWithInvalidPayment() *DTEBuilder {
 	b.AddSummary()

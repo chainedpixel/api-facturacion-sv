@@ -111,7 +111,7 @@ type CreditSummary struct {
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `TaxedDiscount` | `Amount` | Descuento aplicado al monto gravado |
-| `IVAPerception` | `Amount` | Percepción de IVA (1% del gravado, cuando aplica) |
+| `IVAPerception` | `Amount` | Percepción de IVA (1% del gravado menos el descuento global gravado, cuando aplica) |
 | `IVARetention` | `Amount` | Retención de IVA |
 | `BalanceInFavor` | `Amount` | Saldo a favor del contribuyente |
 | `IncomeRetention` | `Amount` | Retención de renta |
@@ -141,7 +141,9 @@ Reglas del resumen que valida `CCFTaxStrategy`:
 - Los totales del resumen (gravado, exento, no sujeto) deben coincidir con la suma de los ítems.
 - Cada descuento no puede exceder su base.
 - Si el gravado es mayor que cero debe existir IVA (código `20`); si es cero no pueden existir impuestos en el resumen.
-- Si `IVAPerception` es distinto de cero, debe corresponder al 1% del gravado.
+- Si `IVAPerception` es distinto de cero, debe corresponder al 1% del gravado menos el descuento global gravado: `round(1% x (TotalTaxed - TaxedDiscount), 2)`.
+- Los códigos de tributo `59` y `71` deben ser consistentes entre los ítems con venta gravada y el resumen (`MissingSummaryTax`, `MissingItemTaxForSummary`). El tributo `59` se calcula sobre la venta gravada de los ítems que llevan el código (`PercentageTaxAmount`).
+- Con condición de operación crédito (2), `PaymentTotalStrategy` exige código y referencia `null` en cada pago y que la suma de los pagos coincida con el total a pagar (`CreditPaymentTotalRequired`), además de plazo y período.
 - `IncomeRetention` debe ser cero: la retención de renta no se admite en el CCF.
 - El total a pagar suma el monto total de la operación, `IVAPerception` y `TotalNonTaxed`, y resta `IVARetention`; si el resultado es negativo se espera `0.00`.
 - `TotalNonTaxed` del resumen debe igualar la suma de `NonTaxed` de los ítems.
@@ -207,7 +209,9 @@ Se admiten hasta 50 documentos relacionados (`ExceededRelatedDocsLimit`). Si exi
 | `InvalidMixedSalesWithNonTaxed` | Ítem con NonTaxed mezclado con otros tipos de venta |
 | `InvalidTotalToPayCalculation` | Total a pagar incorrecto |
 | `IncomeRetentionNotAllowed` | Retención de renta distinta de cero |
-| `InvalidPerceptionAmount` | Percepción de IVA distinta del 1% del gravado |
+| `InvalidPerceptionAmount` | Percepción de IVA distinta del 1% del gravado menos el descuento global gravado |
+| `MissingSummaryTax`, `MissingItemTaxForSummary` | Tributo `59` o `71` sin correspondencia entre ítems con venta gravada y resumen |
+| `CreditPaymentTotalRequired` | Crédito (2) con suma de pagos distinta del total a pagar |
 | `InvalidTaxCalculation` | Impuesto del resumen distinto del esperado |
 
 ---
@@ -225,6 +229,6 @@ Se admiten hasta 50 documentos relacionados (`ExceededRelatedDocsLimit`). Si exi
 ## Notas
 
 1. **IVA separado**: Es la diferencia fundamental con factura. El IVA se calcula sobre `(TotalTaxed - TaxedDiscount)`, no sobre cada ítem individual.
-2. **Percepción**: Es un cargo adicional del 1% del gravado que se aplica en ciertos casos. Se suma al total a pagar.
+2. **Percepción**: Es un cargo adicional del 1% del gravado menos el descuento global gravado que se aplica en ciertos casos. Se suma al total a pagar.
 3. **Receptor estricto**: Siempre se verifica NRC, código y descripción de actividad económica.
 4. **Documentos relacionados**: Se restringen a tipos específicos (`04`, `08`, `09`) a diferencia de factura.

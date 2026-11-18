@@ -230,7 +230,7 @@ func validateDatabaseFields() error {
 // validateRedisFields validates the fields of the Redis struct
 func validateRedisFields() error {
 	v := reflect.ValueOf(EnvConfig.Redis)
-	ex := []string{strings.ToUpper("PASSWORD")}
+	ex := []string{strings.ToUpper("PASSWORD"), strings.ToUpper("PREFIX")}
 
 	if err := validateEnvVariables(v, nil, ex); err != nil {
 		return err

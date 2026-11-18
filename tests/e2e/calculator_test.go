@@ -32,6 +32,8 @@ type itemSpec struct {
 	kind        saleKind
 	charge      float64 // monto del cargo cuando kind = nonTaxedCharge
 	unitMeasure int     // CAT-014; 59 (unidad) si no se indica
+	// withoutExtraTax omite el tributo adicional de este item: no lo lleva en el item ni entra en la base del resumen
+	withoutExtraTax bool
 }
 
 type globalDiscounts struct {
@@ -45,7 +47,7 @@ type creditTerms struct {
 	term   string // CAT-018: 01 dias, 02 meses, 03 anios
 }
 
-// extraTax es un tributo adicional del resumen (por ejemplo 59, turismo 5% sobre ventas gravadas)
+// extraTax es un tributo adicional del resumen (por ejemplo 59, turismo 5% sobre ventas gravadas sin IVA)
 type extraTax struct {
 	code        string
 	description string
@@ -77,6 +79,13 @@ func r2(v decimal.Decimal) float64      { return v.Round(2).InexactFloat64() }
 func str(v string) *string              { return &v }
 func intPtr(v int) *int                 { return &v }
 func code(prefix string, i int) *string { return str(fmt.Sprintf("%s-%03d", prefix, i)) }
+
+// extraTaxBase es la base de un tributo porcentual adicional en la FE: el monto gravado sin IVA de los items que lo
+// llevan, antes del descuento global.
+// Es el unico lugar a ajustar si Hacienda confirma otra base.
+func extraTaxBase(taxed decimal.Decimal) decimal.Decimal {
+	return taxed.Div(ivaDivisor)
+}
 
 // itemSale: (precioUni x cantidad) - montoDescu, con 8 decimales
 func itemSale(item itemSpec) decimal.Decimal {
@@ -150,12 +159,31 @@ func discountSummary(totals saleTotals, global globalDiscounts) (subTotal, total
 	return subTotal, totalDiscount, percentage
 }
 
-// payments splits the total among the payment methods; a credit sale sends one payment with a null code, a 0.00
-// amount, a null reference, a term and a period
-func payments(total float64, opts documentOptions) []structs.PaymentRequest {
+// creditPaymentShape is the payment a DTE type sends on credit: the payment method code (empty for null) and whether
+// the amount is the total to pay instead of 0.00; the term and the period are always sent
+type creditPaymentShape struct {
+	code          string
+	amountIsTotal bool
+}
+
+// creditPaymentShapes mirrors the credit payment policy by DTE type; types that are not listed send a null code and
+// a 0.00 amount
+var creditPaymentShapes = map[string]creditPaymentShape{
+	"03": {code: "", amountIsTotal: true},
+	"14": {code: "01", amountIsTotal: false},
+}
+
+// payments splits the total among the payment methods; a credit sale sends one payment shaped by the DTE type with
+// a null reference, a term and a period
+func payments(dteType string, total float64, opts documentOptions) []structs.PaymentRequest {
 	if opts.credit != nil {
 		period, term := opts.credit.period, opts.credit.term
-		return []structs.PaymentRequest{{Amount: 0, Period: &period, Term: &term}}
+		shape := creditPaymentShapes[dteType]
+		amount := 0.0
+		if shape.amountIsTotal {
+			amount = total
+		}
+		return []structs.PaymentRequest{{Code: shape.code, Amount: amount, Period: &period, Term: &term}}
 	}
 	codes := opts.paymentCodes
 	if len(codes) == 0 {
@@ -206,7 +234,7 @@ type invoiceSpec struct {
 
 func buildInvoice(spec invoiceSpec) *structs.CreateInvoiceRequest {
 	var totals saleTotals
-	var sumIVA decimal.Decimal
+	var sumIVA, taxedWithExtraTax decimal.Decimal
 	items := make([]structs.InvoiceItemRequest, 0, len(spec.items))
 
 	for i, it := range spec.items {
@@ -221,8 +249,9 @@ func buildInvoice(spec invoiceSpec) *structs.CreateInvoiceRequest {
 			iva := sale.Div(ivaDivisor).Mul(ivaRate).Round(8) // ivaItem = (ventaGravada / 1.13) x 13%
 			req.IVAItem = r8(iva)
 			sumIVA = sumIVA.Add(iva)
-			if spec.extraTax != nil {
+			if spec.extraTax != nil && !it.withoutExtraTax {
 				req.Taxes = []string{spec.extraTax.code}
+				taxedWithExtraTax = taxedWithExtraTax.Add(sale)
 			}
 		}
 		items = append(items, req)
@@ -240,8 +269,8 @@ func buildInvoice(spec invoiceSpec) *structs.CreateInvoiceRequest {
 
 	var taxes []structs.TaxRequest
 	totalOperation := subTotal // montoTotalOperacion = subTotal + tributos (campo 150)
-	if spec.extraTax != nil && totals.taxed.GreaterThan(decimal.Zero) {
-		value := totals.taxed.Round(2).Mul(d(spec.extraTax.rate)).Round(2)
+	if spec.extraTax != nil && taxedWithExtraTax.GreaterThan(decimal.Zero) {
+		value := extraTaxBase(taxedWithExtraTax.Round(2)).Mul(d(spec.extraTax.rate)).Round(2)
 		taxes = []structs.TaxRequest{{Code: spec.extraTax.code, Description: spec.extraTax.description, Value: r2(value)}}
 		totalOperation = totalOperation.Add(value)
 	}
@@ -256,7 +285,7 @@ func buildInvoice(spec invoiceSpec) *structs.CreateInvoiceRequest {
 			ExemptDiscount: spec.global.exempt, DiscountPercentage: r2(percentage),
 			TotalDiscount: r2(totalDiscount), SubTotal: r2(subTotal), TotalOperation: r2(totalOperation),
 			TotalNonTaxed: r2(totals.nonTaxed), TotalToPay: toPay, OperationCondition: operationCondition(spec.opts),
-			Taxes: taxes, PaymentTypes: payments(toPay, spec.opts), TotalInWords: str(amountInWords(toPay)),
+			Taxes: taxes, PaymentTypes: payments("01", toPay, spec.opts), TotalInWords: str(amountInWords(toPay)),
 		},
 		TaxedDiscount: spec.global.taxed,
 		IVARetention:  r2(ivaRetention),
@@ -279,7 +308,7 @@ type ccfSpec struct {
 	receiver      *structs.ReceiverRequest
 	items         []itemSpec
 	global        globalDiscounts
-	ivaPerception bool // 1% sobre total gravado (como lo calcula el validador; VERIFICAR guia 3.7)
+	ivaPerception bool // 1% sobre el total gravado neto del descuento global a ventas gravadas
 	ivaRetention  bool // 1% sobre gravado neto del descuento global
 	opts          documentOptions
 }
@@ -314,7 +343,7 @@ func buildCCF(spec ccfSpec) *structs.CreateCreditFiscalRequest {
 
 	var perception, retention decimal.Decimal
 	if spec.ivaPerception {
-		perception = totals.taxed.Round(2).Mul(onePercent).Round(2)
+		perception = taxedNet.Mul(onePercent).Round(2)
 	}
 	if spec.ivaRetention {
 		retention = taxedNet.Mul(onePercent).Round(2)
@@ -330,7 +359,7 @@ func buildCCF(spec ccfSpec) *structs.CreateCreditFiscalRequest {
 			ExemptDiscount: spec.global.exempt, DiscountPercentage: r2(percentage),
 			TotalDiscount: r2(totalDiscount), SubTotal: r2(subTotal), TotalOperation: r2(totalOperation),
 			TotalNonTaxed: r2(totals.nonTaxed), TotalToPay: toPay, OperationCondition: operationCondition(spec.opts),
-			Taxes: taxes, PaymentTypes: payments(toPay, spec.opts), TotalInWords: str(amountInWords(toPay)),
+			Taxes: taxes, PaymentTypes: payments("03", toPay, spec.opts), TotalInWords: str(amountInWords(toPay)),
 		},
 		TaxedDiscount: spec.global.taxed,
 		IVAPerception: r2(perception),
@@ -432,7 +461,7 @@ func adjustmentSummary(a adjustmentAmounts) structs.SummaryRequest {
 		TotalNonSubject: a.nonSubject, TotalExempt: a.exempt, TotalTaxed: a.taxed,
 		SubTotalSales: a.subTotal, SubTotal: a.subTotal, TotalDiscount: a.itemDiscount,
 		TotalNonTaxed: a.nonTaxed, TotalOperation: a.operation, TotalToPay: a.toPay, OperationCondition: 1,
-		Taxes: a.taxes, PaymentTypes: payments(a.toPay, documentOptions{}), TotalInWords: str(amountInWords(a.toPay)),
+		Taxes: a.taxes, PaymentTypes: payments("", a.toPay, documentOptions{}), TotalInWords: str(amountInWords(a.toPay)),
 	}
 }
 
@@ -476,6 +505,7 @@ type fseSpec struct {
 	globalDiscount  float64 // descu
 	incomeRetention float64 // tasa, por ejemplo 0.10 (VERIFICAR con el contador, guia 3.11)
 	paymentCodes    []string
+	credit          *creditTerms
 }
 
 func buildFSE(spec fseSpec) *structs.CreateFSERequest {
@@ -491,6 +521,7 @@ func buildFSE(spec fseSpec) *structs.CreateFSERequest {
 	subTotal := totalPurchase.Round(2).Sub(d(spec.globalDiscount)) // subTotal = totalCompra - descu
 	retention := subTotal.Mul(d(spec.incomeRetention)).Round(2)
 	toPay := r2(subTotal.Sub(retention)) // totalPagar = subTotal - reteRenta
+	opts := documentOptions{paymentCodes: spec.paymentCodes, credit: spec.credit}
 
 	return &structs.CreateFSERequest{
 		Receiver: spec.receiver, Items: items,
@@ -498,8 +529,8 @@ func buildFSE(spec fseSpec) *structs.CreateFSERequest {
 			SummaryRequest: structs.SummaryRequest{
 				NonSubjectDiscount: spec.globalDiscount, // el mapper de FSE usa este campo como "descu"
 				TotalDiscount:      r2(itemDiscounts.Add(d(spec.globalDiscount))),
-				SubTotal:           r2(subTotal), TotalToPay: toPay, OperationCondition: 1,
-				PaymentTypes: payments(toPay, documentOptions{paymentCodes: spec.paymentCodes}),
+				SubTotal:           r2(subTotal), TotalToPay: toPay, OperationCondition: operationCondition(opts),
+				PaymentTypes: payments("14", toPay, opts),
 				TotalInWords: str(amountInWords(toPay)),
 			},
 			TotalPurchase:   r2(totalPurchase),

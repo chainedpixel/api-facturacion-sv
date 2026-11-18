@@ -164,28 +164,28 @@ La fórmula de cada tributo está en [calculations.md](./calculations.md#36-trib
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `code` | string | Condicional | Código de forma de pago: `"01"` a `"14"` o `"99"` (CAT-017). Obligatorio con condición `1` o `3`; con condición `2` debe ir `null` |
-| `amount` | float | Sí | Monto (2 decimales). Con condición `2` debe enviarse `0.00` |
+| `amount` | float | Sí | Monto (2 decimales). Con condición `2` la suma de los pagos debe ser igual a `total_to_pay` |
 | `period` | integer | Condicional | Número de días, meses o años del plazo, mayor que cero. Obligatorio con condición `2` |
 | `term` | string | Condicional | Plazo (`"01"`, `"02"` o `"03"`, CAT-018). Obligatorio con condición `2` |
 | `reference` | string | No | Referencia del pago. Con condición `2` debe ir `null` |
 
 **Reglas con condición `2` (crédito)**, por cada forma de pago:
 - `code` debe ir `null` (`CreditPaymentCodeNotAllowed`).
-- `amount` debe ser exactamente `0.00` (`InvalidCreditPaymentAmount`). No se compara la suma con `total_to_pay`.
+- La suma de los `amount` debe ser igual a `total_to_pay` (±0.01; `CreditPaymentTotalRequired`, parámetros: suma enviada y total a pagar). En el ambiente de pruebas de Hacienda (2026-11-16) un CCF a crédito con monto `0.00` se sella con la observación `resumen.pagos.montoPago Forma de pago difiere del Total a Pagar.`, y el proyecto no acepta documentos con observaciones.
 - `reference` debe ir `null` (`CreditPaymentReferenceNotAllowed`).
 - `term` es obligatorio (`CreditPaymentTermRequired`).
 - `period` es obligatorio y mayor que cero (`CreditPaymentPeriodRequired`).
 - Se requiere al menos una forma de pago: una lista vacía con `total_to_pay` mayor que 0 se rechaza con `InvalidPaymentTotal`.
 
-Ejemplo de forma de pago a crédito a 30 días:
+Ejemplo de forma de pago a crédito a 30 días, con `total_to_pay` de 113.00:
 
 ```json
 "payment_types": [
-  { "code": null, "amount": 0.00, "reference": null, "term": "01", "period": 30 }
+  { "code": null, "amount": 113.00, "reference": null, "term": "01", "period": 30 }
 ]
 ```
 
-En el JSON transmitido a Hacienda la forma de pago queda con `codigo` y `referencia` en `null`, `montoPago` en `0.00`, y `plazo` y `periodo` informados.
+En el JSON transmitido a Hacienda la forma de pago queda con `codigo` y `referencia` en `null`, `montoPago` igual al total a pagar, y `plazo` y `periodo` informados.
 
 **Reglas con condición `1` (contado) o `3` (otro):**
 - `code` es obligatorio en cada forma de pago (`PaymentCodeRequired`).
@@ -270,11 +270,12 @@ El sello de recepción **no** se agrega al apéndice: se entrega en el Archivo D
 
 Las fórmulas completas y sus tolerancias están en [calculations.md](./calculations.md): venta por ítem ([2.1](./calculations.md#21-venta-por-ítem-anexo-iv-campos-90-a-92-y-95)), totales de operaciones ([3.2](./calculations.md#32-totales-de-operaciones-campos-123-a-125-y-127)), suma de operaciones ([3.3](./calculations.md#33-suma-de-operaciones-campo-129)), descuentos globales ([3.4](./calculations.md#34-descuentos-globales-campos-130-a-135)), subtotal ([3.5](./calculations.md#35-subtotal-campo-139)), tributos del resumen ([3.6](./calculations.md#36-tributos-del-resumen-campos-136-a-138)), IVA percibido ([3.8](./calculations.md#38-iva-percibido-iva-retenido-y-retención-de-renta)), monto total de la operación ([3.9](./calculations.md#39-monto-total-de-la-operación-campo-150)), total a pagar ([3.10](./calculations.md#310-total-a-pagar-campo-153)) y pagos ([3.11](./calculations.md#311-pagos)). El redondeo (regla 7.2) y la holgura de ±0.01 (regla 7.3, Cuadros 1, 2 y 3) de la Normativa de Cumplimiento DTE v2.0 se describen en las secciones [1.1](./calculations.md#11-decimales-y-redondeo) y [1.2](./calculations.md#12-holgura). Resumen de las reglas que se validan:
 
-- **Diferencia clave respecto a la FE:** el IVA (`20`) del resumen se calcula sobre la base gravada **después** del descuento global: `(total_taxed - taxed_discount) × 0.13` (±0.01). Los demás tributos se calculan sobre `total_taxed`.
+- **Diferencia clave respecto a la FE:** el IVA (`20`) del resumen se calcula sobre la base gravada **después** del descuento global: `(total_taxed - taxed_discount) × 0.13` (±0.01). El tributo `59` se calcula sobre la venta gravada de los ítems que llevan el código `59`: `round(Σ taxed_sale × 0.05, 2)` (±0.01), sin restar el descuento global y sin dividir entre `1.13`, porque los precios del CCF no incluyen IVA. Los ítems sin el código no intervienen. Los tributos de turismo (`59`, `71`) solo pueden ir en ítems de tipo `2` (Servicio) o `3`, porque los ítems de tipo `1` solo admiten `20` (`InvalidTaxCodeOnly20`).
+- Los códigos `59` y `71` deben ser consistentes entre los ítems con venta gravada y el resumen: un ítem con venta gravada que lleva el código sin entrada en `taxes` se rechaza con `MissingSummaryTax`, y una entrada del resumen sin ítem con venta gravada que la lleve se rechaza con `MissingItemTaxForSummary`.
 - Venta del ítem = `(unit_price × quantity) - discount` (±0.01; Anexo IV, campos 90 a 92).
 - `total_taxed` debe coincidir con la suma de `taxed_sale` (±0.01); `total_exempt`, `total_non_subject` y `total_non_taxed` deben coincidir exactamente con la suma de los ítems (Anexo IV, campos 123 a 125 y 151).
 - `sub_total_sales`, `sub_total` y `total_operation` se validan con la fórmula de CCF (±0.01; campos 129, 139 y 150).
-- `iva_perception`, cuando es distinto de `0`, debe ser `total_taxed × 0.01` (±0.01; campo 141).
+- `iva_perception`, cuando es distinto de `0`, debe ser `(total_taxed - taxed_discount) × 0.01`, redondeado a 2 decimales (±0.01; campo 141).
 - `total_to_pay` = `total_operation + iva_perception - iva_retention + total_non_taxed` (±0.01; si resulta negativo se ingresa `0.00`; campo 153, reglas 2 y 7).
 - La suma de pagos debe coincidir con `total_to_pay` (campo 161, regla 4).
 
@@ -477,7 +478,8 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `MissingTaxes`, `MissingIVAForTaxedAmount` | `total_taxed > 0` sin tributos, o sin el tributo `20` con valor > 0 |
 | `InvalidTaxes` | Hay tributos en el resumen con `total_taxed = 0` |
 | `InvalidTaxCalculation` | Un tributo no coincide con su cálculo esperado |
-| `InvalidPerceptionAmount` | `iva_perception` no coincide con `total_taxed × 0.01` |
+| `InvalidPerceptionAmount` | `iva_perception` no coincide con `(total_taxed - taxed_discount) × 0.01` |
+| `MissingSummaryTax`, `MissingItemTaxForSummary` | Los tributos `59` o `71` no son consistentes entre los ítems con venta gravada y el resumen |
 | `InvalidTotalOperation` | `total_operation` no coincide con `sub_total` más tributos |
 | `IncomeRetentionNotAllowed` | `income_retention ≠ 0` |
 | `InvalidTotalToPayCalculation` | `total_to_pay` no coincide con la fórmula esperada |
@@ -495,7 +497,7 @@ Con la depuración activa del servidor, los mensajes de validación se prefijan 
 | `InvalidNumberRange` | `unit_measure` fuera de 1–99 |
 | `InvalidPaymentTermsOF` | Condición `1` sin pago en efectivo y con `period` o `term` informados |
 | `InvalidPaymentTotal` | La suma de pagos no coincide con `total_to_pay` |
-| `InvalidCreditPaymentAmount` | Con condición `2` algún `amount` de pago es distinto de `0.00` |
+| `CreditPaymentTotalRequired` | Con condición `2` la suma de los pagos no coincide con `total_to_pay` |
 | `CreditPaymentCodeNotAllowed` | Con condición `2` una forma de pago trae `code` |
 | `CreditPaymentReferenceNotAllowed` | Con condición `2` una forma de pago trae `reference` |
 | `CreditPaymentTermRequired` | Con condición `2` una forma de pago no trae `term` |

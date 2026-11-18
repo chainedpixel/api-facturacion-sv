@@ -20,6 +20,7 @@ type RedisTokenCache struct {
 	client       *redis.Client
 	cryptService ports.CryptManager
 	ctx          context.Context
+	prefix       string
 }
 
 // NewRedisTokenCache creates a new instance of RedisTokenCache
@@ -65,12 +66,13 @@ func NewRedisTokenCache(config *config.RedisConfig, cryptService ports.CryptMana
 		client:       client,
 		cryptService: cryptService,
 		ctx:          ctx,
+		prefix:       config.KeyPrefix(),
 	}, nil
 }
 
 // Set stores a token in Redis with a given time-to-live
 func (c *RedisTokenCache) Set(key string, saveInfo []byte, ttl time.Duration) error {
-	err := c.client.Set(c.ctx, key, saveInfo, ttl).Err()
+	err := c.client.Set(c.ctx, c.key(key), saveInfo, ttl).Err()
 	if err != nil {
 		logs.Error("Failed to set value in Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -107,7 +109,7 @@ func (c *RedisTokenCache) SetCredentials(token string, creds *models.HaciendaCre
 		)
 	}
 
-	err = c.client.Set(c.ctx, key, encryptStruct, ttl).Err()
+	err = c.client.Set(c.ctx, c.key(key), encryptStruct, ttl).Err()
 	if err != nil {
 		logs.Error("Failed to set credentials in Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -129,7 +131,7 @@ func (c *RedisTokenCache) SetCredentials(token string, creds *models.HaciendaCre
 
 // Get retrieves a token from Redis and converts it into AuthClaims
 func (c *RedisTokenCache) Get(key string) (string, error) {
-	cacheInfo, err := c.client.Get(c.ctx, key).Result()
+	cacheInfo, err := c.client.Get(c.ctx, c.key(key)).Result()
 	if errors.Is(err, redis.Nil) {
 		logs.Error("Token not found in Redis", map[string]interface{}{
 			"key": redactKey(key),
@@ -160,7 +162,7 @@ func (c *RedisTokenCache) Get(key string) (string, error) {
 func (c *RedisTokenCache) GetCredentials(token string) (*models.HaciendaCredentials, error) {
 	key := fmt.Sprintf("hacienda:credentials:%s", token)
 
-	cipherStruct, err := c.client.Get(c.ctx, key).Result()
+	cipherStruct, err := c.client.Get(c.ctx, c.key(key)).Result()
 	if errors.Is(err, redis.Nil) {
 		logs.Error("Token not found in Redis", map[string]interface{}{
 			"key": redactKey(key),
@@ -205,7 +207,7 @@ func (c *RedisTokenCache) GetCredentials(token string) (*models.HaciendaCredenti
 // Delete removes a token from Redis
 func (c *RedisTokenCache) Delete(token string) error {
 	key := "token:" + token
-	err := c.client.Del(c.ctx, key).Err()
+	err := c.client.Del(c.ctx, c.key(key)).Err()
 	if err != nil {
 		logs.Error("Failed to delete token from Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -245,7 +247,7 @@ func (c *RedisTokenCache) Close() error {
 }
 
 func (c *RedisTokenCache) RPush(key string, value []byte) error {
-	err := c.client.RPush(c.ctx, key, value).Err()
+	err := c.client.RPush(c.ctx, c.key(key), value).Err()
 	if err != nil {
 		logs.Error("Failed to RPush value to Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -266,7 +268,7 @@ func (c *RedisTokenCache) RPush(key string, value []byte) error {
 }
 
 func (c *RedisTokenCache) LPush(key string, value []byte) error {
-	err := c.client.LPush(c.ctx, key, value).Err()
+	err := c.client.LPush(c.ctx, c.key(key), value).Err()
 	if err != nil {
 		logs.Error("Failed to LPush value to Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -287,7 +289,7 @@ func (c *RedisTokenCache) LPush(key string, value []byte) error {
 }
 
 func (c *RedisTokenCache) LRange(key string, start, stop int64) ([]string, error) {
-	result, err := c.client.LRange(c.ctx, key, start, stop).Result()
+	result, err := c.client.LRange(c.ctx, c.key(key), start, stop).Result()
 	if err != nil {
 		logs.Error("Failed to get range from Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -305,7 +307,7 @@ func (c *RedisTokenCache) LRange(key string, start, stop int64) ([]string, error
 }
 
 func (c *RedisTokenCache) LLen(key string) (int64, error) {
-	length, err := c.client.LLen(c.ctx, key).Result()
+	length, err := c.client.LLen(c.ctx, c.key(key)).Result()
 	if err != nil {
 		logs.Error("Failed to get list length from Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -323,7 +325,7 @@ func (c *RedisTokenCache) LLen(key string) (int64, error) {
 }
 
 func (c *RedisTokenCache) LTrim(key string, start, stop int64) error {
-	err := c.client.LTrim(c.ctx, key, start, stop).Err()
+	err := c.client.LTrim(c.ctx, c.key(key), start, stop).Err()
 	if err != nil {
 		logs.Error("Failed to trim list in Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -345,7 +347,7 @@ func (c *RedisTokenCache) LTrim(key string, start, stop int64) error {
 
 // Expire sets a time-to-live on an existing Redis key
 func (c *RedisTokenCache) Expire(key string, ttl time.Duration) error {
-	err := c.client.Expire(c.ctx, key, ttl).Err()
+	err := c.client.Expire(c.ctx, c.key(key), ttl).Err()
 	if err != nil {
 		logs.Error("Failed to set expiration in Redis", map[string]interface{}{
 			"key":   redactKey(key),
@@ -367,7 +369,7 @@ func (c *RedisTokenCache) ScanKeys(pattern string) ([]string, error) {
 	var cursor uint64
 
 	for {
-		keys, nextCursor, err := c.client.Scan(c.ctx, cursor, pattern, 100).Result()
+		keys, nextCursor, err := c.client.Scan(c.ctx, cursor, c.key(pattern), 100).Result()
 		if err != nil {
 			logs.Error("Failed to scan keys in Redis", map[string]interface{}{
 				"pattern": pattern,
@@ -381,7 +383,9 @@ func (c *RedisTokenCache) ScanKeys(pattern string) ([]string, error) {
 			)
 		}
 
-		allKeys = append(allKeys, keys...)
+		for _, scanned := range keys {
+			allKeys = append(allKeys, strings.TrimPrefix(scanned, c.prefix))
+		}
 		cursor = nextCursor
 
 		if cursor == 0 {
@@ -390,6 +394,11 @@ func (c *RedisTokenCache) ScanKeys(pattern string) ([]string, error) {
 	}
 
 	return allKeys, nil
+}
+
+// key prepends the configured namespace so every instance only touches its own keys.
+func (c *RedisTokenCache) key(logicalKey string) string {
+	return c.prefix + logicalKey
 }
 
 func (c *RedisTokenCache) GetRedisClient() *redis.Client {

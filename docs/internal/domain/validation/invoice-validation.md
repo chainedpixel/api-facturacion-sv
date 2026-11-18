@@ -59,7 +59,7 @@ Orden interno: base de totales, IVA y tributos, montos monetarios, totales; lueg
 
 ### Tributos del Resumen
 
-Si `TotalTaxed = 0` y existen tributos → `InvalidTaxes`. Si `TotalTaxed > 0`, cada tributo del resumen se valida con la fórmula del código (ver [Cálculos, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138); `InvalidTaxCalculation`), con base `TotalTaxed` (sin restar el descuento).
+Si `TotalTaxed = 0` y existen tributos → `InvalidTaxes`. Si `TotalTaxed > 0`, cada tributo del resumen se valida con la fórmula del código (ver [Cálculos, sección 3.6](../../../api/calculations.md#36-tributos-del-resumen-campos-136-a-138); `InvalidTaxCalculation`). El tributo `59` usa como base la venta gravada de los ítems que llevan el código `59` dividida entre `1.13` (los precios de la FE incluyen IVA; `PercentageTaxBase` y `taxedAmountWithTax`), sin restar el descuento global: `round(base / 1.13 * 0.05, 2)`. Los códigos `59` y `71` deben ser consistentes entre los ítems con venta gravada y el resumen (`ValidateSummaryTaxConsistency`): `MissingSummaryTax` o `MissingItemTaxForSummary`, con el código como parámetro.
 
 En FE los tributos del resumen **no** incluyen `20` ni `C3` (`TaxNotAllowedInInvoiceSummary`, en la estrategia de totales) porque el IVA va incluido en el precio.
 
@@ -135,6 +135,7 @@ Los mensajes están en `assets/i18n/es.yaml`.
 | `InvalidSubTotalSales` | Suma de operaciones incorrecta |
 | `InvalidSubTotalCalculation`, `InvalidSubTotal` | Subtotal incorrecto (dos estrategias) |
 | `InvalidTaxes`, `InvalidTaxCalculation` | Tributos presentes sin venta gravada; valor del tributo incorrecto |
+| `MissingSummaryTax`, `MissingItemTaxForSummary` | Tributo `59` o `71` sin correspondencia entre ítems con venta gravada y resumen |
 | `InvalidTotalIVA`, `MissingIVAForTaxedAmount` | `TotalIva` incorrecto o ausente |
 | `NegativeDiscount`, `DiscountExceedsBase`, `DiscountExceedsSubtotal` | Descuento negativo o mayor que su base |
 | `InvalidTotalOperation` | `TotalOperation` incorrecto |

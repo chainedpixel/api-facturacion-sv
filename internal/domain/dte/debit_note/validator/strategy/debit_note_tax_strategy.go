@@ -182,6 +182,15 @@ func (s *DebitNoteTaxStrategy) validateIVA() *dte_errors.DTEError {
 		return dte_errors.NewDTEErrorSimple("MissingTaxes")
 	}
 
+	itemTaxes := make([]commonStrategy.ItemTaxes, 0, len(s.Document.DebitItems))
+	for _, item := range s.Document.DebitItems {
+		itemTaxes = append(itemTaxes, commonStrategy.NewItemTaxes(item.TaxedSale.GetValue(), item.GetTaxes()))
+	}
+	if err := commonStrategy.ValidateSummaryTaxConsistency(itemTaxes, s.Document.DebitSummary.TotalTaxes); err != nil {
+		logs.Error("Inconsistent summary taxes")
+		return err
+	}
+
 	for _, tax := range s.Document.DebitSummary.TotalTaxes {
 		var expectedTax decimal.Decimal
 
@@ -191,7 +200,7 @@ func (s *DebitNoteTaxStrategy) validateIVA() *dte_errors.DTEError {
 		case constants.TaxIVAExport:
 			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxIVAExportAmount))
 		case constants.TaxTourism:
-			expectedTax = baseTaxed.Mul(decimal.NewFromFloat(constants.TaxTourismAmount))
+			expectedTax = commonStrategy.PercentageTaxAmount(false, itemTaxes, tax.GetCode(), constants.TaxTourismAmount)
 		case constants.TaxTourismAirport:
 			expectedTax = decimal.NewFromFloat(constants.TaxTourismAirportAmount)
 		case constants.TaxSpecialOther:
@@ -217,20 +226,8 @@ func (s *DebitNoteTaxStrategy) validateIVA() *dte_errors.DTEError {
 }
 
 func (s *DebitNoteTaxStrategy) validatePerception() *dte_errors.DTEError {
-	if s.Document.DebitSummary.IVAPerception.GetValue() != 0 {
-		baseTaxed := decimal.NewFromFloat(s.Document.DebitSummary.TotalTaxed.GetValue())
-		expectedPerception := baseTaxed.Mul(decimal.NewFromFloat(0.01))
-		actualPerception := decimal.NewFromFloat(s.Document.DebitSummary.IVAPerception.GetValue())
-
-		diff := expectedPerception.Sub(actualPerception).Abs()
-		if diff.GreaterThan(decimal.NewFromFloat(0.01)) {
-			return dte_errors.NewDTEErrorSimple("InvalidPerceptionAmount",
-				actualPerception.StringFixed(2),
-				expectedPerception.StringFixed(2))
-		}
-	}
-
-	return nil
+	return commonStrategy.ValidateIVAPerception(s.Document.DebitSummary.TotalTaxed.GetValue(),
+		s.Document.DebitSummary.TaxedDiscount.GetValue(), s.Document.DebitSummary.IVAPerception.GetValue())
 }
 
 func (s *DebitNoteTaxStrategy) validateTotalAmounts() *dte_errors.DTEError {
